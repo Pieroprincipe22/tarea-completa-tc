@@ -1,0 +1,345 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customers            Customer[]
+  sites                Site[]
+  contacts             Contact[]
+  assets               Asset[]
+  maintenanceTemplates MaintenanceTemplate[]
+  maintenanceReports   MaintenanceReport[]
+  userCompanies        UserCompany[]
+
+  // Work Orders
+  workOrders WorkOrder[]
+  counter    CompanyCounter?
+
+  @@index([createdAt])
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  companies UserCompany[]
+
+  // Maintenance Reports (relación nombrada)
+  maintenanceReportsCreated MaintenanceReport[] @relation("MaintenanceReportCreatedBy")
+
+  // Work Orders (relaciones nombradas)
+  workOrdersCreated  WorkOrder[] @relation("WorkOrderCreatedBy")
+  workOrdersAssigned WorkOrder[] @relation("WorkOrderAssignedTo")
+}
+
+model UserCompany {
+  id        String @id @default(uuid())
+  companyId String
+  userId    String
+  role      String
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([companyId, userId])
+  @@index([companyId])
+  @@index([userId])
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sites   Site[]
+
+  // Paso 31
+  maintenanceReports MaintenanceReport[]
+
+  // Work Orders
+  workOrders WorkOrder[]
+
+  @@index([companyId])
+}
+
+model Site {
+  id         String @id @default(uuid())
+  companyId  String
+  customerId String
+
+  name    String
+  address String?
+  notes   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer Customer  @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  contacts Contact[]
+  assets   Asset[]
+
+  // Paso 31
+  maintenanceReports MaintenanceReport[]
+
+  // Work Orders
+  workOrders WorkOrder[]
+
+  @@index([companyId])
+  @@index([customerId])
+}
+
+model Contact {
+  id        String @id @default(uuid())
+  companyId String
+  siteId    String
+
+  name   String
+  email  String?
+  phone  String?
+  isMain Boolean @default(false)
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  site    Site    @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([siteId])
+}
+
+model Asset {
+  id        String @id @default(uuid())
+  companyId String
+  siteId    String
+
+  name        String
+  location    String?
+  brand       String?
+  model       String?
+  serial      String?
+  notes       String?
+  criticality Int?
+
+  installedAt   DateTime?
+  lastServiceAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  site    Site    @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  // Paso 31
+  maintenanceReports MaintenanceReport[]
+
+  // Work Orders
+  workOrders WorkOrder[]
+
+  @@index([companyId])
+  @@index([siteId])
+}
+
+enum MaintenanceItemType {
+  CHECK
+  NUMBER
+  TEXT
+  CHOICE
+}
+
+model MaintenanceTemplate {
+  id           String    @id @default(uuid())
+  companyId    String
+  name         String
+  description  String?
+  intervalDays Int?
+  isActive     Boolean   @default(true)
+  archivedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  items   MaintenanceTemplateItem[]
+
+  @@index([companyId])
+  @@index([archivedAt])
+}
+
+model MaintenanceTemplateItem {
+  id         String @id @default(uuid())
+  templateId String
+
+  label     String
+  type      MaintenanceItemType
+  required  Boolean @default(false)
+  sortOrder Int
+  unit      String?
+  hint      String?
+  options   Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  template MaintenanceTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, sortOrder])
+  @@index([templateId])
+}
+
+enum MaintenanceReportState {
+  DRAFT
+  FINAL
+}
+
+enum MaintenanceReportItemStatus {
+  PENDING
+  OK
+  NOK
+  NA
+}
+
+model MaintenanceReport {
+  id        String @id @default(uuid())
+  companyId String
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Snapshot plantilla
+  templateId   String?
+  templateName String
+  templateDesc String?
+
+  createdByUserId String
+  createdByUser   User @relation("MaintenanceReportCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  // Contexto (opcionales)
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  siteId String?
+  site   Site? @relation(fields: [siteId], references: [id], onDelete: SetNull)
+
+  assetId String?
+  asset   Asset? @relation(fields: [assetId], references: [id], onDelete: SetNull)
+
+  performedAt DateTime @default(now())
+
+  state       MaintenanceReportState @default(DRAFT)
+  finalizedAt DateTime?
+
+  summary String?
+  notes   String?
+
+  items MaintenanceReportItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId, performedAt])
+  @@index([companyId, assetId])
+  @@index([companyId, siteId])
+  @@index([companyId, customerId])
+  @@index([companyId, templateId])
+}
+
+model MaintenanceReportItem {
+  id        String @id @default(uuid())
+  companyId String
+
+  reportId String
+  report   MaintenanceReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  // Snapshot ítem
+  templateItemId String?
+  sortOrder      Int
+  title          String
+  description    String?
+
+  // Resultado ejecución
+  status      MaintenanceReportItemStatus @default(PENDING)
+  resultNotes String?
+  resultValue String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([reportId, sortOrder])
+  @@index([companyId, reportId])
+}
+
+enum WorkOrderStatus {
+  DRAFT
+  OPEN
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+model CompanyCounter {
+  companyId    String @id
+  workOrderSeq Int    @default(0)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model WorkOrder {
+  id               String          @id @default(uuid())
+  companyId         String
+  number            Int
+  status            WorkOrderStatus @default(OPEN)
+  priority          Int             @default(3)
+
+  title             String
+  description       String?
+
+  customerId        String
+  siteId            String?
+  assetId           String?
+
+  createdByUserId   String
+  assignedToUserId  String?
+
+  scheduledAt       DateTime?
+  dueAt             DateTime?
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  site       Site?    @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  asset      Asset?   @relation(fields: [assetId], references: [id], onDelete: SetNull)
+
+  createdBy  User     @relation("WorkOrderCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  assignedTo User?    @relation("WorkOrderAssignedTo", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+  @@index([companyId, customerId])
+  @@index([companyId, siteId])
+  @@index([companyId, assetId])
+  @@index([companyId, assignedToUserId])
+}

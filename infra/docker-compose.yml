@@ -1,0 +1,47 @@
+name: tc
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tc-postgres
+    environment:
+      POSTGRES_USER: tc
+      POSTGRES_PASSWORD: tc
+      POSTGRES_DB: tc
+    ports:
+    - "5433:5432"
+    volumes:
+      - tc_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tc -d tc"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: tc-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio:latest
+    container_name: tc-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio12345
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - tc_minio:/data
+
+volumes:
+  tc_pgdata:
+  tc_minio:
