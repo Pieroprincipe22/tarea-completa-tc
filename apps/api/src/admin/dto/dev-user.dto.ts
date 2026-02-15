@@ -1,22 +1,41 @@
 import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class DevUserDto {
-  @IsString()
-  companyName!: string;
-
-  @IsString()
-  userName!: string;
-
-  @IsEmail()
-  email!: string;
-
-  // Tu schema exige password obligatorio: lo pedimos aquí
-  @IsString()
-  @MinLength(4)
-  password!: string;
-
-  // Evitamos enums que “no exportan”: role como string
+  // compatibilidad: puedes mandar companyName o company
   @IsOptional()
   @IsString()
-  role?: string; // 'OWNER' | 'ADMIN' | 'TECH' ...
+  companyName?: string;
+
+  @IsOptional()
+  @IsString()
+  company?: string;
+
+  // compatibilidad: puedes mandar email o userEmail
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @IsOptional()
+  @IsEmail()
+  userEmail?: string;
+
+  // compatibilidad: puedes mandar name o userName
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  userName?: string;
+
+  // role (OWNER/ADMIN/TECH, etc.)
+  @IsOptional()
+  @IsString()
+  role?: string;
+
+  // ✅ si tu modelo User exige password obligatorio, lo enviamos aquí
+  @IsOptional()
+  @IsString()
+  @MinLength(4)
+  password?: string;
 }

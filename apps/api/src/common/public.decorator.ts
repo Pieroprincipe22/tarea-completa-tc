@@ -1,11 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
-import { Public } from '../common/public.decorator';
+import { SetMetadata } from '@nestjs/common';
 
-@Controller('health')
-export class HealthController {
-  @Public()
-  @Get()
-  ok() {
-    return { ok: true };
-  }
-}
+export const IS_PUBLIC_KEY = 'isPublic';
+export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);

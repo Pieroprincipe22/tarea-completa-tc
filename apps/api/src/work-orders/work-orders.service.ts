@@ -30,43 +30,38 @@ export class WorkOrdersService {
     userId: string,
     dto: CreateWorkOrderDto,
   ): Promise<WorkOrderWithRelations> {
-    return this.prisma.$transaction(
-      async (tx): Promise<WorkOrderWithRelations> => {
-        // ✅ contador por compañía (upsert + increment atómico)
-        const counter = await tx.companyCounter.upsert({
-          where: { companyId },
-          create: { companyId, workOrderSeq: 1 },
-          update: { workOrderSeq: { increment: 1 } },
-          select: { workOrderSeq: true },
-        });
+    return this.prisma.$transaction(async (tx): Promise<WorkOrderWithRelations> => {
+      const counter = await tx.companyCounter.upsert({
+        where: { companyId },
+        create: { companyId, workOrderSeq: 1 },
+        update: { workOrderSeq: { increment: 1 } },
+        select: { workOrderSeq: true },
+      });
 
-        // ✅ FIX CLAVE: relaciones obligatorias con connect()
-        return tx.workOrder.create({
-          data: {
-            company: { connect: { id: companyId } },
-            createdBy: { connect: { id: userId } },
+      return tx.workOrder.create({
+        data: {
+          company: { connect: { id: companyId } },
+          createdBy: { connect: { id: userId } },
 
-            // En tu schema Customer es obligatorio
-            customer: { connect: { id: dto.customerId } },
+          customer: { connect: { id: dto.customerId } },
 
-            number: counter.workOrderSeq,
-            status: WorkOrderStatus.OPEN,
-            priority: dto.priority ?? 3,
-            title: dto.title,
-            description: dto.description ?? null,
-            scheduledAt: toDateOrNull(dto.scheduledAt),
-            dueAt: toDateOrNull(dto.dueAt),
+          number: counter.workOrderSeq,
+          status: WorkOrderStatus.OPEN,
+          priority: dto.priority ?? 3,
+          title: dto.title,
+          description: dto.description ?? null,
+          scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : null,
+          dueAt: dto.dueAt ? new Date(dto.dueAt) : null,
 
-            ...(dto.siteId ? { site: { connect: { id: dto.siteId } } } : {}),
-            ...(dto.assetId ? { asset: { connect: { id: dto.assetId } } } : {}),
-            ...(dto.assignedToUserId
-              ? { assignedTo: { connect: { id: dto.assignedToUserId } } }
-              : {}),
-          },
-          include: workOrderInclude,
-        });
-      },
-    );
+          ...(dto.siteId ? { site: { connect: { id: dto.siteId } } } : {}),
+          ...(dto.assetId ? { asset: { connect: { id: dto.assetId } } } : {}),
+          ...(dto.assignedToUserId
+            ? { assignedTo: { connect: { id: dto.assignedToUserId } } }
+            : {}),
+        },
+        include: workOrderInclude,
+      });
+    });
   }
 
   async list(companyId: string, q: QueryWorkOrdersDto) {
@@ -102,6 +97,7 @@ export class WorkOrdersService {
           site: true,
           asset: true,
           assignedTo: true,
+          createdBy: true,
         },
       }),
       this.prisma.workOrder.count({ where }),
@@ -110,7 +106,7 @@ export class WorkOrdersService {
     return { items, total, page, pageSize };
   }
 
-  async get(companyId: string, id: string) {
+  async get(companyId: string, id: string): Promise<WorkOrderWithRelations> {
     const item = await this.prisma.workOrder.findFirst({
       where: { companyId, id },
       include: workOrderInclude,
@@ -127,9 +123,7 @@ export class WorkOrdersService {
       where: { id },
       data: {
         ...(dto.title !== undefined ? { title: dto.title } : {}),
-        ...(dto.description !== undefined
-          ? { description: dto.description }
-          : {}),
+        ...(dto.description !== undefined ? { description: dto.description } : {}),
         ...(dto.priority !== undefined ? { priority: dto.priority } : {}),
         ...(dto.scheduledAt !== undefined
           ? { scheduledAt: toDateOrNull(dto.scheduledAt) }

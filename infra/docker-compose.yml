@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: tc
       POSTGRES_DB: tc
     ports:
-    - "5433:5432"
+      - "5433:5432"
     volumes:
       - tc_pgdata:/var/lib/postgresql/data
     healthcheck:

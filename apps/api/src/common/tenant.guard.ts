@@ -4,25 +4,46 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import type { Request } from 'express';
 import { PrismaService } from '../database/prisma.service';
-import type { Tenant, TenantRequest } from './tenant-context';
+import { IS_PUBLIC_KEY } from './public.decorator';
+
+type TenantInfo = { companyId: string; userId: string; role: string };
+type TenantRequest = Request & { tenant?: TenantInfo };
+
+function getHeader(req: Request, name: string): string | undefined {
+  const v = req.headers[name.toLowerCase()];
+  if (typeof v === 'string') return v;
+  if (Array.isArray(v)) return v[0];
+  return undefined;
+}
 
 @Injectable()
 export class TenantGuard implements CanActivate {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly reflector: Reflector,
+  ) {}
 
-  async canActivate(context: ExecutionContext) {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isPublic) return true;
+
     const req = context.switchToHttp().getRequest<TenantRequest>();
 
-    const userId = req.header('x-user-id');
-    const companyId = req.header('x-company-id');
+    const companyId = getHeader(req, 'x-company-id');
+    const userId = getHeader(req, 'x-user-id');
 
-    if (!userId || !companyId) {
-      throw new ForbiddenException('Missing x-user-id or x-company-id');
+    if (!companyId || !userId) {
+      throw new ForbiddenException('Missing x-company-id or x-user-id');
     }
 
     const membership = await this.prisma.userCompany.findFirst({
-      where: { userId, companyId },
+      where: { companyId, userId },
       select: { role: true },
     });
 
@@ -30,16 +51,7 @@ export class TenantGuard implements CanActivate {
       throw new ForbiddenException('Not a member of this company');
     }
 
-    const tenant: Tenant = { userId, companyId, role: membership.role };
-
-    // 1) forma recomendada (un solo objeto)
-    req.tenant = tenant;
-
-    // 2) opcional: si ya estabas usando estos campos en algún lado, déjalos
-    req.userId = userId;
-    req.companyId = companyId;
-    req.role = membership.role;
-
+    req.tenant = { companyId, userId, role: String(membership.role) };
     return true;
   }
 }

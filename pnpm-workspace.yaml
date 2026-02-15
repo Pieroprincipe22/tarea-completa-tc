@@ -1,13 +1,13 @@
 packages:
-  - apps/*
-  - packages/*
+  - "apps/*"
+  - "packages/*"
 
 ignoredBuiltDependencies:
-  - '@nestjs/core'
+  - "@nestjs/core"
 
 onlyBuiltDependencies:
-  - '@prisma/client'
-  - '@prisma/engines'
+  - "@prisma/client"
+  - "@prisma/engines"
   - esbuild
   - prisma
   - sharp

@@ -1,4 +1,4 @@
-// apps/api/src/main.ts
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
@@ -6,16 +6,25 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.enableCors({
-    origin: ['http://localhost:3001'],
+    origin: true,
+    credentials: true,
+    allowedHeaders: 'content-type,x-company-id,x-user-id,x-admin-key',
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'x-company-id', 'x-user-id'],
   });
-  app.enableShutdownHooks();
 
-  const port = process.env.PORT || 3002;
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
+
+  const port = process.env.PORT ? Number(process.env.PORT) : 3002;
   await app.listen(port);
+
+  // eslint-disable-next-line no-console
+  console.log(`API listening on http://localhost:${port}`);
 }
-bootstrap().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+
+void bootstrap();
