@@ -1,153 +1,168 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import React, { useEffect, useState } from "react";
-import { errMsg, isRecord, resolveCorePaths, tcGet } from "@/lib/tc/api";
+import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+import { readTcSession, type TcSession } from '@/lib/tc/session';
+import { errMsg, isRecord, normalizeList, resolveCorePaths, tcGet } from '@/lib/tc/api';
 
-type MaintenanceReport = {
+type TemplateRow = {
   id: string;
-  performedAt?: string;
-  state?: string;
-  templateName?: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  intervalDays: number | null;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
-type LoadState<T> =
-  | { status: "loading" }
-  | { status: "ok"; data: T }
-  | { status: "error"; error: string };
+type Load<T> =
+  | { status: 'loading' }
+  | { status: 'ok'; data: T }
+  | { status: 'error'; error: string };
 
-function formatDate(input?: string) {
-  if (!input) return "—";
-  const d = new Date(input);
-  return Number.isNaN(d.getTime()) ? input : d.toLocaleString();
+function asStr(v: unknown, fallback = ''): string {
+  return typeof v === 'string' ? v : fallback;
+}
+function asBool(v: unknown, fallback = false): boolean {
+  return typeof v === 'boolean' ? v : fallback;
+}
+function asNumOrNull(v: unknown): number | null {
+  return typeof v === 'number' ? v : null;
 }
 
-function Badge({
-  children,
-  tone,
-}: {
-  children: React.ReactNode;
-  tone: "ok" | "warn" | "bad" | "muted";
-}) {
-  const cls =
-    tone === "ok"
-      ? "bg-green-600/10 text-green-700 ring-green-600/20"
-      : tone === "warn"
-      ? "bg-yellow-600/10 text-yellow-700 ring-yellow-600/20"
-      : tone === "bad"
-      ? "bg-red-600/10 text-red-700 ring-red-600/20"
-      : "bg-slate-600/10 text-slate-700 ring-slate-600/20";
+function parseRow(x: unknown): TemplateRow {
+  if (!isRecord(x)) {
+    return {
+      id: '',
+      name: '—',
+      description: null,
+      isActive: false,
+      intervalDays: null,
+    };
+  }
 
-  return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs ring-1 ${cls}`}>
-      {children}
-    </span>
-  );
+  return {
+    id: asStr(x.id),
+    name: asStr(x.name, '—'),
+    description: typeof x.description === 'string' ? x.description : null,
+    isActive: asBool(x.isActive, true),
+    intervalDays: asNumOrNull(x.intervalDays),
+    createdAt: typeof x.createdAt === 'string' ? x.createdAt : undefined,
+    updatedAt: typeof x.updatedAt === 'string' ? x.updatedAt : undefined,
+  };
 }
 
-function extractItems<T>(data: unknown): T[] {
-  if (Array.isArray(data)) return data as T[];
-  if (isRecord(data) && Array.isArray((data as any).items)) return (data as any).items as T[];
-  return [];
-}
-
-export default function MaintenanceReportsPage() {
-  const [reloadKey, setReloadKey] = useState(0);
-  const [state, setState] = useState<LoadState<MaintenanceReport[]>>({ status: "loading" });
+export default function MaintenanceTemplatesPage() {
+  const session = useMemo<TcSession | null>(() => readTcSession(), []);
+  const [state, setState] = useState<Load<TemplateRow[]>>({ status: 'loading' });
 
   useEffect(() => {
+    if (!session) return;
+
     let cancelled = false;
 
     (async () => {
-      setState({ status: "loading" });
       try {
-        const paths = resolveCorePaths();
-        const data = await tcGet<unknown>(paths.reports);
+        setState({ status: 'loading' });
+
+        const paths = resolveCorePaths(session);
+        const r = await tcGet<unknown>(session, paths.templates);
 
         if (cancelled) return;
 
-        const items = extractItems<MaintenanceReport>(data);
+        if (r.code < 200 || r.code >= 300) {
+          setState({
+            status: 'error',
+            error: r.code === 403 ? '403 Not a member (UserCompany)' : `HTTP ${r.code}`,
+          });
+          return;
+        }
 
-        items.sort((a, b) => {
-          const da = a.performedAt ? new Date(a.performedAt).getTime() : 0;
-          const db = b.performedAt ? new Date(b.performedAt).getTime() : 0;
-          return db - da;
-        });
+        const { items } = normalizeList<unknown>(r.json);
+        const rows = items.map(parseRow).filter((t) => t.id);
 
-        setState({ status: "ok", data: items });
-      } catch (e: unknown) {
-        if (!cancelled) setState({ status: "error", error: errMsg(e) });
+        setState({ status: 'ok', data: rows });
+      } catch (e) {
+        if (!cancelled) setState({ status: 'error', error: errMsg(e) });
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [reloadKey]);
+  }, [session]);
+
+  if (!session) {
+    return (
+      <div className="space-y-3">
+        <h1 className="text-xl font-semibold">Maintenance Templates</h1>
+        <p className="text-sm text-slate-300">Sin sesión tenant. Ve a /login.</p>
+        <Link className="underline" href="/login">
+          Ir a /login
+        </Link>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Maintenance Reports</h1>
-          <p className="mt-1 text-sm text-black/60">Listado read-only.</p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            className="rounded-xl border px-3 py-2 text-sm hover:bg-black/5"
-            onClick={() => setReloadKey((x) => x + 1)}
-          >
-            Refresh
-          </button>
-          <Link href="/" className="text-sm text-black/70 hover:text-black">
-            ← Dashboard
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-xl font-semibold">Maintenance Templates</h1>
+        <div className="flex gap-3 text-sm">
+          <Link className="underline" href="/dashboard">
+            Dashboard
+          </Link>
+          <Link className="underline" href="/maintenance-reports">
+            Reports
           </Link>
         </div>
       </div>
 
-      <div className="rounded-2xl border p-4">
-        {state.status === "loading" ? (
-          <div className="text-sm text-black/60">Cargando…</div>
-        ) : state.status === "error" ? (
-          <div className="text-sm text-red-700">{state.error}</div>
-        ) : state.data.length === 0 ? (
-          <div className="text-sm text-black/60">No hay reports todavía.</div>
-        ) : (
-          <div className="overflow-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-black/70">
-                <tr className="border-b">
-                  <th className="py-2 pr-3">Fecha</th>
-                  <th className="py-2 pr-3">Template</th>
-                  <th className="py-2 pr-3">State</th>
-                  <th className="py-2 pr-3"></th>
+      {state.status === 'loading' ? (
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+          Cargando…
+        </div>
+      ) : state.status === 'error' ? (
+        <div className="rounded-2xl border border-red-800 bg-red-900/20 p-6 text-red-200">
+          {state.error}
+        </div>
+      ) : state.data.length === 0 ? (
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 text-slate-200">
+          No hay templates todavía.
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-slate-300">
+              <tr>
+                <th className="text-left py-2">Nombre</th>
+                <th className="text-left py-2">Activo</th>
+                <th className="text-left py-2">Intervalo</th>
+                <th className="text-left py-2">Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {state.data.map((t) => (
+                <tr key={t.id} className="border-t border-slate-800">
+                  <td className="py-2">
+                    <div className="font-medium">{t.name}</div>
+                    {t.description ? (
+                      <div className="text-xs text-slate-400">{t.description}</div>
+                    ) : null}
+                  </td>
+                  <td className="py-2">{t.isActive ? 'Sí' : 'No'}</td>
+                  <td className="py-2">{t.intervalDays ?? '—'}</td>
+                  <td className="py-2">
+                    <Link className="underline" href={`/maintenance-templates/${t.id}`}>
+                      Ver
+                    </Link>
+                  </td>
                 </tr>
-              </thead>
-
-              <tbody>
-                {state.data.map((r) => (
-                  <tr key={r.id} className="border-b last:border-b-0">
-                    <td className="py-2 pr-3">{formatDate(r.performedAt)}</td>
-                    <td className="py-2 pr-3">{r.templateName || "—"}</td>
-                    <td className="py-2 pr-3">
-                      <Badge tone={r.state === "FINAL" ? "ok" : r.state === "DRAFT" ? "warn" : "muted"}>
-                        {r.state || "—"}
-                      </Badge>
-                    </td>
-                    <td className="py-2 pr-3">
-                      <Link className="text-black/70 hover:text-black" href={`/maintenance-reports/${r.id}`}>
-                        Abrir →
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

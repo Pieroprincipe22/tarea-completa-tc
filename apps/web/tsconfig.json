@@ -15,14 +15,11 @@
     "jsx": "react-jsx",
     "incremental": true,
 
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@lib/*": ["src/lib/*"],
-      "@components/*": ["src/components/*"]
+      "@/*": ["./src/*"],
+      "@lib/*": ["./src/lib/*"],
+      "@components/*": ["./src/components/*"]
     },
-
-    "ignoreDeprecations": "6.0",
 
     "plugins": [{ "name": "next" }]
   },

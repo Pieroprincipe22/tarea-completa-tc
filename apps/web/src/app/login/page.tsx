@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { DEFAULT_API_BASE, readTcSession, TC_LS_KEYS, clearTcSession } from '@/lib/tc/session';
+import {
+  DEFAULT_API_BASE,
+  clearTcSession,
+  readTcSession,
+  writeTcSession,
+} from '@/lib/tc/session';
 
-type FormState = {
-  apiBase: string;
-  companyId: string;
-  userId: string;
-};
+type FormState = { apiBase: string; companyId: string; userId: string };
 
 function isValidHttpUrl(s: string) {
   try {
@@ -22,19 +23,15 @@ function isValidHttpUrl(s: string) {
 export default function LoginPage() {
   const router = useRouter();
 
-  // Si ya hay sesión, fuera de /login
   useEffect(() => {
     const s = readTcSession();
-    if (s) router.replace('/');
+    if (s) router.replace('/dashboard');
   }, [router]);
 
-  const initial = useMemo<FormState>(() => {
-    // Estamos en client, así que podemos leer localStorage
-    const apiBase = window.localStorage.getItem(TC_LS_KEYS.apiBase) ?? DEFAULT_API_BASE;
-    const companyId = window.localStorage.getItem(TC_LS_KEYS.companyId) ?? '';
-    const userId = window.localStorage.getItem(TC_LS_KEYS.userId) ?? '';
-    return { apiBase, companyId, userId };
-  }, []);
+  const initial = useMemo<FormState>(
+    () => ({ apiBase: DEFAULT_API_BASE, companyId: '', userId: '' }),
+    [],
+  );
 
   const [form, setForm] = useState<FormState>(initial);
   const [error, setError] = useState<string | null>(null);
@@ -55,90 +52,79 @@ export default function LoginPage() {
       setError('apiBase inválido. Ej: http://localhost:3002');
       return;
     }
-    if (!companyId) {
-      setError('companyId requerido.');
-      return;
-    }
-    if (!userId) {
-      setError('userId requerido.');
-      return;
-    }
+    if (!companyId) return setError('companyId requerido.');
+    if (!userId) return setError('userId requerido.');
 
-    window.localStorage.setItem(TC_LS_KEYS.apiBase, apiBase);
-    window.localStorage.setItem(TC_LS_KEYS.companyId, companyId);
-    window.localStorage.setItem(TC_LS_KEYS.userId, userId);
-
-    router.replace('/');
+    writeTcSession({ apiBase, companyId, userId, name: 'Demo' });
+    router.replace('/dashboard');
   }
 
   return (
-    <div className="mx-auto max-w-xl p-6">
-      <h1 className="text-2xl font-semibold text-white">Login (mock)</h1>
-      <p className="mt-1 text-sm text-slate-400">Guarda la sesión en localStorage y redirige al inicio.</p>
+    <div className="min-h-[80vh] flex items-center justify-center p-6">
+      <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900/40 p-6 space-y-4">
+        <h1 className="text-xl font-semibold">Login (mock)</h1>
+        <p className="text-sm text-slate-300">
+          Guarda sesión en <code>localStorage</code> y redirige al dashboard.
+        </p>
 
-      <form onSubmit={onSubmit} className="mt-6 rounded-2xl bg-slate-900/60 ring-1 ring-white/10 p-4">
-        <label className="block text-sm text-slate-300">
-          API Base
-          <input
-            className="mt-1 w-full rounded-xl bg-slate-950/40 ring-1 ring-white/10 px-3 py-2 text-sm text-white outline-none"
-            value={form.apiBase}
-            onChange={(e) => onChange('apiBase', e.target.value)}
-            placeholder={DEFAULT_API_BASE}
-            autoComplete="off"
-          />
-        </label>
-
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <label className="block text-sm text-slate-300">
-            companyId
+        <form className="space-y-3" onSubmit={onSubmit}>
+          <div className="space-y-1">
+            <label className="text-sm text-slate-300">API Base</label>
             <input
-              className="mt-1 w-full rounded-xl bg-slate-950/40 ring-1 ring-white/10 px-3 py-2 text-sm text-white outline-none"
+              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2"
+              value={form.apiBase}
+              onChange={(e) => onChange('apiBase', e.target.value)}
+              placeholder={DEFAULT_API_BASE}
+              autoComplete="off"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm text-slate-300">companyId</label>
+            <input
+              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2"
               value={form.companyId}
               onChange={(e) => onChange('companyId', e.target.value)}
               placeholder="uuid"
               autoComplete="off"
             />
-          </label>
+          </div>
 
-          <label className="block text-sm text-slate-300">
-            userId
+          <div className="space-y-1">
+            <label className="text-sm text-slate-300">userId</label>
             <input
-              className="mt-1 w-full rounded-xl bg-slate-950/40 ring-1 ring-white/10 px-3 py-2 text-sm text-white outline-none"
+              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2"
               value={form.userId}
               onChange={(e) => onChange('userId', e.target.value)}
               placeholder="uuid"
               autoComplete="off"
             />
-          </label>
-        </div>
+          </div>
 
-        {error ? <div className="mt-4 text-sm text-red-200">{error}</div> : null}
+          {error ? (
+            <div className="rounded-xl border border-red-800 bg-red-900/20 p-3 text-sm text-red-200">
+              {error}
+            </div>
+          ) : null}
 
-        <div className="mt-5 flex gap-2">
-          <button
-            type="submit"
-            className="rounded-xl bg-slate-800/60 ring-1 ring-white/10 px-4 py-2 text-sm text-white hover:opacity-95"
-          >
-            Entrar
-          </button>
-
-          <button
-            type="button"
-            className="rounded-xl bg-slate-800/60 ring-1 ring-white/10 px-4 py-2 text-sm text-white hover:opacity-95"
-            onClick={() => {
-              clearTcSession();
-              setForm({ apiBase: DEFAULT_API_BASE, companyId: '', userId: '' });
-              setError(null);
-            }}
-          >
-            Limpiar
-          </button>
-        </div>
-
-        <div className="mt-4 text-xs text-slate-500">
-          Keys usadas: {TC_LS_KEYS.apiBase}, {TC_LS_KEYS.companyId}, {TC_LS_KEYS.userId}
-        </div>
-      </form>
+          <div className="flex gap-2">
+            <button className="flex-1 rounded-xl bg-slate-100 px-4 py-2 text-slate-900 font-medium">
+              Entrar
+            </button>
+            <button
+              type="button"
+              className="rounded-xl border border-slate-700 px-4 py-2 hover:bg-slate-800"
+              onClick={() => {
+                clearTcSession();
+                setForm(initial);
+                setError(null);
+              }}
+            >
+              Limpiar
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

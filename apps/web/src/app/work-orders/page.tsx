@@ -1,186 +1,162 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import React, { useEffect, useMemo, useState } from "react";
-import { errMsg, isRecord, resolveCorePaths, tcGet } from "@/lib/tc/api";
-import { readTcSession } from "@/lib/tc/session";
+import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+import { readTcSession, type TcSession } from '@/lib/tc/session';
+import { errMsg, isRecord, normalizeList, resolveCorePaths, tcGet } from '@/lib/tc/api';
 
-type WorkOrder = {
+type WorkOrderRow = {
   id: string;
-  number?: number;
-  status?: string;
-  priority?: string;
-  title?: string;
-  description?: string | null;
-  createdAt?: string;
-  dueAt?: string | null;
-  customerId?: string | null;
-  siteId?: string | null;
-  assetId?: string | null;
+  number: number;
+  title: string;
+  state: string;
+  priority: string;
 };
 
-type LoadState<T> =
-  | { status: "loading" }
-  | { status: "ok"; data: T }
-  | { status: "error"; error: string };
+type Load<T> =
+  | { status: 'loading' }
+  | { status: 'ok'; data: T }
+  | { status: 'error'; error: string };
 
-function extractItems<T>(data: unknown): T[] {
-  if (Array.isArray(data)) return data as T[];
-  if (isRecord(data) && Array.isArray((data as any).items)) return (data as any).items as T[];
-  return [];
+function asStr(v: unknown, fallback = ''): string {
+  return typeof v === 'string' ? v : fallback;
+}
+function asNum(v: unknown, fallback = 0): number {
+  return typeof v === 'number' ? v : fallback;
 }
 
-function formatDate(input?: string | null) {
-  if (!input) return "—";
-  const d = new Date(input);
-  return Number.isNaN(d.getTime()) ? String(input) : d.toLocaleString();
+function parseRow(x: unknown): WorkOrderRow {
+  if (!isRecord(x)) return { id: '', number: 0, title: '—', state: '—', priority: '—' };
+  return {
+    id: asStr(x.id),
+    number: asNum(x.number, 0),
+    title: asStr(x.title, '—'),
+    state: asStr(x.state, '—'),
+    priority: asStr(x.priority, '—'),
+  };
 }
-
-function Badge({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs ring-1 ring-black/10 bg-black/5">
-      {children}
-    </span>
-  );
-}
-
-const STATUSES = ["DRAFT", "OPEN", "IN_PROGRESS", "DONE", "CANCELLED"] as const;
 
 export default function WorkOrdersPage() {
-  // si AuthGate está bien, esto no debería ser null, pero lo dejamos robusto
-  const session = useMemo(() => readTcSession(), []);
-  const [reloadKey, setReloadKey] = useState(0);
-  const [status, setStatus] = useState<string>(""); // filtro simple
-  const [state, setState] = useState<LoadState<WorkOrder[]>>({ status: "loading" });
+  const session = useMemo<TcSession | null>(() => readTcSession(), []);
+  const paths = useMemo(() => resolveCorePaths(session), [session]);
+
+  const [status, setStatus] = useState<string>(''); // filtro
+  const [state, setState] = useState<Load<WorkOrderRow[]>>({ status: 'loading' });
 
   useEffect(() => {
-    if (!session) {
-      setState({ status: "error", error: "Sin sesión tenant (companyId/userId). Usa el login mock." });
-      return;
-    }
+    if (!session) return;
 
     let cancelled = false;
 
     (async () => {
-      setState({ status: "loading" });
       try {
-        const paths = resolveCorePaths();
+        setState({ status: 'loading' });
 
-        // si tu API soporta query params (ej: /work-orders?status=OPEN) lo usamos;
-        // si no, igual funciona sin filtro y filtramos en client.
-        const url = status ? `${paths.workOrders}?status=${encodeURIComponent(status)}` : paths.workOrders;
+        const url = status
+          ? `${paths.workOrders}?status=${encodeURIComponent(status)}`
+          : paths.workOrders;
 
-        const data = await tcGet<unknown>(url);
+        const r = await tcGet<unknown>(session, url); // ✅ 2 argumentos
+
         if (cancelled) return;
 
-        let items = extractItems<WorkOrder>(data);
+        if (r.code < 200 || r.code >= 300) {
+          setState({
+            status: 'error',
+            error: r.code === 403 ? '403 Not a member (UserCompany)' : `HTTP ${r.code}`,
+          });
+          return;
+        }
 
-        // fallback: si backend aún no filtra por status
-        if (status) items = items.filter((x) => x.status === status);
+        const { items } = normalizeList<unknown>(r.json);
+        const rows = items.map(parseRow).filter((w) => w.id);
+        rows.sort((a, b) => b.number - a.number);
 
-        // orden por number desc (si existe), sino createdAt desc
-        items.sort((a, b) => {
-          const na = typeof a.number === "number" ? a.number : -1;
-          const nb = typeof b.number === "number" ? b.number : -1;
-          if (na !== -1 || nb !== -1) return nb - na;
-
-          const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return db - da;
-        });
-
-        setState({ status: "ok", data: items });
-      } catch (e: unknown) {
-        if (!cancelled) setState({ status: "error", error: errMsg(e) });
+        setState({ status: 'ok', data: rows });
+      } catch (e) {
+        if (!cancelled) setState({ status: 'error', error: errMsg(e) });
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [session, reloadKey, status]);
+  }, [session, status, paths.workOrders]);
+
+  if (!session) {
+    return (
+      <div className="space-y-3">
+        <h1 className="text-xl font-semibold">Work Orders</h1>
+        <p className="text-sm text-slate-300">Sin sesión tenant. Ve a /login.</p>
+        <Link className="underline" href="/login">
+          Ir a /login
+        </Link>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Work Orders</h1>
-          <p className="mt-1 text-sm text-black/60">Listado read-only (Paso 32).</p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <select
-            className="rounded-xl border px-3 py-2 text-sm"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-          >
-            <option value="">Todos</option>
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-
-          <button
-            type="button"
-            className="rounded-xl border px-3 py-2 text-sm hover:bg-black/5"
-            onClick={() => setReloadKey((x) => x + 1)}
-          >
-            Refresh
-          </button>
-
-          <Link href="/" className="text-sm text-black/70 hover:text-black">
-            ← Dashboard
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-xl font-semibold">Work Orders</h1>
+        <div className="flex gap-3 text-sm">
+          <Link className="underline" href="/dashboard">
+            Dashboard
           </Link>
         </div>
       </div>
 
-      <div className="rounded-2xl border p-4">
-        {state.status === "loading" ? (
-          <div className="text-sm text-black/60">Cargando…</div>
-        ) : state.status === "error" ? (
-          <div className="text-sm text-red-700 whitespace-pre-wrap">{state.error}</div>
-        ) : state.data.length === 0 ? (
-          <div className="text-sm text-black/60">No hay work orders todavía.</div>
-        ) : (
-          <div className="overflow-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-black/70">
-                <tr className="border-b">
-                  <th className="py-2 pr-3">#</th>
-                  <th className="py-2 pr-3">Title</th>
-                  <th className="py-2 pr-3">Status</th>
-                  <th className="py-2 pr-3">Due</th>
-                  <th className="py-2 pr-3"></th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {state.data.map((w) => (
-                  <tr key={w.id} className="border-b last:border-b-0">
-                    <td className="py-2 pr-3">{typeof w.number === "number" ? w.number : "—"}</td>
-                    <td className="py-2 pr-3">
-                      <div className="font-medium">{w.title ?? "—"}</div>
-                      {w.description ? <div className="text-xs text-black/60">{w.description}</div> : null}
-                    </td>
-                    <td className="py-2 pr-3">
-                      <Badge>{w.status ?? "—"}</Badge>
-                    </td>
-                    <td className="py-2 pr-3">{formatDate(w.dueAt)}</td>
-                    <td className="py-2 pr-3">
-                      {/* Si aún no tienes detalle, deja el link pero luego creamos /work-orders/[id] */}
-                      <Link className="text-black/70 hover:text-black" href={`/work-orders/${w.id}`}>
-                        Abrir →
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 flex items-center gap-3">
+        <label className="text-sm text-slate-300">Filtro status:</label>
+        <input
+          className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          placeholder="DRAFT / OPEN / IN_PROGRESS / DONE"
+        />
+        <button
+          className="rounded-xl border border-slate-700 px-4 py-2 text-sm hover:bg-slate-800"
+          type="button"
+          onClick={() => setStatus('')}
+        >
+          Limpiar
+        </button>
       </div>
+
+      {state.status === 'loading' ? (
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">Cargando…</div>
+      ) : state.status === 'error' ? (
+        <div className="rounded-2xl border border-red-800 bg-red-900/20 p-6 text-red-200">
+          {state.error}
+        </div>
+      ) : state.data.length === 0 ? (
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 text-slate-200">
+          No hay work orders.
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-slate-300">
+              <tr>
+                <th className="text-left py-2">#</th>
+                <th className="text-left py-2">Título</th>
+                <th className="text-left py-2">Estado</th>
+                <th className="text-left py-2">Prioridad</th>
+              </tr>
+            </thead>
+            <tbody>
+              {state.data.map((w) => (
+                <tr key={w.id} className="border-t border-slate-800">
+                  <td className="py-2">{w.number}</td>
+                  <td className="py-2">{w.title}</td>
+                  <td className="py-2">{w.state}</td>
+                  <td className="py-2">{w.priority}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
