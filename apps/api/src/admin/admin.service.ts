@@ -20,23 +20,19 @@ export class AdminService {
     const name = (dto.name ?? dto.userName ?? 'Dev User').trim();
 
     if (!companyName) {
-      throw new BadRequestException(
-        'DevUserDto must include companyName (or company)',
-      );
+      throw new BadRequestException('DevUserDto must include companyName (or company)');
     }
     if (!email) {
       throw new BadRequestException('DevUserDto must include email (or userEmail)');
     }
 
-    // Role: lo casteamos al tipo que Prisma espera para UserCompany.role
-    const role =
-      (dto.role ?? 'OWNER') as unknown as Prisma.UserCompanyCreateInput['role'];
+    // ✅ En tu schema role no es enum exportado: tratamos como string
+    const role: string = (dto.role ?? 'OWNER').trim();
 
-    // ✅ password obligatorio en tu schema: si no mandas, ponemos uno dev
+    // ✅ si tu UserCreateInput exige password obligatorio
     const password = (dto.password ?? 'dev12345').trim();
 
     return this.prisma.$transaction(async (tx) => {
-      // 1) Company: buscar por nombre o crear
       const company =
         (await tx.company.findFirst({
           where: { name: companyName },
@@ -47,21 +43,19 @@ export class AdminService {
           select: { id: true },
         }));
 
-      // 2) User: upsert por email (con password en create)
       const user = await tx.user.upsert({
         where: { email },
         create: {
           email,
           name,
-          password, // ✅ requerido por tu UserCreateInput
-        },
+          password,
+        } satisfies Prisma.UserCreateInput,
         update: {
           name,
         },
         select: { id: true },
       });
 
-      // 3) UserCompany: asegurar membresía
       const existing = await tx.userCompany.findFirst({
         where: { companyId: company.id, userId: user.id },
         select: { id: true },
@@ -72,7 +66,7 @@ export class AdminService {
           data: {
             companyId: company.id,
             userId: user.id,
-            role,
+            role, // string
           },
         });
       } else {
@@ -86,7 +80,7 @@ export class AdminService {
         ok: true as const,
         companyId: company.id,
         userId: user.id,
-        role: String(role),
+        role,
       };
     });
   }

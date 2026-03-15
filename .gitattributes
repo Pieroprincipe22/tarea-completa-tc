@@ -1,0 +1,2 @@
+# Fuerza LF en el repo (evita el infierno de ␍ en Windows)
+* text=auto eol=lf

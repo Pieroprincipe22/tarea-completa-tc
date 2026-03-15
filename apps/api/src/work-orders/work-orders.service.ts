@@ -125,21 +125,13 @@ export class WorkOrdersService {
         ...(dto.title !== undefined ? { title: dto.title } : {}),
         ...(dto.description !== undefined ? { description: dto.description } : {}),
         ...(dto.priority !== undefined ? { priority: dto.priority } : {}),
-        ...(dto.scheduledAt !== undefined
-          ? { scheduledAt: toDateOrNull(dto.scheduledAt) }
-          : {}),
+        ...(dto.scheduledAt !== undefined ? { scheduledAt: toDateOrNull(dto.scheduledAt) } : {}),
         ...(dto.dueAt !== undefined ? { dueAt: toDateOrNull(dto.dueAt) } : {}),
 
         // relaciones (connect si vienen)
-        ...(dto.customerId !== undefined
-          ? { customer: { connect: { id: dto.customerId } } }
-          : {}),
-        ...(dto.siteId !== undefined
-          ? { site: { connect: { id: dto.siteId } } }
-          : {}),
-        ...(dto.assetId !== undefined
-          ? { asset: { connect: { id: dto.assetId } } }
-          : {}),
+        ...(dto.customerId !== undefined ? { customer: { connect: { id: dto.customerId } } } : {}),
+        ...(dto.siteId !== undefined ? { site: { connect: { id: dto.siteId } } } : {}),
+        ...(dto.assetId !== undefined ? { asset: { connect: { id: dto.assetId } } } : {}),
         ...(dto.assignedToUserId !== undefined
           ? { assignedTo: { connect: { id: dto.assignedToUserId } } }
           : {}),

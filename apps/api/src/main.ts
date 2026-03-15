@@ -1,30 +1,17 @@
-import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { ValidationPipe } from '@nestjs/common';
+import { TenantGuard } from './common/tenant.guard';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  app.enableCors({
-    origin: true,
-    credentials: true,
-    allowedHeaders: 'content-type,x-company-id,x-user-id,x-admin-key',
-    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-  });
+  // pipes / cors / etc
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      transform: true,
-      forbidNonWhitelisted: true,
-    }),
-  );
+  // 👇 acá va tu guard global (antes de listen)
+  app.useGlobalGuards(app.get(TenantGuard));
 
-  const port = process.env.PORT ? Number(process.env.PORT) : 3002;
-  await app.listen(port);
-
-  // eslint-disable-next-line no-console
-  console.log(`API listening on http://localhost:${port}`);
+  await app.listen(process.env.PORT || 3002);
 }
-
-void bootstrap();
+bootstrap();

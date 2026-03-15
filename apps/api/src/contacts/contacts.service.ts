@@ -7,44 +7,27 @@ export class ContactsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(companyId: string, dto: CreateContactDto) {
-    // Validar tenant: la site debe ser de la company
-    const site = await this.prisma.site.findFirst({
-      where: { id: dto.siteId, companyId },
-      select: { id: true },
-    });
-
-    if (!site) throw new NotFoundException('Site not found');
-
-    return this.prisma.$transaction(async (tx) => {
-      // Si viene isMain=true, apagamos el main anterior en esa site
-      if (dto.isMain) {
-        await tx.contact.updateMany({
-          where: { companyId, siteId: dto.siteId, isMain: true },
-          data: { isMain: false },
-        });
-      }
-
-      return tx.contact.create({
-        data: {
-          companyId,
-          siteId: dto.siteId,
-          name: dto.name,
-          email: dto.email,
-          phone: dto.phone,
-          isMain: dto.isMain ?? false,
-          notes: dto.notes,
-        },
-      });
+    return this.prisma.contact.create({
+      data: {
+        company: { connect: { id: companyId } },
+        site: { connect: { id: dto.siteId } },
+        name: dto.name,
+      },
     });
   }
 
-  findAll(companyId: string, siteId?: string) {
+  async list(companyId: string) {
     return this.prisma.contact.findMany({
-      where: {
-        companyId,
-        ...(siteId ? { siteId } : {}),
-      },
-      orderBy: [{ isMain: 'desc' }, { createdAt: 'desc' }],
+      where: { companyId },
+      orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async get(companyId: string, id: string) {
+    const item = await this.prisma.contact.findFirst({
+      where: { id, companyId },
+    });
+    if (!item) throw new NotFoundException('Contact not found');
+    return item;
   }
 }

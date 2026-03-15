@@ -1,9 +1,4 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import type { Request } from 'express';
 
 function readHeader(req: Request, name: string): string | undefined {
@@ -21,8 +16,7 @@ export class AdminKeyGuard implements CanActivate {
     const expected = process.env.ADMIN_KEY;
 
     if (!expected) throw new UnauthorizedException('ADMIN_KEY missing in env');
-    if (!key || key !== expected)
-      throw new UnauthorizedException('Invalid admin key');
+    if (!key || key !== expected) throw new UnauthorizedException('Invalid admin key');
 
     return true;
   }

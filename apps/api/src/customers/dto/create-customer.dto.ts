@@ -2,6 +2,6 @@ import { IsString, MinLength } from 'class-validator';
 
 export class CreateCustomerDto {
   @IsString()
-  @MinLength(2)
+  @MinLength(1)
   name!: string;
 }

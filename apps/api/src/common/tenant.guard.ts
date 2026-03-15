@@ -1,30 +1,11 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-  Injectable,
-} from '@nestjs/common';
+import { BadRequestException, CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { Request } from 'express';
 import { PrismaService } from '../database/prisma.service';
 import { IS_PUBLIC_KEY } from './public.decorator';
 
-type TenantInfo = { companyId: string; userId: string; role: string };
-type TenantRequest = Request & { tenant?: TenantInfo };
-
-function getHeader(req: Request, name: string): string | undefined {
-  const v = req.headers[name.toLowerCase()];
-  if (typeof v === 'string') return v;
-  if (Array.isArray(v)) return v[0];
-  return undefined;
-}
-
 @Injectable()
 export class TenantGuard implements CanActivate {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly reflector: Reflector,
-  ) {}
+  constructor(private readonly prisma: PrismaService, private readonly reflector: Reflector) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
@@ -33,25 +14,26 @@ export class TenantGuard implements CanActivate {
     ]);
     if (isPublic) return true;
 
-    const req = context.switchToHttp().getRequest<TenantRequest>();
+    const req = context.switchToHttp().getRequest();
 
-    const companyId = getHeader(req, 'x-company-id');
-    const userId = getHeader(req, 'x-user-id');
+    const rawCompanyId = req.headers['x-company-id'];
+    const rawUserId = req.headers['x-user-id'];
+
+    const companyId = Array.isArray(rawCompanyId) ? rawCompanyId[0] : rawCompanyId;
+    const userId = Array.isArray(rawUserId) ? rawUserId[0] : rawUserId;
 
     if (!companyId || !userId) {
-      throw new ForbiddenException('Missing x-company-id or x-user-id');
+      throw new BadRequestException('Missing x-company-id or x-user-id');
     }
 
-    const membership = await this.prisma.userCompany.findFirst({
-      where: { companyId, userId },
+    const membership = await this.prisma.userCompany.findUnique({
+      where: { companyId_userId: { companyId, userId } },
       select: { role: true },
     });
 
-    if (!membership) {
-      throw new ForbiddenException('Not a member of this company');
-    }
+    if (!membership) throw new UnauthorizedException('No membership for company');
 
-    req.tenant = { companyId, userId, role: String(membership.role) };
+    req.tenant = { companyId, userId, role: membership.role };
     return true;
   }
 }

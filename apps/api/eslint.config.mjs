@@ -1,36 +1,51 @@
-// @ts-check
-import eslint from '@eslint/js';
-import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
-import globals from 'globals';
-import tseslint from 'typescript-eslint';
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import tsParser from '@typescript-eslint/parser'
+import tsPlugin from '@typescript-eslint/eslint-plugin'
 
-export default tseslint.config(
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+export default [
+  // Ignorados (flat config)
   {
-    ignores: ['eslint.config.mjs'],
+    ignores: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/.next/**',
+      '**/out/**',
+      '**/coverage/**',
+      '**/.turbo/**',
+      '**/.pnpm-store/**',
+      '**/build/**',
+      '**/tmp/**',
+      '**/*.min.*',
+      '**/*.d.ts'
+    ]
   },
-  eslint.configs.recommended,
-  ...tseslint.configs.recommendedTypeChecked,
-  eslintPluginPrettierRecommended,
+
+  // TypeScript / NestJS
   {
+    files: ['**/*.ts'],
     languageOptions: {
-      globals: {
-        ...globals.node,
-        ...globals.jest,
-      },
-      sourceType: 'commonjs',
+      parser: tsParser,
       parserOptions: {
-        projectService: true,
-        tsconfigRootDir: import.meta.dirname,
-      },
+        project: ['./tsconfig.eslint.json'],
+        tsconfigRootDir: __dirname,
+        ecmaVersion: 'latest',
+        sourceType: 'module'
+      }
     },
-  },
-  {
+    plugins: {
+      '@typescript-eslint': tsPlugin
+    },
     rules: {
-      '@typescript-eslint/no-unsafe-call': 'off',
+      // base recomendado (sin volverte loco)
+      ...tsPlugin.configs.recommended.rules,
+
+      // si te molesta el ruido:
       '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-floating-promises': 'warn',
-      '@typescript-eslint/no-unsafe-argument': 'warn',
-      "prettier/prettier": ["error", { endOfLine: "auto" }],
-    },
-  },
-);
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off'
+    }
+  }
+]

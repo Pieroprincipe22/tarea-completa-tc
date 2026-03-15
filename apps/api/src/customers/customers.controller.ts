@@ -1,23 +1,29 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
-import { Request } from 'express';
-import { TenantGuard } from '../common/tenant.guard';
-import { CreateCustomerDto } from './dto/create-customer.dto';
+import { Body, Controller, Get, Headers, Param, Post } from '@nestjs/common';
 import { CustomersService } from './customers.service';
-
-type AuthedRequest = Request & { companyId?: string };
+import { CreateCustomerDto } from './dto/create-customer.dto';
 
 @Controller('customers')
-@UseGuards(TenantGuard)
 export class CustomersController {
   constructor(private readonly customers: CustomersService) {}
 
   @Post()
-  create(@Req() req: AuthedRequest, @Body() dto: CreateCustomerDto) {
-    return this.customers.create(req.companyId!, dto);
+  create(
+    @Headers('x-company-id') companyId: string,
+    @Body() dto: CreateCustomerDto,
+  ) {
+    return this.customers.create(companyId, dto);
   }
 
   @Get()
-  findAll(@Req() req: AuthedRequest) {
-    return this.customers.findAll(req.companyId!);
+  list(@Headers('x-company-id') companyId: string) {
+    return this.customers.list(companyId);
+  }
+
+  @Get(':id')
+  get(
+    @Headers('x-company-id') companyId: string,
+    @Param('id') id: string,
+  ) {
+    return this.customers.get(companyId, id);
   }
 }

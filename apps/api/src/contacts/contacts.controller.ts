@@ -1,31 +1,29 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Query,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
-import { Request } from 'express';
-import { TenantGuard } from '../common/tenant.guard';
-import { CreateContactDto } from './dto/create-contact.dto';
+import { Body, Controller, Get, Headers, Param, Post } from '@nestjs/common';
 import { ContactsService } from './contacts.service';
-
-type AuthedRequest = Request & { companyId?: string };
+import { CreateContactDto } from './dto/create-contact.dto';
 
 @Controller('contacts')
-@UseGuards(TenantGuard)
 export class ContactsController {
   constructor(private readonly contacts: ContactsService) {}
 
   @Post()
-  create(@Req() req: AuthedRequest, @Body() dto: CreateContactDto) {
-    return this.contacts.create(req.companyId!, dto);
+  create(
+    @Headers('x-company-id') companyId: string,
+    @Body() dto: CreateContactDto,
+  ) {
+    return this.contacts.create(companyId, dto);
   }
 
   @Get()
-  findAll(@Req() req: AuthedRequest, @Query('siteId') siteId?: string) {
-    return this.contacts.findAll(req.companyId!, siteId);
+  list(@Headers('x-company-id') companyId: string) {
+    return this.contacts.list(companyId);
+  }
+
+  @Get(':id')
+  get(
+    @Headers('x-company-id') companyId: string,
+    @Param('id') id: string,
+  ) {
+    return this.contacts.get(companyId, id);
   }
 }

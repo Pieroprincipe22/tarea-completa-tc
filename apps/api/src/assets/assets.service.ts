@@ -23,20 +23,7 @@ export class AssetsService {
         model: dto.model,
         serial: dto.serial,
         notes: dto.notes,
-        criticality: dto.criticality,
-        installedAt: dto.installedAt ? new Date(dto.installedAt) : null,
-        lastServiceAt: dto.lastServiceAt ? new Date(dto.lastServiceAt) : null,
       },
-    });
-  }
-
-  findAll(companyId: string, siteId?: string) {
-    return this.prisma.asset.findMany({
-      where: {
-        companyId,
-        ...(siteId ? { siteId } : {}),
-      },
-      orderBy: { createdAt: 'desc' },
     });
   }
 }

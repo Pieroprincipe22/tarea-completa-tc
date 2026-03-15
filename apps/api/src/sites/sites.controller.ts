@@ -1,31 +1,26 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Query,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
-import { Request } from 'express';
-import { TenantGuard } from '../common/tenant.guard';
-import { CreateSiteDto } from './dto/create-site.dto';
+import { Body, Controller, Get, Headers, Param, Post } from '@nestjs/common';
 import { SitesService } from './sites.service';
-
-type AuthedRequest = Request & { companyId?: string };
+import { CreateSiteDto } from './dto/create-site.dto';
 
 @Controller('sites')
-@UseGuards(TenantGuard)
 export class SitesController {
   constructor(private readonly sites: SitesService) {}
 
   @Post()
-  create(@Req() req: AuthedRequest, @Body() dto: CreateSiteDto) {
-    return this.sites.create(req.companyId!, dto);
+  create(
+    @Headers('x-company-id') companyId: string,
+    @Body() dto: CreateSiteDto,
+  ) {
+    return this.sites.create(companyId, dto);
   }
 
   @Get()
-  findAll(@Req() req: AuthedRequest, @Query('customerId') customerId?: string) {
-    return this.sites.findAll(req.companyId!, customerId);
+  list(@Headers('x-company-id') companyId: string) {
+    return this.sites.list(companyId);
+  }
+
+  @Get(':id')
+  get(@Headers('x-company-id') companyId: string, @Param('id') id: string) {
+    return this.sites.get(companyId, id);
   }
 }

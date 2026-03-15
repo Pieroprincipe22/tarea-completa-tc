@@ -1,10 +1,4 @@
-import {
-  Body,
-  Controller,
-  ForbiddenException,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Post, UseGuards } from '@nestjs/common';
 import { Public } from '../common/public.decorator';
 import { AdminKeyGuard } from './admin-key.guard';
 import { AdminService } from './admin.service';

@@ -60,11 +60,7 @@ export class MaintenanceTemplatesService {
     return found;
   }
 
-  async update(
-    companyId: string,
-    id: string,
-    dto: UpdateMaintenanceTemplateDto,
-  ) {
+  async update(companyId: string, id: string, dto: UpdateMaintenanceTemplateDto) {
     await this.findOne(companyId, id);
 
     const hasItems = Array.isArray(dto.items);

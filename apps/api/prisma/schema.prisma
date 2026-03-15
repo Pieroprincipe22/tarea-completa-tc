@@ -22,8 +22,9 @@ model Company {
   userCompanies        UserCompany[]
 
   // Work Orders
-  workOrders WorkOrder[]
-  counter    CompanyCounter?
+  workOrders  WorkOrder[]
+  counter     CompanyCounter?
+  attachments Attachment[]
 
   @@index([createdAt])
 }
@@ -42,8 +43,9 @@ model User {
   maintenanceReportsCreated MaintenanceReport[] @relation("MaintenanceReportCreatedBy")
 
   // Work Orders (relaciones nombradas)
-  workOrdersCreated  WorkOrder[] @relation("WorkOrderCreatedBy")
-  workOrdersAssigned WorkOrder[] @relation("WorkOrderAssignedTo")
+  workOrdersCreated  WorkOrder[]  @relation("WorkOrderCreatedBy")
+  workOrdersAssigned WorkOrder[]  @relation("WorkOrderAssignedTo")
+  attachments        Attachment[]
 }
 
 model UserCompany {
@@ -194,7 +196,7 @@ model MaintenanceTemplateItem {
 
   label     String
   type      MaintenanceItemType
-  required  Boolean @default(false)
+  required  Boolean             @default(false)
   sortOrder Int
   unit      String?
   hint      String?
@@ -233,17 +235,17 @@ model MaintenanceReport {
   templateDesc String?
 
   createdByUserId String
-  createdByUser   User @relation("MaintenanceReportCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  createdByUser   User   @relation("MaintenanceReportCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
 
   // Contexto (opcionales)
   customerId String?
   customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
   siteId String?
-  site   Site? @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  site   Site?   @relation(fields: [siteId], references: [id], onDelete: SetNull)
 
   assetId String?
-  asset   Asset? @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  asset   Asset?  @relation(fields: [assetId], references: [id], onDelete: SetNull)
 
   performedAt DateTime @default(now())
 
@@ -306,35 +308,35 @@ model CompanyCounter {
 }
 
 model WorkOrder {
-  id               String          @id @default(uuid())
-  companyId         String
-  number            Int
-  status            WorkOrderStatus @default(OPEN)
-  priority          Int             @default(3)
+  id        String          @id @default(uuid())
+  companyId String
+  number    Int
+  status    WorkOrderStatus @default(OPEN)
+  priority  Int             @default(3)
 
-  title             String
-  description       String?
+  title       String
+  description String?
 
-  customerId        String
-  siteId            String?
-  assetId           String?
+  customerId String
+  siteId     String?
+  assetId    String?
 
-  createdByUserId   String
-  assignedToUserId  String?
+  createdByUserId  String
+  assignedToUserId String?
 
-  scheduledAt       DateTime?
-  dueAt             DateTime?
+  scheduledAt DateTime?
+  dueAt       DateTime?
 
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  site       Site?    @relation(fields: [siteId], references: [id], onDelete: SetNull)
-  asset      Asset?   @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  site     Site?    @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  asset    Asset?   @relation(fields: [assetId], references: [id], onDelete: SetNull)
 
-  createdBy  User     @relation("WorkOrderCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
-  assignedTo User?    @relation("WorkOrderAssignedTo", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  createdBy  User  @relation("WorkOrderCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  assignedTo User? @relation("WorkOrderAssignedTo", fields: [assignedToUserId], references: [id], onDelete: SetNull)
 
   @@unique([companyId, number])
   @@index([companyId, status])
@@ -342,4 +344,29 @@ model WorkOrder {
   @@index([companyId, siteId])
   @@index([companyId, assetId])
   @@index([companyId, assignedToUserId])
+}
+
+enum AttachmentEntityType {
+  WORK_ORDER
+  MAINTENANCE_REPORT
+}
+
+model Attachment {
+  id              String               @id @default(cuid())
+  companyId       String
+  entityType      AttachmentEntityType
+  entityId        String
+  objectKey       String
+  mime            String
+  size            Int
+  originalName    String
+  createdByUserId String
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  company       Company @relation(fields: [companyId], references: [id])
+  createdByUser User    @relation(fields: [createdByUserId], references: [id])
+
+  @@index([companyId, entityType, entityId])
+  @@index([companyId, createdAt])
 }

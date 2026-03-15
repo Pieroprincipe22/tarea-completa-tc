@@ -1,20 +1,11 @@
-import {
-  IsInt,
-  IsISO8601,
-  IsOptional,
-  IsString,
-  IsUUID,
-  Max,
-  Min,
-  MinLength,
-} from 'class-validator';
+import { IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
 
 export class CreateAssetDto {
   @IsUUID()
   siteId!: string;
 
   @IsString()
-  @MinLength(2)
+  @MinLength(1)
   name!: string;
 
   @IsOptional()
@@ -36,20 +27,4 @@ export class CreateAssetDto {
   @IsOptional()
   @IsString()
   notes?: string;
-
-  // 1-5 recomendado
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(5)
-  criticality?: number;
-
-  // fechas como string ISO (ej: "2026-01-14T00:00:00.000Z")
-  @IsOptional()
-  @IsISO8601()
-  installedAt?: string;
-
-  @IsOptional()
-  @IsISO8601()
-  lastServiceAt?: string;
 }

@@ -5,7 +5,7 @@ export class CreateSiteDto {
   customerId!: string;
 
   @IsString()
-  @MinLength(2)
+  @MinLength(1)
   name!: string;
 
   @IsOptional()

@@ -7,14 +7,14 @@ export class SitesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(companyId: string, dto: CreateSiteDto) {
-    // Validación multi-tenant: el customer debe pertenecer a la misma empresa
-    const customer = await this.prisma.customer.findFirst({
+    // 1) Validar customer pertenece al tenant
+    const exists = await this.prisma.customer.findFirst({
       where: { id: dto.customerId, companyId },
       select: { id: true },
     });
+    if (!exists) throw new NotFoundException('Customer not found');
 
-    if (!customer) throw new NotFoundException('Customer not found');
-
+    // 2) Crear Site (scalars directos, sin connect)
     return this.prisma.site.create({
       data: {
         companyId,
@@ -26,13 +26,18 @@ export class SitesService {
     });
   }
 
-  findAll(companyId: string, customerId?: string) {
+  async list(companyId: string) {
     return this.prisma.site.findMany({
-      where: {
-        companyId,
-        ...(customerId ? { customerId } : {}),
-      },
+      where: { companyId },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async get(companyId: string, id: string) {
+    const item = await this.prisma.site.findFirst({
+      where: { id, companyId },
+    });
+    if (!item) throw new NotFoundException('Site not found');
+    return item;
   }
 }

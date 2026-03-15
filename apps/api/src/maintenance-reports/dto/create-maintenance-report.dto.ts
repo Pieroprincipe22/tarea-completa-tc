@@ -1,4 +1,4 @@
-import { IsISO8601, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class CreateMaintenanceReportDto {
   @IsUUID()
@@ -17,10 +17,6 @@ export class CreateMaintenanceReportDto {
   assetId?: string;
 
   @IsOptional()
-  @IsISO8601()
-  performedAt?: string;
-
-  @IsOptional()
   @IsString()
-  notes?: string;
+  title?: string;
 }

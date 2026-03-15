@@ -1,14 +1,4 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Headers,
-  Param,
-  Patch,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Query } from '@nestjs/common';
 import { MaintenanceTemplatesService } from './maintenance-templates.service';
 import { CreateMaintenanceTemplateDto } from './dto/create-maintenance-template.dto';
 import { UpdateMaintenanceTemplateDto } from './dto/update-maintenance-template.dto';
@@ -18,10 +8,7 @@ export class MaintenanceTemplatesController {
   constructor(private readonly service: MaintenanceTemplatesService) {}
 
   @Post()
-  create(
-    @Headers('x-company-id') companyId: string,
-    @Body() dto: CreateMaintenanceTemplateDto,
-  ) {
+  create(@Headers('x-company-id') companyId: string, @Body() dto: CreateMaintenanceTemplateDto) {
     return this.service.create(companyId, dto);
   }
 
