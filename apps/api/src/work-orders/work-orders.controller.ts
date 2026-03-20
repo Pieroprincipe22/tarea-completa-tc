@@ -2,83 +2,63 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { WorkOrdersService } from './work-orders.service';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { QueryWorkOrdersDto } from './dto/query-work-orders.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import { UpdateWorkOrderStatusDto } from './dto/update-work-order-status.dto';
 
-function requireHeader(name: string, v: string | string[] | undefined): string {
-  const value = Array.isArray(v) ? v[0] : v;
-  if (!value) throw new Error(`Missing required header: ${name}`);
-  return value;
-}
+type TenantRequest = Request & {
+  companyId: string;
+  userId: string;
+  role?: string;
+};
 
 @Controller('work-orders')
 export class WorkOrdersController {
   constructor(private readonly service: WorkOrdersService) {}
 
   @Get()
-  list(
-    @Headers('x-company-id') companyIdRaw: string | string[] | undefined,
-    @Headers('x-user-id') userIdRaw: string | string[] | undefined,
-    @Query() query: QueryWorkOrdersDto,
-  ) {
-    const companyId = requireHeader('x-company-id', companyIdRaw);
-    requireHeader('x-user-id', userIdRaw);
-    return this.service.list(companyId, query);
+  list(@Req() req: TenantRequest, @Query() query: QueryWorkOrdersDto) {
+    return this.service.list(req.companyId, query);
   }
 
   @Get(':id')
   get(
-    @Headers('x-company-id') companyIdRaw: string | string[] | undefined,
-    @Headers('x-user-id') userIdRaw: string | string[] | undefined,
+    @Req() req: TenantRequest,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
   ) {
-    const companyId = requireHeader('x-company-id', companyIdRaw);
-    requireHeader('x-user-id', userIdRaw);
-    return this.service.get(companyId, id);
+    return this.service.get(req.companyId, id);
   }
 
   @Post()
-  create(
-    @Headers('x-company-id') companyIdRaw: string | string[] | undefined,
-    @Headers('x-user-id') userIdRaw: string | string[] | undefined,
-    @Body() dto: CreateWorkOrderDto,
-  ) {
-    const companyId = requireHeader('x-company-id', companyIdRaw);
-    const userId = requireHeader('x-user-id', userIdRaw);
-    return this.service.create(companyId, userId, dto);
+  create(@Req() req: TenantRequest, @Body() dto: CreateWorkOrderDto) {
+    return this.service.create(req.companyId, req.userId, dto);
   }
 
   @Patch(':id')
   update(
-    @Headers('x-company-id') companyIdRaw: string | string[] | undefined,
-    @Headers('x-user-id') userIdRaw: string | string[] | undefined,
+    @Req() req: TenantRequest,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: UpdateWorkOrderDto,
   ) {
-    const companyId = requireHeader('x-company-id', companyIdRaw);
-    requireHeader('x-user-id', userIdRaw);
-    return this.service.update(companyId, id, dto);
+    return this.service.update(req.companyId, id, dto);
   }
 
   @Patch(':id/status')
   setStatus(
-    @Headers('x-company-id') companyIdRaw: string | string[] | undefined,
-    @Headers('x-user-id') userIdRaw: string | string[] | undefined,
+    @Req() req: TenantRequest,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: UpdateWorkOrderStatusDto,
   ) {
-    const companyId = requireHeader('x-company-id', companyIdRaw);
-    requireHeader('x-user-id', userIdRaw);
-    return this.service.setStatus(companyId, id, dto.status);
+    return this.service.setStatus(req.companyId, id, dto.status);
   }
 }

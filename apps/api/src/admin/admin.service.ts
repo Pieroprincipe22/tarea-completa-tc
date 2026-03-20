@@ -1,5 +1,6 @@
+import { randomBytes, scryptSync } from 'node:crypto';
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, UserRole } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { DevUserDto } from './dto/dev-user.dto';
 
@@ -7,8 +8,28 @@ type DevUserResponse = {
   ok: true;
   companyId: string;
   userId: string;
-  role: string;
+  role: UserRole;
 };
+
+function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString('hex');
+  const derivedKey = scryptSync(password, salt, 64).toString('hex');
+  return `scrypt:${salt}:${derivedKey}`;
+}
+
+function resolveRole(input?: string): UserRole {
+  const value = (input ?? 'ADMIN').trim().toUpperCase();
+
+  if (value === 'ADMIN' || value === 'OWNER') {
+    return UserRole.ADMIN;
+  }
+
+  if (value === 'TECHNICIAN' || value === 'TECNICO' || value === 'TÉCNICO') {
+    return UserRole.TECHNICIAN;
+  }
+
+  throw new BadRequestException('role must be ADMIN or TECHNICIAN');
+}
 
 @Injectable()
 export class AdminService {
@@ -16,21 +37,18 @@ export class AdminService {
 
   async devUser(dto: DevUserDto): Promise<DevUserResponse> {
     const companyName = (dto.companyName ?? dto.company)?.trim();
-    const email = (dto.email ?? dto.userEmail)?.trim();
+    const email = (dto.email ?? dto.userEmail)?.trim().toLowerCase();
     const name = (dto.name ?? dto.userName ?? 'Dev User').trim();
+    const role = resolveRole(dto.role);
+    const rawPassword = dto.password?.trim();
 
     if (!companyName) {
       throw new BadRequestException('DevUserDto must include companyName (or company)');
     }
+
     if (!email) {
       throw new BadRequestException('DevUserDto must include email (or userEmail)');
     }
-
-    // ✅ En tu schema role no es enum exportado: tratamos como string
-    const role: string = (dto.role ?? 'OWNER').trim();
-
-    // ✅ si tu UserCreateInput exige password obligatorio
-    const password = (dto.password ?? 'dev12345').trim();
 
     return this.prisma.$transaction(async (tx) => {
       const company =
@@ -43,41 +61,51 @@ export class AdminService {
           select: { id: true },
         }));
 
+      const createData: Prisma.UserCreateInput = {
+        email,
+        name,
+        passwordHash: hashPassword(rawPassword || 'dev12345'),
+        isActive: true,
+      };
+
+      const updateData: Prisma.UserUpdateInput = {
+        name,
+        isActive: true,
+      };
+
+      if (rawPassword) {
+        updateData.passwordHash = hashPassword(rawPassword);
+      }
+
       const user = await tx.user.upsert({
         where: { email },
+        create: createData,
+        update: updateData,
+        select: { id: true },
+      });
+
+      await tx.userCompany.upsert({
+        where: {
+          userId_companyId: {
+            userId: user.id,
+            companyId: company.id,
+          },
+        },
         create: {
-          email,
-          name,
-          password,
-        } satisfies Prisma.UserCreateInput,
+          userId: user.id,
+          companyId: company.id,
+          role,
+          active: true,
+        },
         update: {
-          name,
+          role,
+          active: true,
         },
         select: { id: true },
       });
 
-      const existing = await tx.userCompany.findFirst({
-        where: { companyId: company.id, userId: user.id },
-        select: { id: true },
-      });
-
-      if (!existing) {
-        await tx.userCompany.create({
-          data: {
-            companyId: company.id,
-            userId: user.id,
-            role, // string
-          },
-        });
-      } else {
-        await tx.userCompany.update({
-          where: { id: existing.id },
-          data: { role },
-        });
-      }
-
       return {
-        ok: true as const,
+        ok: true,
         companyId: company.id,
         userId: user.id,
         role,

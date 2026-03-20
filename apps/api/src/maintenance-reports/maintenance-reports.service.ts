@@ -1,4 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  MaintenanceItemStatus,
+  MaintenanceReportStatus,
+} from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { CreateMaintenanceReportDto } from './dto/create-maintenance-report.dto';
 import { UpdateMaintenanceReportItemDto } from './dto/update-maintenance-report-items.dto';
@@ -7,90 +11,353 @@ import { UpdateMaintenanceReportItemDto } from './dto/update-maintenance-report-
 export class MaintenanceReportsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createFromTemplate(companyId: string, userId: string | undefined, dto: CreateMaintenanceReportDto) {
-    if (!companyId) throw new BadRequestException('Falta header x-company-id');
-    if (!userId) throw new BadRequestException('Falta header x-user-id (createdByUserId es obligatorio)');
+  async list(companyId: string) {
+    if (!companyId) {
+      throw new BadRequestException('Falta header x-company-id');
+    }
 
-    const template = await this.prisma.maintenanceTemplate.findFirst({
-      where: { id: dto.templateId, companyId },
-      include: { items: { orderBy: { sortOrder: 'asc' } } },
+    const items = await this.prisma.maintenanceReport.findMany({
+      where: { companyId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        customer: {
+          select: { id: true, name: true },
+        },
+        site: {
+          select: { id: true, name: true, address: true },
+        },
+        asset: {
+          select: {
+            id: true,
+            name: true,
+            brand: true,
+            model: true,
+            serialNumber: true,
+          },
+        },
+        createdByUser: {
+          select: { id: true, email: true, name: true },
+        },
+        items: {
+          orderBy: { itemOrder: 'asc' },
+        },
+      },
     });
 
-    if (!template) throw new NotFoundException('MaintenanceTemplate no encontrado para esta company.');
-    if (!template.items.length) throw new BadRequestException('El template no tiene items.');
+    return {
+      items,
+      count: items.length,
+    };
+  }
+
+  async createFromTemplate(
+    companyId: string,
+    userId: string | undefined,
+    dto: CreateMaintenanceReportDto,
+  ) {
+    if (!companyId) {
+      throw new BadRequestException('Falta header x-company-id');
+    }
+
+    if (!userId) {
+      throw new BadRequestException('Falta header x-user-id (createdByUserId es obligatorio)');
+    }
+
+    const createDto = dto as CreateMaintenanceReportDto & {
+      title?: string;
+      notes?: string;
+    };
+
+    const userCompany = await this.prisma.userCompany.findFirst({
+      where: {
+        companyId,
+        userId,
+        active: true,
+      },
+      select: { id: true },
+    });
+
+    if (!userCompany) {
+      throw new BadRequestException('El usuario del header no pertenece a esta company.');
+    }
+
+    const template = await this.prisma.maintenanceTemplate.findFirst({
+      where: {
+        id: dto.templateId,
+        companyId,
+        isActive: true,
+      },
+      include: {
+        items: {
+          orderBy: { itemOrder: 'asc' },
+        },
+      },
+    });
+
+    if (!template) {
+      throw new NotFoundException('MaintenanceTemplate no encontrado para esta company.');
+    }
+
+    if (!template.items.length) {
+      throw new BadRequestException('El template no tiene items.');
+    }
+
+    const customer = await this.prisma.customer.findFirst({
+      where: {
+        id: dto.customerId,
+        companyId,
+      },
+      select: { id: true },
+    });
+
+    if (!customer) {
+      throw new NotFoundException('Customer no encontrado para esta company.');
+    }
+
+    const site = await this.prisma.site.findFirst({
+      where: {
+        id: dto.siteId,
+        companyId,
+      },
+      select: { id: true, customerId: true },
+    });
+
+    if (!site) {
+      throw new NotFoundException('Site no encontrado para esta company.');
+    }
+
+    if (site.customerId !== customer.id) {
+      throw new BadRequestException('El site no pertenece al customer indicado.');
+    }
+
+    const asset = await this.prisma.asset.findFirst({
+      where: {
+        id: dto.assetId,
+        companyId,
+      },
+      select: { id: true, siteId: true },
+    });
+
+    if (!asset) {
+      throw new NotFoundException('Asset no encontrado para esta company.');
+    }
+
+    if (asset.siteId !== site.id) {
+      throw new BadRequestException('El asset no pertenece al site indicado.');
+    }
 
     return this.prisma.$transaction(async (tx) => {
       const report = await tx.maintenanceReport.create({
         data: {
           companyId,
+          customerId: customer.id,
+          siteId: site.id,
+          assetId: asset.id,
           templateId: template.id,
-          templateName: template.name,
-          templateDesc: template.description ?? undefined,
+          title: createDto.title?.trim() || template.title,
+          description: template.description ?? null,
+          notes: createDto.notes ?? null,
+          status: MaintenanceReportStatus.DRAFT,
           createdByUserId: userId,
-
-          customerId: dto.customerId,
-          siteId: dto.siteId,
-          assetId: dto.assetId,
-
-          state: 'DRAFT',
         },
       });
 
       await tx.maintenanceReportItem.createMany({
         data: template.items.map((it) => ({
-          companyId,
           reportId: report.id,
           templateItemId: it.id,
-          sortOrder: it.sortOrder,
-          title: it.label,
-          description: it.hint ?? undefined,
-          status: 'PENDING',
-          resultValue: undefined,
-          resultNotes: undefined,
+          title: it.title,
+          description: it.description ?? null,
+          itemOrder: it.itemOrder,
+          status: MaintenanceItemStatus.PENDING,
+          value: null,
+          notes: null,
         })),
       });
 
-      return tx.maintenanceReport.findFirst({
-        where: { id: report.id, companyId },
-        include: { items: { orderBy: { sortOrder: 'asc' } } },
+      const fullReport = await tx.maintenanceReport.findFirst({
+        where: {
+          id: report.id,
+          companyId,
+        },
+        include: {
+          customer: {
+            select: { id: true, name: true },
+          },
+          site: {
+            select: { id: true, name: true, address: true },
+          },
+          asset: {
+            select: {
+              id: true,
+              name: true,
+              brand: true,
+              model: true,
+              serialNumber: true,
+            },
+          },
+          createdByUser: {
+            select: { id: true, email: true, name: true },
+          },
+          items: {
+            orderBy: { itemOrder: 'asc' },
+          },
+        },
       });
+
+      if (!fullReport) {
+        throw new NotFoundException('No se pudo recuperar el reporte creado.');
+      }
+
+      return fullReport;
     });
   }
 
   async getById(companyId: string, id: string) {
+    if (!companyId) {
+      throw new BadRequestException('Falta header x-company-id');
+    }
+
     const report = await this.prisma.maintenanceReport.findFirst({
       where: { id, companyId },
-      include: { items: { orderBy: { sortOrder: 'asc' } } },
+      include: {
+        customer: {
+          select: { id: true, name: true },
+        },
+        site: {
+          select: { id: true, name: true, address: true },
+        },
+        asset: {
+          select: {
+            id: true,
+            name: true,
+            brand: true,
+            model: true,
+            serialNumber: true,
+          },
+        },
+        createdByUser: {
+          select: { id: true, email: true, name: true },
+        },
+        items: {
+          orderBy: { itemOrder: 'asc' },
+        },
+      },
     });
-    if (!report) throw new NotFoundException('Reporte no encontrado.');
+
+    if (!report) {
+      throw new NotFoundException('Reporte no encontrado.');
+    }
+
     return report;
   }
 
-  async updateItem(companyId: string, reportId: string, itemId: string, dto: UpdateMaintenanceReportItemDto) {
-    const item = await this.prisma.maintenanceReportItem.findFirst({
-      where: { id: itemId, reportId, companyId },
+  async updateItem(
+    companyId: string,
+    reportId: string,
+    itemId: string,
+    dto: UpdateMaintenanceReportItemDto,
+  ) {
+    if (!companyId) {
+      throw new BadRequestException('Falta header x-company-id');
+    }
+
+    const report = await this.prisma.maintenanceReport.findFirst({
+      where: {
+        id: reportId,
+        companyId,
+      },
+      select: {
+        id: true,
+        status: true,
+      },
     });
-    if (!item) throw new NotFoundException('Item no encontrado.');
+
+    if (!report) {
+      throw new NotFoundException('Reporte no encontrado.');
+    }
+
+    if (
+      report.status === MaintenanceReportStatus.COMPLETED ||
+      report.status === MaintenanceReportStatus.CANCELLED
+    ) {
+      throw new BadRequestException('No se pueden editar items de un reporte cerrado.');
+    }
+
+    const item = await this.prisma.maintenanceReportItem.findFirst({
+      where: {
+        id: itemId,
+        reportId,
+      },
+    });
+
+    if (!item) {
+      throw new NotFoundException('Item no encontrado.');
+    }
 
     return this.prisma.maintenanceReportItem.update({
       where: { id: itemId },
       data: {
-        status: dto.status,
-        resultValue: dto.resultValue,
-        resultNotes: dto.resultNotes,
+        status: dto.status ?? item.status,
+        value: dto.value ?? dto.resultValue ?? item.value,
+        notes: dto.notes ?? dto.resultNotes ?? item.notes,
       },
     });
   }
 
   async finalize(companyId: string, id: string) {
-    const report = await this.prisma.maintenanceReport.findFirst({ where: { id, companyId } });
-    if (!report) throw new NotFoundException('Reporte no encontrado.');
+    if (!companyId) {
+      throw new BadRequestException('Falta header x-company-id');
+    }
+
+    const report = await this.prisma.maintenanceReport.findFirst({
+      where: { id, companyId },
+      include: {
+        items: true,
+      },
+    });
+
+    if (!report) {
+      throw new NotFoundException('Reporte no encontrado.');
+    }
+
+    if (!report.items.length) {
+      throw new BadRequestException('El reporte no tiene items.');
+    }
+
+    const pendingItems = report.items.filter((item) => item.status === MaintenanceItemStatus.PENDING);
+    if (pendingItems.length > 0) {
+      throw new BadRequestException('No se puede finalizar: todavía hay items en estado PENDING.');
+    }
 
     return this.prisma.maintenanceReport.update({
       where: { id },
       data: {
-        state: 'FINAL',
-        finalizedAt: new Date(),
+        status: MaintenanceReportStatus.COMPLETED,
+        completedAt: new Date(),
+      },
+      include: {
+        customer: {
+          select: { id: true, name: true },
+        },
+        site: {
+          select: { id: true, name: true, address: true },
+        },
+        asset: {
+          select: {
+            id: true,
+            name: true,
+            brand: true,
+            model: true,
+            serialNumber: true,
+          },
+        },
+        createdByUser: {
+          select: { id: true, email: true, name: true },
+        },
+        items: {
+          orderBy: { itemOrder: 'asc' },
+        },
       },
     });
   }

@@ -7,6 +7,11 @@ import { UpdateMaintenanceReportItemDto } from './dto/update-maintenance-report-
 export class MaintenanceReportsController {
   constructor(private readonly service: MaintenanceReportsService) {}
 
+  @Get()
+  list(@Headers('x-company-id') companyId: string) {
+    return this.service.list(companyId);
+  }
+
   @Post()
   create(
     @Headers('x-company-id') companyId: string,

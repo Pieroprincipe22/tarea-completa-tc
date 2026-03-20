@@ -3,7 +3,6 @@ import {
   ArrayMinSize,
   IsArray,
   IsBoolean,
-  IsEnum,
   IsInt,
   IsOptional,
   IsString,
@@ -11,19 +10,46 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { MaintenanceItemType } from '@prisma/client';
 
 export class CreateMaintenanceTemplateItemDto {
+  @IsOptional()
   @IsString()
   @MaxLength(200)
-  label!: string;
+  title?: string;
 
-  @IsEnum(MaintenanceItemType)
-  type!: MaintenanceItemType;
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  label?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(250)
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(250)
+  hint?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  valueType?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  type?: string;
 
   @IsOptional()
   @IsBoolean()
   required?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  itemOrder?: number;
 
   @IsOptional()
   @IsInt()
@@ -36,19 +62,19 @@ export class CreateMaintenanceTemplateItemDto {
   unit?: string;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(250)
-  hint?: string;
-
-  // Para CHOICE típicamente: ["Auto","Manual"] o { choices: ["A","B"] }
-  @IsOptional()
   options?: unknown;
 }
 
 export class CreateMaintenanceTemplateDto {
+  @IsOptional()
   @IsString()
   @MaxLength(120)
-  name!: string;
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  name?: string;
 
   @IsOptional()
   @IsString()

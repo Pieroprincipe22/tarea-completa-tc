@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, IsUUID, Min } from 'class-validator';
-import { MaintenanceReportState } from '@prisma/client';
+import { MaintenanceReportStatus } from '@prisma/client';
 
 export class ListMaintenanceReportsQueryDto {
   @IsOptional()
@@ -20,8 +20,13 @@ export class ListMaintenanceReportsQueryDto {
   templateId?: string;
 
   @IsOptional()
-  @IsEnum(MaintenanceReportState)
-  state?: MaintenanceReportState;
+  @IsEnum(MaintenanceReportStatus)
+  status?: MaintenanceReportStatus;
+
+  // Alias legacy para compatibilidad
+  @IsOptional()
+  @IsEnum(MaintenanceReportStatus)
+  state?: MaintenanceReportStatus;
 
   @IsOptional()
   @Type(() => Number)
@@ -36,5 +41,4 @@ export class ListMaintenanceReportsQueryDto {
   take?: number;
 }
 
-// Alias para que el service pueda importar ListMaintenanceReportsQuery
 export { ListMaintenanceReportsQueryDto as ListMaintenanceReportsQuery };

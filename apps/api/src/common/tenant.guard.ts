@@ -1,18 +1,30 @@
-import { BadRequestException, CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../database/prisma.service';
 import { IS_PUBLIC_KEY } from './public.decorator';
 
 @Injectable()
 export class TenantGuard implements CanActivate {
-  constructor(private readonly prisma: PrismaService, private readonly reflector: Reflector) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly reflector: Reflector,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
-    if (isPublic) return true;
+
+    if (isPublic) {
+      return true;
+    }
 
     const req = context.switchToHttp().getRequest();
 
@@ -27,13 +39,28 @@ export class TenantGuard implements CanActivate {
     }
 
     const membership = await this.prisma.userCompany.findUnique({
-      where: { companyId_userId: { companyId, userId } },
-      select: { role: true },
+      where: {
+        userId_companyId: {
+          userId,
+          companyId,
+        },
+      },
+      select: {
+        role: true,
+        active: true,
+      },
     });
 
-    if (!membership) throw new UnauthorizedException('No membership for company');
+    if (!membership || !membership.active) {
+      throw new UnauthorizedException('No active membership for company');
+    }
 
-    req.tenant = { companyId, userId, role: membership.role };
+    req.tenant = {
+      companyId,
+      userId,
+      role: membership.role,
+    };
+
     return true;
   }
 }

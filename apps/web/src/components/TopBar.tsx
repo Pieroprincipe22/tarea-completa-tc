@@ -2,11 +2,20 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { clearTcSession, readTcSession } from '@/lib/tc/session';
+
+type TcSession = ReturnType<typeof readTcSession>;
 
 export default function TopBar() {
   const pathname = usePathname();
-  const session = readTcSession();
+  const [mounted, setMounted] = useState(false);
+  const [session, setSession] = useState<TcSession>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    setSession(readTcSession());
+  }, []);
 
   if (pathname === '/login') return null;
 
@@ -15,9 +24,12 @@ export default function TopBar() {
       <div className="mx-auto max-w-6xl px-6 py-3 flex items-center justify-between gap-4">
         <div className="text-sm text-slate-300">
           <span className="font-semibold text-slate-100">
-            {session?.name ?? 'Demo'}
+            {mounted ? session?.name ?? 'Demo' : 'Demo'}
           </span>{' '}
-          — <span className="opacity-80">{session?.companyId ?? 'no-company'}</span>
+          —{' '}
+          <span className="opacity-80">
+            {mounted ? session?.companyId ?? 'no-company' : 'no-company'}
+          </span>
         </div>
 
         <div className="flex items-center gap-3 text-sm">
@@ -35,7 +47,7 @@ export default function TopBar() {
             className="rounded-lg border border-slate-700 px-3 py-1 hover:bg-slate-800"
             onClick={() => {
               clearTcSession();
-              location.href = '/login';
+              window.location.href = '/login';
             }}
             type="button"
           >

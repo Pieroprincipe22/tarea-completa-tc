@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { AttachmentOwnerType } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { StorageService } from '../storage/storage.service';
 
@@ -14,37 +15,47 @@ export class AttachmentsService {
   ) {}
 
   private async assertWorkOrderTenant(companyId: string, workOrderId: string) {
-    const wo = await this.prisma.workOrder.findFirst({
+    const workOrder = await this.prisma.workOrder.findFirst({
       where: { id: workOrderId, companyId },
       select: { id: true },
     });
-    if (!wo) throw new NotFoundException('WorkOrder not found');
+
+    if (!workOrder) {
+      throw new NotFoundException('WorkOrder not found');
+    }
   }
 
   async listWorkOrderAttachments(companyId: string, workOrderId: string) {
     await this.assertWorkOrderTenant(companyId, workOrderId);
 
-    return this.prisma.attachment.findMany({
+    const items = await this.prisma.attachment.findMany({
       where: {
         companyId,
-        entityType: 'WORK_ORDER',
-        entityId: workOrderId,
+        ownerType: AttachmentOwnerType.WORK_ORDER,
+        ownerId: workOrderId,
       },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
-        originalName: true,
-        mime: true,
-        size: true,
+        fileName: true,
+        mimeType: true,
+        sizeBytes: true,
         createdAt: true,
-        createdByUserId: true,
       },
     });
+
+    return items.map((item) => ({
+      id: item.id,
+      originalName: item.fileName,
+      mime: item.mimeType,
+      size: item.sizeBytes,
+      createdAt: item.createdAt,
+    }));
   }
 
   async uploadWorkOrderAttachment(
     companyId: string,
-    userId: string,
+    _userId: string,
     workOrderId: string,
     file: Express.Multer.File,
   ) {
@@ -56,50 +67,56 @@ export class AttachmentsService {
 
     const safeName = sanitizeFilename(file.originalname || 'file');
 
-    // 1) Creamos el Attachment primero para obtener attachmentId
     const created = await this.prisma.attachment.create({
       data: {
         companyId,
-        entityType: 'WORK_ORDER',
-        entityId: workOrderId,
-        objectKey: 'PENDING',
-        mime: file.mimetype || 'application/octet-stream',
-        size: file.size ?? file.buffer.length,
-        originalName: safeName,
-        createdByUserId: userId,
+        ownerType: AttachmentOwnerType.WORK_ORDER,
+        ownerId: workOrderId,
+        workOrderId,
+        fileName: safeName,
+        fileUrl: 'PENDING',
+        mimeType: file.mimetype || 'application/octet-stream',
+        sizeBytes: file.size ?? file.buffer.length,
       },
       select: { id: true },
     });
 
-    // 2) Subimos a storage con key estable
     const objectKey = `company/${companyId}/work-orders/${workOrderId}/${created.id}-${safeName}`;
 
     await this.storage.putObject(objectKey, file.buffer, file.mimetype);
 
-    // 3) Actualizamos objectKey
-    return this.prisma.attachment.update({
+    const saved = await this.prisma.attachment.update({
       where: { id: created.id },
-      data: { objectKey },
+      data: { fileUrl: objectKey },
       select: {
         id: true,
-        originalName: true,
-        mime: true,
-        size: true,
+        fileName: true,
+        mimeType: true,
+        sizeBytes: true,
         createdAt: true,
-        createdByUserId: true,
       },
     });
+
+    return {
+      id: saved.id,
+      originalName: saved.fileName,
+      mime: saved.mimeType,
+      size: saved.sizeBytes,
+      createdAt: saved.createdAt,
+    };
   }
 
   async getAttachmentUrl(companyId: string, attachmentId: string) {
     const att = await this.prisma.attachment.findFirst({
       where: { id: attachmentId, companyId },
-      select: { objectKey: true },
+      select: { fileUrl: true },
     });
 
-    if (!att) throw new NotFoundException('Attachment not found');
+    if (!att) {
+      throw new NotFoundException('Attachment not found');
+    }
 
-    const url = await this.storage.getSignedUrl(att.objectKey);
+    const url = await this.storage.getSignedUrl(att.fileUrl);
     return { url };
   }
 }

@@ -4,19 +4,16 @@ export class CreateMaintenanceReportDto {
   @IsUUID()
   templateId!: string;
 
-  @IsOptional()
   @IsUUID()
-  customerId?: string;
+  customerId!: string;
 
-  @IsOptional()
   @IsUUID()
-  siteId?: string;
+  siteId!: string;
 
-  @IsOptional()
   @IsUUID()
-  assetId?: string;
+  assetId!: string;
 
   @IsOptional()
   @IsString()
-  title?: string;
+  notes?: string;
 }
