@@ -1,4 +1,9 @@
-import { DEFAULT_API_BASE, type TcSession } from '@/lib/tc/session';
+import {
+  DEFAULT_API_BASE,
+  readTcSession,
+  type TcSession,
+  isTechnicianRole,
+} from '@/lib/tc/session';
 
 export type TcApiPaths = {
   base: string;
@@ -23,10 +28,16 @@ export function isRecord(x: unknown): x is Record<string, unknown> {
   return !!x && typeof x === 'object' && !Array.isArray(x);
 }
 
+function normalizeBaseUrl(base?: string | null): string {
+  const raw = (base ?? DEFAULT_API_BASE).trim();
+  return raw.endsWith('/') ? raw.slice(0, -1) : raw;
+}
+
 export function resolveCorePaths(
   session?: Pick<TcSession, 'apiBase'> | null,
 ): TcApiPaths {
-  const base = session?.apiBase ?? DEFAULT_API_BASE;
+  const base = normalizeBaseUrl(session?.apiBase);
+
   return {
     base,
     health: '/health',
@@ -42,13 +53,19 @@ export function resolveCorePaths(
 
 function toUrl(base: string, path: string): string {
   if (path.startsWith('http://') || path.startsWith('https://')) return path;
-  return `${base}${path.startsWith('/') ? '' : '/'}${path}`;
+
+  const normalizedBase = normalizeBaseUrl(base);
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+  return `${normalizedBase}${normalizedPath}`;
 }
 
 async function readBody(res: Response): Promise<unknown> {
   if (res.status === 204) return null;
+
   const ct = res.headers.get('content-type') ?? '';
   if (ct.includes('application/json')) return (await res.json()) as unknown;
+
   return (await res.text()) as unknown;
 }
 
@@ -63,9 +80,12 @@ export async function tcFetch<T = unknown>(
   opts: TcFetchOpts,
 ): Promise<TcApiResponse<T>> {
   const { method = 'GET', path, body } = opts;
-  const base = session?.apiBase ?? DEFAULT_API_BASE;
+  const base = normalizeBaseUrl(session?.apiBase ?? DEFAULT_API_BASE);
 
-  const headers: Record<string, string> = { Accept: 'application/json' };
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+  };
+
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (session?.companyId) headers['x-company-id'] = session.companyId;
   if (session?.userId) headers['x-user-id'] = session.userId;
@@ -74,6 +94,7 @@ export async function tcFetch<T = unknown>(
     method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
+    cache: 'no-store',
   });
 
   const json = (await readBody(res)) as unknown;
@@ -87,12 +108,43 @@ export async function tcGet<T = unknown>(
   return tcFetch<T>(session, { method: 'GET', path });
 }
 
+export async function tcPost<T = unknown>(
+  session: TcSession | null,
+  path: string,
+  body?: unknown,
+): Promise<TcApiResponse<T>> {
+  return tcFetch<T>(session, { method: 'POST', path, body });
+}
+
+export async function tcPatch<T = unknown>(
+  session: TcSession | null,
+  path: string,
+  body?: unknown,
+): Promise<TcApiResponse<T>> {
+  return tcFetch<T>(session, { method: 'PATCH', path, body });
+}
+
 export function normalizeList<T>(x: unknown): { items: T[]; count: number } {
-  if (Array.isArray(x)) return { items: x as T[], count: x.length };
+  if (Array.isArray(x)) {
+    return { items: x as T[], count: x.length };
+  }
 
   if (isRecord(x)) {
     const maybeItems = (x as { items?: unknown }).items;
-    if (Array.isArray(maybeItems)) return { items: maybeItems as T[], count: maybeItems.length };
+    const maybeCount = (x as { count?: unknown }).count;
+    const maybeTotal = (x as { total?: unknown }).total;
+
+    if (Array.isArray(maybeItems)) {
+      if (typeof maybeCount === 'number') {
+        return { items: maybeItems as T[], count: maybeCount };
+      }
+
+      if (typeof maybeTotal === 'number') {
+        return { items: maybeItems as T[], count: maybeTotal };
+      }
+
+      return { items: maybeItems as T[], count: maybeItems.length };
+    }
   }
 
   return { items: [], count: 0 };
@@ -104,6 +156,9 @@ export function getCountFromUnknown(x: unknown): number {
   if (isRecord(x)) {
     const c = (x as { count?: unknown }).count;
     if (typeof c === 'number') return c;
+
+    const total = (x as { total?: unknown }).total;
+    if (typeof total === 'number') return total;
 
     const maybeItems = (x as { items?: unknown }).items;
     if (Array.isArray(maybeItems)) return maybeItems.length;
@@ -117,13 +172,26 @@ export async function getCount(
   path: string,
 ): Promise<number> {
   const r = await tcGet<unknown>(session, path);
-  if (r.code < 200 || r.code >= 300) throw new Error(`HTTP ${r.code} en ${path}`);
+  if (r.code < 200 || r.code >= 300) {
+    throw new Error(`HTTP ${r.code} en ${path}`);
+  }
   return getCountFromUnknown(r.json);
 }
 
 export type CoreNavItem = { key: string; title: string; path: string };
 
-export function resolveCoreNavItems(): CoreNavItem[] {
+export function resolveCoreNavItems(session?: Pick<TcSession, 'role'> | null): CoreNavItem[] {
+  const resolvedRole =
+    session?.role ??
+    (typeof window !== 'undefined' ? readTcSession()?.role : undefined);
+
+  if (isTechnicianRole(resolvedRole)) {
+    return [
+      { key: 'dashboard', title: 'Dashboard', path: '/technician/dashboard' },
+      { key: 'workOrders', title: 'My Work Orders', path: '/technician/work-orders' },
+    ];
+  }
+
   return [
     { key: 'dashboard', title: 'Dashboard', path: '/dashboard' },
     { key: 'customers', title: 'Customers', path: '/customers' },

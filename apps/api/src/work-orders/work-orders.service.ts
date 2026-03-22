@@ -105,9 +105,62 @@ function serializeWorkOrder(item: WorkOrderWithRelations) {
   };
 }
 
+function resolveStatusLifecycleData(
+  status: WorkOrderStatus | undefined,
+  current: { startedAt: Date | null; completedAt: Date | null },
+): Pick<Prisma.WorkOrderUpdateInput, 'startedAt' | 'completedAt'> {
+  if (!status) return {};
+
+  if (status === WorkOrderStatus.OPEN || status === WorkOrderStatus.ASSIGNED) {
+    return {
+      startedAt: null,
+      completedAt: null,
+    };
+  }
+
+  if (status === WorkOrderStatus.IN_PROGRESS) {
+    return {
+      startedAt: current.startedAt ?? new Date(),
+      completedAt: null,
+    };
+  }
+
+  if (status === WorkOrderStatus.DONE) {
+    return {
+      startedAt: current.startedAt ?? new Date(),
+      completedAt: current.completedAt ?? new Date(),
+    };
+  }
+
+  if (status === WorkOrderStatus.CANCELLED) {
+    return {
+      completedAt: null,
+    };
+  }
+
+  return {};
+}
+
 @Injectable()
 export class WorkOrdersService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private async getLifecycleState(companyId: string, id: string) {
+    const item = await this.prisma.workOrder.findFirst({
+      where: { companyId, id },
+      select: {
+        id: true,
+        startedAt: true,
+        completedAt: true,
+      },
+    });
+
+    if (!item) {
+      throw new NotFoundException('WorkOrder not found');
+    }
+
+    return item;
+  }
 
   async create(companyId: string, _userId: string, dto: CreateWorkOrderDto) {
     if (!dto.customerId) {
@@ -262,7 +315,7 @@ export class WorkOrdersService {
   }
 
   async update(companyId: string, id: string, dto: UpdateWorkOrderDto) {
-    await this.get(companyId, id);
+    const existing = await this.getLifecycleState(companyId, id);
 
     const updateDto = dto as UpdateWorkOrderDto & {
       priority?: unknown;
@@ -355,6 +408,7 @@ export class WorkOrdersService {
         ...(updateDto.completedAt !== undefined
           ? { completedAt: toDateOrNull(updateDto.completedAt) }
           : {}),
+        ...resolveStatusLifecycleData(updateDto.status, existing),
       },
       include: workOrderInclude,
     });
@@ -363,23 +417,14 @@ export class WorkOrdersService {
   }
 
   async setStatus(companyId: string, id: string, status: WorkOrderStatus) {
-    await this.get(companyId, id);
-
-    const data: Prisma.WorkOrderUpdateInput = {
-      status,
-    };
-
-    if (status === WorkOrderStatus.IN_PROGRESS) {
-      data.startedAt = new Date();
-    }
-
-    if (status === WorkOrderStatus.DONE) {
-      data.completedAt = new Date();
-    }
+    const existing = await this.getLifecycleState(companyId, id);
 
     const item = await this.prisma.workOrder.update({
       where: { id },
-      data,
+      data: {
+        status,
+        ...resolveStatusLifecycleData(status, existing),
+      },
       include: workOrderInclude,
     });
 

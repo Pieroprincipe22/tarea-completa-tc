@@ -1,12 +1,14 @@
 export type TcSession = {
   apiBase?: string;
   companyId: string;
+  companyName?: string;
   userId: string;
   email?: string;
   name?: string;
+  role?: string;
 };
 
-export const TC_LS_KEYS = {
+export const TC_STORAGE_KEYS = {
   session: 'tc.session',
   apiBase: 'tc.apiBase',
   companyId: 'tc.companyId',
@@ -16,11 +18,40 @@ export const TC_LS_KEYS = {
 export const DEFAULT_API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:3002';
 
-export function readTcSession(): TcSession | null {
+function getStorage(): Storage | null {
   if (typeof window === 'undefined') return null;
+  return window.sessionStorage;
+}
 
-  // Preferido: tc.session
-  const raw = window.localStorage.getItem(TC_LS_KEYS.session);
+export function normalizeTcRole(role?: string | null): string {
+  return typeof role === 'string' ? role.trim().toUpperCase() : '';
+}
+
+export function isTechnicianRole(role?: string | null): boolean {
+  return normalizeTcRole(role) === 'TECHNICIAN';
+}
+
+export function isAdminRole(role?: string | null): boolean {
+  return normalizeTcRole(role) === 'ADMIN';
+}
+
+export function isTechnicianSession(session?: Pick<TcSession, 'role'> | null): boolean {
+  return isTechnicianRole(session?.role);
+}
+
+export function resolveHomePath(session?: Pick<TcSession, 'role'> | null): string {
+  return isTechnicianSession(session) ? '/technician/dashboard' : '/dashboard';
+}
+
+export function resolveWorkOrdersPath(session?: Pick<TcSession, 'role'> | null): string {
+  return isTechnicianSession(session) ? '/technician/work-orders' : '/work-orders';
+}
+
+export function readTcSession(): TcSession | null {
+  const storage = getStorage();
+  if (!storage) return null;
+
+  const raw = storage.getItem(TC_STORAGE_KEYS.session);
   if (raw) {
     try {
       const s = JSON.parse(raw) as TcSession;
@@ -32,38 +63,41 @@ export function readTcSession(): TcSession | null {
     }
   }
 
-  // Legacy: keys sueltas
-  const companyId = window.localStorage.getItem(TC_LS_KEYS.companyId) ?? '';
-  const userId = window.localStorage.getItem(TC_LS_KEYS.userId) ?? '';
+  const companyId = storage.getItem(TC_STORAGE_KEYS.companyId) ?? '';
+  const userId = storage.getItem(TC_STORAGE_KEYS.userId) ?? '';
   if (!companyId || !userId) return null;
 
-  const apiBase =
-    window.localStorage.getItem(TC_LS_KEYS.apiBase) ?? DEFAULT_API_BASE;
+  const apiBase = storage.getItem(TC_STORAGE_KEYS.apiBase) ?? DEFAULT_API_BASE;
 
   return { apiBase, companyId, userId };
 }
 
 export function writeTcSession(session: TcSession) {
-  if (typeof window === 'undefined') return;
+  const storage = getStorage();
+  if (!storage) return;
 
   const normalized: TcSession = {
     apiBase: session.apiBase ?? DEFAULT_API_BASE,
     companyId: session.companyId,
+    companyName: session.companyName,
     userId: session.userId,
     email: session.email,
     name: session.name,
+    role: session.role,
   };
 
-  window.localStorage.setItem(TC_LS_KEYS.session, JSON.stringify(normalized));
-  window.localStorage.setItem(TC_LS_KEYS.apiBase, normalized.apiBase ?? '');
-  window.localStorage.setItem(TC_LS_KEYS.companyId, normalized.companyId);
-  window.localStorage.setItem(TC_LS_KEYS.userId, normalized.userId);
+  storage.setItem(TC_STORAGE_KEYS.session, JSON.stringify(normalized));
+  storage.setItem(TC_STORAGE_KEYS.apiBase, normalized.apiBase ?? '');
+  storage.setItem(TC_STORAGE_KEYS.companyId, normalized.companyId);
+  storage.setItem(TC_STORAGE_KEYS.userId, normalized.userId);
 }
 
 export function clearTcSession() {
-  if (typeof window === 'undefined') return;
-  window.localStorage.removeItem(TC_LS_KEYS.session);
-  window.localStorage.removeItem(TC_LS_KEYS.apiBase);
-  window.localStorage.removeItem(TC_LS_KEYS.companyId);
-  window.localStorage.removeItem(TC_LS_KEYS.userId);
+  const storage = getStorage();
+  if (!storage) return;
+
+  storage.removeItem(TC_STORAGE_KEYS.session);
+  storage.removeItem(TC_STORAGE_KEYS.apiBase);
+  storage.removeItem(TC_STORAGE_KEYS.companyId);
+  storage.removeItem(TC_STORAGE_KEYS.userId);
 }

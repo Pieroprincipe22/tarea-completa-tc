@@ -10,12 +10,46 @@ type MaintenanceReport = {
   performedAt?: string;
   state?: string;
   templateName?: string;
+  title?: string;
+  createdAt?: string;
+  completedAt?: string;
+  status?: string;
 };
 
 type LoadState<T> =
   | { status: 'loading' }
   | { status: 'ok'; data: T }
   | { status: 'error'; error: string };
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+function parseReport(value: unknown): MaintenanceReport {
+  const obj = asRecord(value);
+  const template = asRecord(obj.template);
+
+  return {
+    id: asString(obj.id) ?? '',
+    performedAt:
+      asString(obj.performedAt) ??
+      asString(obj.completedAt) ??
+      asString(obj.createdAt),
+    state: asString(obj.state) ?? asString(obj.status),
+    templateName:
+      asString(obj.templateName) ??
+      asString(template.title) ??
+      asString(obj.title),
+    title: asString(obj.title),
+    createdAt: asString(obj.createdAt),
+    completedAt: asString(obj.completedAt),
+    status: asString(obj.status),
+  };
+}
 
 function formatDate(input?: string) {
   if (!input) return '—';
@@ -46,6 +80,20 @@ function Badge({
   );
 }
 
+function toneFromState(state?: string): 'ok' | 'warn' | 'bad' | 'muted' {
+  switch (state) {
+    case 'COMPLETED':
+    case 'FINAL':
+      return 'ok';
+    case 'DRAFT':
+      return 'warn';
+    case 'CANCELLED':
+      return 'bad';
+    default:
+      return 'muted';
+  }
+}
+
 export default function MaintenanceReportsPage() {
   const [session, setSession] = useState<TcSession | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -70,7 +118,7 @@ export default function MaintenanceReportsPage() {
       setState({ status: 'loading' });
 
       try {
-        const paths = await resolveCorePaths(session);
+        const paths = resolveCorePaths(session);
         const r = await tcGet(session, paths.reports);
 
         if (cancelled) return;
@@ -96,7 +144,8 @@ export default function MaintenanceReportsPage() {
           return;
         }
 
-        const { items } = normalizeList<MaintenanceReport>(r.json);
+        const rawItems = normalizeList<unknown>(r.json).items;
+        const items = rawItems.map(parseReport).filter((item) => item.id);
 
         items.sort((a, b) => {
           const da = a.performedAt ? new Date(a.performedAt).getTime() : 0;
@@ -146,8 +195,7 @@ export default function MaintenanceReportsPage() {
             <Link className="text-white underline" href="/login">
               /login
             </Link>{' '}
-            y configura <span className="text-white">companyId</span> y{' '}
-            <span className="text-white">userId</span>.
+            y configura tu sesión.
           </div>
         </div>
       </div>
@@ -215,17 +263,9 @@ export default function MaintenanceReportsPage() {
                 {state.data.map((r) => (
                   <tr key={r.id} className="border-b border-white/5">
                     <td className="py-2 pr-3">{formatDate(r.performedAt)}</td>
-                    <td className="py-2 pr-3">{r.templateName || '—'}</td>
+                    <td className="py-2 pr-3">{r.templateName || r.title || '—'}</td>
                     <td className="py-2 pr-3">
-                      <Badge
-                        tone={
-                          r.state === 'FINAL'
-                            ? 'ok'
-                            : r.state === 'DRAFT'
-                              ? 'warn'
-                              : 'muted'
-                        }
-                      >
+                      <Badge tone={toneFromState(r.state)}>
                         {r.state || '—'}
                       </Badge>
                     </td>

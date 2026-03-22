@@ -14,10 +14,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body className="min-h-screen bg-slate-950 text-slate-100">
+      <body className="tc-shell">
         <AuthGate>
-          <TopBar />
-          <main className="mx-auto max-w-6xl p-6">{children}</main>
+          <div className="relative min-h-screen">
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:32px_32px] [mask-image:linear-gradient(to_bottom,rgba(0,0,0,0.28),transparent)]" />
+            <TopBar />
+            <main className="tc-page relative z-10">{children}</main>
+          </div>
         </AuthGate>
       </body>
     </html>

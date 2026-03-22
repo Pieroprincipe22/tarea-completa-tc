@@ -20,6 +20,41 @@ type TemplateItem = {
 
 type LoadStatus = 'idle' | 'loading' | 'ok' | 'error';
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+function parseTemplateItem(value: unknown): TemplateItem | null {
+  const obj = asRecord(value);
+  const id = asString(obj.id);
+  const name = asString(obj.title) ?? asString(obj.name);
+
+  if (!id || !name) return null;
+
+  return { id, name };
+}
+
+function parseOptionItem(value: unknown): OptionItem | null {
+  const obj = asRecord(value);
+  const site = asRecord(obj.site);
+
+  const id = asString(obj.id);
+  const name = asString(obj.name) ?? asString(obj.title);
+
+  if (!id || !name) return null;
+
+  return {
+    id,
+    name,
+    customerId: asString(obj.customerId) ?? asString(site.customerId),
+    siteId: asString(obj.siteId) ?? asString(site.id),
+  };
+}
+
 export default function NewMaintenanceReportPage() {
   const router = useRouter();
 
@@ -87,10 +122,21 @@ export default function NewMaintenanceReportPage() {
           throw new Error(`No se pudieron cargar assets (${assetsRes.code})`);
         }
 
-        const templatesItems = normalizeList<TemplateItem>(templatesRes.json).items;
-        const customerItems = normalizeList<OptionItem>(customersRes.json).items;
-        const siteItems = normalizeList<OptionItem>(sitesRes.json).items;
-        const assetItems = normalizeList<OptionItem>(assetsRes.json).items;
+        const templatesItems = normalizeList<unknown>(templatesRes.json).items
+          .map(parseTemplateItem)
+          .filter((item): item is TemplateItem => item !== null);
+
+        const customerItems = normalizeList<unknown>(customersRes.json).items
+          .map(parseOptionItem)
+          .filter((item): item is OptionItem => item !== null);
+
+        const siteItems = normalizeList<unknown>(sitesRes.json).items
+          .map(parseOptionItem)
+          .filter((item): item is OptionItem => item !== null);
+
+        const assetItems = normalizeList<unknown>(assetsRes.json).items
+          .map(parseOptionItem)
+          .filter((item): item is OptionItem => item !== null);
 
         setTemplates(templatesItems);
         setCustomers(customerItems);

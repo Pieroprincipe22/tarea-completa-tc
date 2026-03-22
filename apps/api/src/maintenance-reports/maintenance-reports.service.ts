@@ -2,10 +2,107 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import {
   MaintenanceItemStatus,
   MaintenanceReportStatus,
+  Prisma,
 } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { CreateMaintenanceReportDto } from './dto/create-maintenance-report.dto';
 import { UpdateMaintenanceReportItemDto } from './dto/update-maintenance-report-items.dto';
+
+const reportInclude = {
+  template: {
+    select: {
+      id: true,
+      title: true,
+      description: true,
+    },
+  },
+  customer: {
+    select: { id: true, name: true },
+  },
+  site: {
+    select: { id: true, name: true, address: true },
+  },
+  asset: {
+    select: {
+      id: true,
+      name: true,
+      brand: true,
+      model: true,
+      serialNumber: true,
+    },
+  },
+  createdByUser: {
+    select: { id: true, email: true, name: true },
+  },
+  items: {
+    orderBy: { itemOrder: 'asc' },
+  },
+} satisfies Prisma.MaintenanceReportInclude;
+
+type ReportWithRelations = Prisma.MaintenanceReportGetPayload<{
+  include: typeof reportInclude;
+}>;
+
+type ReportItemEntity = ReportWithRelations['items'][number];
+
+function serializeReportItem(item: ReportItemEntity) {
+  const parsedNumber =
+    item.value !== null && item.value.trim() !== '' ? Number(item.value) : NaN;
+
+  return {
+    id: item.id,
+    reportId: item.reportId,
+    templateItemId: item.templateItemId,
+    title: item.title,
+    description: item.description,
+    itemOrder: item.itemOrder,
+    sortOrder: item.itemOrder,
+    status: item.status,
+    value: item.value,
+    valueText: item.value,
+    valueChoice: null,
+    valueNumber: Number.isFinite(parsedNumber) ? parsedNumber : null,
+    notes: item.notes,
+    resultValue: item.value,
+    resultNotes: item.notes,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+  };
+}
+
+function serializeReport(report: ReportWithRelations) {
+  return {
+    id: report.id,
+    companyId: report.companyId,
+    customerId: report.customerId,
+    siteId: report.siteId,
+    assetId: report.assetId,
+    templateId: report.templateId,
+    workOrderId: report.workOrderId,
+    title: report.title,
+    description: report.description,
+    notes: report.notes,
+    status: report.status,
+    state: report.status,
+    createdByUserId: report.createdByUserId,
+    completedByUserId: report.completedByUserId,
+    completedAt: report.completedAt,
+    createdAt: report.createdAt,
+    updatedAt: report.updatedAt,
+
+    performedAt: report.completedAt ?? report.createdAt,
+    templateName: report.template?.title ?? report.title,
+    templateDesc: report.template?.description ?? report.description ?? null,
+    summary: report.description ?? null,
+
+    template: report.template,
+    customer: report.customer,
+    site: report.site,
+    asset: report.asset,
+    createdByUser: report.createdByUser,
+    items: report.items.map(serializeReportItem),
+  };
+}
 
 @Injectable()
 export class MaintenanceReportsService {
@@ -19,33 +116,11 @@ export class MaintenanceReportsService {
     const items = await this.prisma.maintenanceReport.findMany({
       where: { companyId },
       orderBy: { createdAt: 'desc' },
-      include: {
-        customer: {
-          select: { id: true, name: true },
-        },
-        site: {
-          select: { id: true, name: true, address: true },
-        },
-        asset: {
-          select: {
-            id: true,
-            name: true,
-            brand: true,
-            model: true,
-            serialNumber: true,
-          },
-        },
-        createdByUser: {
-          select: { id: true, email: true, name: true },
-        },
-        items: {
-          orderBy: { itemOrder: 'asc' },
-        },
-      },
+      include: reportInclude,
     });
 
     return {
-      items,
+      items: items.map(serializeReport),
       count: items.length,
     };
   }
@@ -180,36 +255,14 @@ export class MaintenanceReportsService {
           id: report.id,
           companyId,
         },
-        include: {
-          customer: {
-            select: { id: true, name: true },
-          },
-          site: {
-            select: { id: true, name: true, address: true },
-          },
-          asset: {
-            select: {
-              id: true,
-              name: true,
-              brand: true,
-              model: true,
-              serialNumber: true,
-            },
-          },
-          createdByUser: {
-            select: { id: true, email: true, name: true },
-          },
-          items: {
-            orderBy: { itemOrder: 'asc' },
-          },
-        },
+        include: reportInclude,
       });
 
       if (!fullReport) {
         throw new NotFoundException('No se pudo recuperar el reporte creado.');
       }
 
-      return fullReport;
+      return serializeReport(fullReport);
     });
   }
 
@@ -220,36 +273,14 @@ export class MaintenanceReportsService {
 
     const report = await this.prisma.maintenanceReport.findFirst({
       where: { id, companyId },
-      include: {
-        customer: {
-          select: { id: true, name: true },
-        },
-        site: {
-          select: { id: true, name: true, address: true },
-        },
-        asset: {
-          select: {
-            id: true,
-            name: true,
-            brand: true,
-            model: true,
-            serialNumber: true,
-          },
-        },
-        createdByUser: {
-          select: { id: true, email: true, name: true },
-        },
-        items: {
-          orderBy: { itemOrder: 'asc' },
-        },
-      },
+      include: reportInclude,
     });
 
     if (!report) {
       throw new NotFoundException('Reporte no encontrado.');
     }
 
-    return report;
+    return serializeReport(report);
   }
 
   async updateItem(
@@ -295,7 +326,7 @@ export class MaintenanceReportsService {
       throw new NotFoundException('Item no encontrado.');
     }
 
-    return this.prisma.maintenanceReportItem.update({
+    const updated = await this.prisma.maintenanceReportItem.update({
       where: { id: itemId },
       data: {
         status: dto.status ?? item.status,
@@ -303,6 +334,8 @@ export class MaintenanceReportsService {
         notes: dto.notes ?? dto.resultNotes ?? item.notes,
       },
     });
+
+    return serializeReportItem(updated);
   }
 
   async finalize(companyId: string, id: string) {
@@ -330,35 +363,15 @@ export class MaintenanceReportsService {
       throw new BadRequestException('No se puede finalizar: todavía hay items en estado PENDING.');
     }
 
-    return this.prisma.maintenanceReport.update({
+    const updated = await this.prisma.maintenanceReport.update({
       where: { id },
       data: {
         status: MaintenanceReportStatus.COMPLETED,
         completedAt: new Date(),
       },
-      include: {
-        customer: {
-          select: { id: true, name: true },
-        },
-        site: {
-          select: { id: true, name: true, address: true },
-        },
-        asset: {
-          select: {
-            id: true,
-            name: true,
-            brand: true,
-            model: true,
-            serialNumber: true,
-          },
-        },
-        createdByUser: {
-          select: { id: true, email: true, name: true },
-        },
-        items: {
-          orderBy: { itemOrder: 'asc' },
-        },
-      },
+      include: reportInclude,
     });
+
+    return serializeReport(updated);
   }
 }

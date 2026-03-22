@@ -37,10 +37,15 @@ export class AuthService {
         active: true,
       },
       include: { company: true },
+      orderBy: {
+        createdAt: 'asc',
+      },
     });
 
     return {
       userId: user.id,
+      name: user.name,
+      email: user.email,
       companies: memberships.map((m) => ({
         companyId: m.companyId,
         name: m.company.name,

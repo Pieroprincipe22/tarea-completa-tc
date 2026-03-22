@@ -15,8 +15,21 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setMounted(true);
-    setSession(readTcSession());
-  }, []);
+
+    const syncSession = () => {
+      setSession(readTcSession());
+    };
+
+    syncSession();
+
+    window.addEventListener('focus', syncSession);
+    document.addEventListener('visibilitychange', syncSession);
+
+    return () => {
+      window.removeEventListener('focus', syncSession);
+      document.removeEventListener('visibilitychange', syncSession);
+    };
+  }, [pathname]);
 
   if (!mounted) {
     return (
@@ -37,7 +50,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900/40 p-6 space-y-3">
           <h1 className="text-xl font-semibold">Sesión requerida</h1>
           <p className="text-sm text-slate-300">
-            Configura <code>companyId</code> y <code>userId</code> en /login.
+            Inicia sesión primero desde <code>/login</code>.
           </p>
           <Link className="underline" href="/login">
             Ir a /login
