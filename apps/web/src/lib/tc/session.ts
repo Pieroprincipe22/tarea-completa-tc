@@ -44,7 +44,9 @@ export function resolveHomePath(session?: Pick<TcSession, 'role'> | null): strin
 }
 
 export function resolveWorkOrdersPath(session?: Pick<TcSession, 'role'> | null): string {
-  return isTechnicianSession(session) ? '/technician/work-orders' : '/work-orders';
+  return isTechnicianSession(session)
+    ? '/technician/dashboard/work-orders'
+    : '/work-orders';
 }
 
 export function readTcSession(): TcSession | null {

@@ -1,5 +1,15 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, WorkOrderPriority, WorkOrderStatus } from '@prisma/client';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  Prisma,
+  UserRole,
+  WorkOrderPriority,
+  WorkOrderStatus,
+} from '@prisma/client';
+
 import { PrismaService } from '../database/prisma.service';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { QueryWorkOrdersDto } from './dto/query-work-orders.dto';
@@ -64,19 +74,16 @@ function serializeWorkOrder(item: WorkOrderWithRelations) {
     completedAt: item.completedAt,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
-
     customerId: item.customerId,
     siteId: item.siteId,
     assetId: item.assetId,
     assignedToUserId: item.assignedToUserId,
-
     customer: item.customer
       ? {
           id: item.customer.id,
           name: item.customer.name,
         }
       : null,
-
     site: item.site
       ? {
           id: item.site.id,
@@ -84,7 +91,6 @@ function serializeWorkOrder(item: WorkOrderWithRelations) {
           address: item.site.address ?? null,
         }
       : null,
-
     asset: item.asset
       ? {
           id: item.asset.id,
@@ -94,7 +100,6 @@ function serializeWorkOrder(item: WorkOrderWithRelations) {
           serialNumber: item.asset.serialNumber ?? null,
         }
       : null,
-
     assignedTo: item.assignedTo
       ? {
           id: item.assignedTo.id,
@@ -144,6 +149,12 @@ function resolveStatusLifecycleData(
 @Injectable()
 export class WorkOrdersService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private ensureCompanyId(companyId?: string) {
+  if (!companyId?.trim()) {
+    throw new BadRequestException('Falta x-company-id');
+  }
+}
 
   private async getLifecycleState(companyId: string, id: string) {
     const item = await this.prisma.workOrder.findFirst({
@@ -222,12 +233,15 @@ export class WorkOrdersService {
           companyId,
           userId: dto.assignedToUserId,
           active: true,
+          role: UserRole.TECHNICIAN,
         },
         select: { id: true },
       });
 
       if (!membership) {
-        throw new NotFoundException('assignedToUserId no pertenece a esta company');
+        throw new NotFoundException(
+          'assignedToUserId no pertenece a esta company como técnico activo',
+        );
       }
     }
 
@@ -240,7 +254,9 @@ export class WorkOrdersService {
         assignedToUserId: dto.assignedToUserId ?? null,
         title: dto.title,
         description: dto.description ?? null,
-        status: WorkOrderStatus.OPEN,
+        status: dto.assignedToUserId
+          ? WorkOrderStatus.ASSIGNED
+          : WorkOrderStatus.OPEN,
         ...(createDto.priority !== undefined
           ? { priority: normalizePriority(createDto.priority) }
           : {}),
@@ -299,6 +315,38 @@ export class WorkOrdersService {
       page,
       pageSize,
     };
+  }
+
+  async listTechnicians(companyId: string) {
+    const memberships = await this.prisma.userCompany.findMany({
+      where: {
+        companyId,
+        active: true,
+        role: UserRole.TECHNICIAN,
+        user: {
+          isActive: true,
+        },
+      },
+      select: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    return memberships
+      .map((row) => row.user)
+      .filter((user): user is NonNullable<typeof user> => !!user)
+      .map((user) => ({
+        id: user.id,
+        name: user.name?.trim() || user.email,
+        email: user.email,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'es'));
   }
 
   async get(companyId: string, id: string) {
@@ -375,12 +423,15 @@ export class WorkOrdersService {
           companyId,
           userId: updateDto.assignedToUserId,
           active: true,
+          role: UserRole.TECHNICIAN,
         },
         select: { id: true },
       });
 
       if (!membership) {
-        throw new NotFoundException('assignedToUserId no pertenece a esta company');
+        throw new NotFoundException(
+          'assignedToUserId no pertenece a esta company como técnico activo',
+        );
       }
     }
 

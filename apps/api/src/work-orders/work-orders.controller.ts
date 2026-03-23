@@ -1,64 +1,89 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
+  Headers,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
   Query,
-  Req,
 } from '@nestjs/common';
-import { Request } from 'express';
+
 import { WorkOrdersService } from './work-orders.service';
+
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { QueryWorkOrdersDto } from './dto/query-work-orders.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import { UpdateWorkOrderStatusDto } from './dto/update-work-order-status.dto';
 
-type TenantRequest = Request & {
-  companyId: string;
-  userId: string;
-  role?: string;
-};
+function requiredHeader(value: string | string[] | undefined, name: string): string {
+  const normalized = Array.isArray(value) ? value[0] : value;
+
+  if (!normalized?.trim()) {
+    throw new BadRequestException(`Falta header ${name}`);
+  }
+
+  return normalized.trim();
+}
 
 @Controller('work-orders')
 export class WorkOrdersController {
   constructor(private readonly service: WorkOrdersService) {}
 
   @Get()
-  list(@Req() req: TenantRequest, @Query() query: QueryWorkOrdersDto) {
-    return this.service.list(req.companyId, query);
+  list(
+    @Headers('x-company-id') companyIdHeader: string | undefined,
+    @Query() query: QueryWorkOrdersDto,
+  ) {
+    const companyId = requiredHeader(companyIdHeader, 'x-company-id');
+    return this.service.list(companyId, query);
+  }
+
+  @Get('meta/technicians')
+  listTechnicians(@Headers('x-company-id') companyIdHeader: string | undefined) {
+    const companyId = requiredHeader(companyIdHeader, 'x-company-id');
+    return this.service.listTechnicians(companyId);
   }
 
   @Get(':id')
   get(
-    @Req() req: TenantRequest,
+    @Headers('x-company-id') companyIdHeader: string | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
   ) {
-    return this.service.get(req.companyId, id);
+    const companyId = requiredHeader(companyIdHeader, 'x-company-id');
+    return this.service.get(companyId, id);
   }
 
   @Post()
-  create(@Req() req: TenantRequest, @Body() dto: CreateWorkOrderDto) {
-    return this.service.create(req.companyId, req.userId, dto);
+  create(
+    @Headers('x-company-id') companyIdHeader: string | undefined,
+    @Headers('x-user-id') userIdHeader: string | undefined,
+    @Body() dto: CreateWorkOrderDto,
+  ) {
+    const companyId = requiredHeader(companyIdHeader, 'x-company-id');
+    const userId = requiredHeader(userIdHeader, 'x-user-id');
+    return this.service.create(companyId, userId, dto);
   }
 
   @Patch(':id')
   update(
-    @Req() req: TenantRequest,
+    @Headers('x-company-id') companyIdHeader: string | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: UpdateWorkOrderDto,
   ) {
-    return this.service.update(req.companyId, id, dto);
+    const companyId = requiredHeader(companyIdHeader, 'x-company-id');
+    return this.service.update(companyId, id, dto);
   }
 
   @Patch(':id/status')
   setStatus(
-    @Req() req: TenantRequest,
+    @Headers('x-company-id') companyIdHeader: string | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: UpdateWorkOrderStatusDto,
   ) {
-    return this.service.setStatus(req.companyId, id, dto.status);
+    const companyId = requiredHeader(companyIdHeader, 'x-company-id');
+    return this.service.setStatus(companyId, id, dto.status);
   }
 }

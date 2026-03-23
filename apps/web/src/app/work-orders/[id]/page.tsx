@@ -8,7 +8,7 @@ import {
   readTcSession,
   type TcSession,
 } from '@/lib/tc/session';
-import { errMsg, isRecord, resolveCorePaths, tcGet } from '@/lib/tc/api';
+import { errMsg, isRecord, resolveCorePaths, tcGet, tcPatch } from '@/lib/tc/api';
 
 const WORK_ORDER_STATUSES = ['OPEN', 'ASSIGNED', 'IN_PROGRESS', 'DONE', 'CANCELLED'] as const;
 type WorkOrderStatusValue = (typeof WORK_ORDER_STATUSES)[number];
@@ -39,12 +39,6 @@ type WorkOrderDetail = {
   site?: { id: string; name: string; address?: string | null } | null;
   asset?: { id: string; name: string; brand?: string | null; model?: string | null } | null;
   assignedTo?: { id: string; name: string; email?: string } | null;
-};
-
-type PatchResponse = {
-  code: number;
-  json: unknown;
-  text: string;
 };
 
 function asStr(v: unknown, fallback = ''): string {
@@ -178,37 +172,9 @@ function priorityBadgeClass(priority?: string | null): string {
   }
 }
 
-async function patchJson(session: TcSession, url: string, body: unknown): Promise<PatchResponse> {
-  const res = await fetch(url, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-company-id': session.companyId,
-      'x-user-id': session.userId,
-    },
-    body: JSON.stringify(body),
-  });
-
-  const contentType = res.headers.get('content-type') ?? '';
-  let json: unknown = null;
-  let text = '';
-
-  if (contentType.includes('application/json')) {
-    json = await res.json().catch(() => null);
-  } else {
-    text = await res.text().catch(() => '');
-  }
-
-  return {
-    code: res.status,
-    json,
-    text,
-  };
-}
-
-function getPatchError(response: PatchResponse): string {
-  if (isRecord(response.json)) {
-    const message = response.json.message;
+function getApiError(json: unknown, code: number): string {
+  if (isRecord(json)) {
+    const message = json.message;
 
     if (typeof message === 'string' && message.trim()) {
       return message;
@@ -218,13 +184,14 @@ function getPatchError(response: PatchResponse): string {
       const joined = message.filter((x): x is string => typeof x === 'string').join(', ');
       if (joined) return joined;
     }
+
+    const error = json.error;
+    if (typeof error === 'string' && error.trim()) {
+      return `${error} (HTTP ${code})`;
+    }
   }
 
-  if (response.text.trim()) {
-    return response.text.trim();
-  }
-
-  return `HTTP ${response.code}`;
+  return `HTTP ${code}`;
 }
 
 export default function WorkOrderDetailPage() {
@@ -305,19 +272,20 @@ export default function WorkOrderDetailPage() {
   }, [mounted, session, id, loadDetail]);
 
   async function applyPatchedResponse(
-    response: PatchResponse,
+    code: number,
+    json: unknown,
     successMessage: string,
     fallbackReload = false,
   ) {
-    if (response.code < 200 || response.code >= 300) {
+    if (code < 200 || code >= 300) {
       setActionState({
         status: 'error',
-        message: getPatchError(response),
+        message: getApiError(json, code),
       });
       return;
     }
 
-    const parsed = parseDetail(response.json);
+    const parsed = parseDetail(json);
 
     if (parsed) {
       setAssignedToUserId(parsed.assignedTo?.id ?? '');
@@ -344,11 +312,11 @@ export default function WorkOrderDetailPage() {
     try {
       setActionState({ status: 'saving', message: `Actualizando estado a ${nextStatus}...` });
 
-      const response = await patchJson(session, `${paths.workOrders}/${id}/status`, {
+      const r = await tcPatch(session, `${paths.workOrders}/${id}/status`, {
         status: nextStatus,
       });
 
-      await applyPatchedResponse(response, `Estado actualizado a ${nextStatus}.`, true);
+      await applyPatchedResponse(r.code, r.json, `Estado actualizado a ${nextStatus}.`, true);
     } catch (e) {
       setActionState({ status: 'error', message: errMsg(e) });
     }
@@ -370,15 +338,11 @@ export default function WorkOrderDetailPage() {
     try {
       setActionState({ status: 'saving', message: 'Asignando técnico...' });
 
-      const response = await patchJson(session, `${paths.workOrders}/${id}`, {
+      const r = await tcPatch(session, `${paths.workOrders}/${id}`, {
         assignedToUserId: technicianId,
       });
 
-      await applyPatchedResponse(
-        response,
-        'Técnico asignado correctamente.',
-        true,
-      );
+      await applyPatchedResponse(r.code, r.json, 'Técnico asignado correctamente.', true);
     } catch (e) {
       setActionState({ status: 'error', message: errMsg(e) });
     }

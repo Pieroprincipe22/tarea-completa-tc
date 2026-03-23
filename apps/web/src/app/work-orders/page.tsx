@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   readTcSession,
+  resolveHomePath,
   resolveWorkOrdersPath,
   isTechnicianSession,
   type TcSession,
@@ -169,6 +170,7 @@ export default function WorkOrdersPage() {
   const [mounted, setMounted] = useState(false);
   const [session, setSession] = useState<TcSession | null>(null);
   const paths = useMemo(() => resolveCorePaths(session), [session]);
+  const homeHref = useMemo(() => resolveHomePath(session), [session]);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilterValue>('');
@@ -275,9 +277,18 @@ export default function WorkOrdersPage() {
           </p>
         </div>
 
-        <Link className="underline" href="/dashboard">
-          Dashboard
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900"
+            href="/work-orders/new"
+          >
+            + Nueva Work Order
+          </Link>
+
+          <Link className="underline" href={homeHref}>
+            Dashboard
+          </Link>
+        </div>
       </div>
 
       <div className="mb-6 rounded-2xl border border-slate-800 bg-slate-900/40 p-4">

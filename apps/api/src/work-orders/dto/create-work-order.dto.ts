@@ -4,13 +4,11 @@ export class CreateWorkOrderDto {
   @IsString()
   title!: string;
 
-  // ✅ obligatorio (tu schema lo exige)
   @IsUUID()
   customerId!: string;
 
-  @IsOptional()
   @IsUUID()
-  siteId?: string;
+  siteId!: string;
 
   @IsOptional()
   @IsUUID()
@@ -23,7 +21,7 @@ export class CreateWorkOrderDto {
   @IsOptional()
   @IsInt()
   @Min(1)
-  @Max(5)
+  @Max(4)
   priority?: number;
 
   @IsOptional()
@@ -33,8 +31,4 @@ export class CreateWorkOrderDto {
   @IsOptional()
   @IsString()
   scheduledAt?: string;
-
-  @IsOptional()
-  @IsString()
-  dueAt?: string;
 }

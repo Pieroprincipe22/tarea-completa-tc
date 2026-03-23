@@ -17,6 +17,10 @@ import {
   tcPatch,
 } from '@/lib/tc/api';
 
+const STATUS_OPTIONS = ['', 'OPEN', 'ASSIGNED', 'IN_PROGRESS', 'DONE', 'CANCELLED'] as const;
+type StatusFilterValue = (typeof STATUS_OPTIONS)[number];
+type ActionStatusValue = 'OPEN' | 'IN_PROGRESS' | 'DONE';
+
 type WorkOrderRow = {
   id: string;
   title: string;
@@ -37,6 +41,11 @@ type Load<T> =
   | { status: 'ok'; data: T }
   | { status: 'error'; error: string };
 
+type ActionMessage =
+  | { type: 'success'; text: string }
+  | { type: 'error'; text: string }
+  | null;
+
 function asStr(v: unknown, fallback = ''): string {
   return typeof v === 'string' ? v : fallback;
 }
@@ -46,7 +55,7 @@ function asNullableStr(v: unknown): string | null {
 }
 
 function parseNamedEntity(
-  v: unknown
+  v: unknown,
 ): { id: string; name: string; address?: string | null } | null {
   if (!isRecord(v)) return null;
 
@@ -122,7 +131,29 @@ function formatDate(value?: string | null): string {
   if (!value) return '—';
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleString();
+  return d.toLocaleString('es-ES');
+}
+
+function getApiError(json: unknown, code: number): string {
+  if (isRecord(json)) {
+    const message = json.message;
+
+    if (typeof message === 'string' && message.trim()) {
+      return message;
+    }
+
+    if (Array.isArray(message)) {
+      const joined = message.filter((x): x is string => typeof x === 'string').join(', ');
+      if (joined) return joined;
+    }
+
+    const error = json.error;
+    if (typeof error === 'string' && error.trim()) {
+      return `${error} (HTTP ${code})`;
+    }
+  }
+
+  return `HTTP ${code}`;
 }
 
 export default function TechnicianWorkOrdersPage() {
@@ -131,9 +162,10 @@ export default function TechnicianWorkOrdersPage() {
   const [session, setSession] = useState<TcSession | null>(null);
   const paths = useMemo(() => resolveCorePaths(session), [session]);
 
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>('');
   const [reloadKey, setReloadKey] = useState(0);
   const [actingId, setActingId] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<ActionMessage>(null);
   const [state, setState] = useState<Load<WorkOrderRow[]>>({
     status: 'loading',
   });
@@ -164,8 +196,8 @@ export default function TechnicianWorkOrdersPage() {
           pageSize: '100',
         });
 
-        if (statusFilter.trim()) {
-          query.set('status', statusFilter.trim().toUpperCase());
+        if (statusFilter) {
+          query.set('status', statusFilter);
         }
 
         const r = await tcGet(session, `${paths.workOrders}?${query.toString()}`);
@@ -193,21 +225,34 @@ export default function TechnicianWorkOrdersPage() {
     };
   }, [mounted, session, statusFilter, reloadKey, paths.workOrders]);
 
-  async function changeStatus(id: string, status: 'OPEN' | 'IN_PROGRESS' | 'DONE') {
+  async function changeStatus(id: string, status: ActionStatusValue) {
     if (!session) return;
 
     try {
       setActingId(id);
+      setActionMessage(null);
 
-      const r = await tcPatch(session, `${paths.workOrders}/${id}`, { status });
+      const r = await tcPatch(session, `${paths.workOrders}/${id}/status`, { status });
 
       if (r.code < 200 || r.code >= 300) {
-        throw new Error(`HTTP ${r.code}`);
+        setActionMessage({
+          type: 'error',
+          text: getApiError(r.json, r.code),
+        });
+        return;
       }
+
+      setActionMessage({
+        type: 'success',
+        text: `Estado actualizado a ${status}.`,
+      });
 
       setReloadKey((x) => x + 1);
     } catch (e) {
-      alert(errMsg(e));
+      setActionMessage({
+        type: 'error',
+        text: errMsg(e),
+      });
     } finally {
       setActingId(null);
     }
@@ -264,22 +309,51 @@ export default function TechnicianWorkOrdersPage() {
         <div className="flex flex-wrap items-center gap-3">
           <label className="text-sm font-medium">Filtro status:</label>
 
-          <input
+          <select
             className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            placeholder="OPEN / ASSIGNED / IN_PROGRESS / DONE"
-          />
+            onChange={(e) => setStatusFilter(e.target.value as StatusFilterValue)}
+          >
+            <option value="">Todos los estados</option>
+            <option value="OPEN">OPEN</option>
+            <option value="ASSIGNED">ASSIGNED</option>
+            <option value="IN_PROGRESS">IN_PROGRESS</option>
+            <option value="DONE">DONE</option>
+            <option value="CANCELLED">CANCELLED</option>
+          </select>
 
           <button
             className="rounded-xl border border-slate-700 px-4 py-2 hover:bg-slate-800"
             type="button"
-            onClick={() => setStatusFilter('')}
+            onClick={() => {
+              setStatusFilter('');
+              setActionMessage(null);
+            }}
           >
             Limpiar
           </button>
+
+          <button
+            className="rounded-xl border border-slate-700 px-4 py-2 hover:bg-slate-800"
+            type="button"
+            onClick={() => setReloadKey((x) => x + 1)}
+          >
+            Actualizar
+          </button>
         </div>
       </div>
+
+      {actionMessage ? (
+        <div
+          className={`mb-6 rounded-2xl border p-4 ${
+            actionMessage.type === 'success'
+              ? 'border-emerald-800 bg-emerald-900/20 text-emerald-200'
+              : 'border-red-800 bg-red-900/20 text-red-200'
+          }`}
+        >
+          {actionMessage.text}
+        </div>
+      ) : null}
 
       {state.status === 'loading' ? (
         <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4">

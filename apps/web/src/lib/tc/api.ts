@@ -188,7 +188,7 @@ export function resolveCoreNavItems(session?: Pick<TcSession, 'role'> | null): C
   if (isTechnicianRole(resolvedRole)) {
     return [
       { key: 'dashboard', title: 'Dashboard', path: '/technician/dashboard' },
-      { key: 'workOrders', title: 'My Work Orders', path: '/technician/work-orders' },
+      { key: 'workOrders', title: 'My Work Orders', path: '/technician/dashboard/work-orders' },
     ];
   }
 
