@@ -1,33 +1,96 @@
-// apps/web/src/lib/api.ts
+import { DEFAULT_API_BASE, readTcSession } from '@/lib/tc/session';
+
 type ApiFetchOptions = RequestInit;
 
+function getSession() {
+  if (typeof window === 'undefined') return null;
+  return readTcSession();
+}
+
 function getApiBase() {
-  if (typeof window === "undefined") return "http://localhost:3002";
-  return localStorage.getItem("tc.apiBase") || "http://localhost:3002";
+  return getSession()?.apiBase || DEFAULT_API_BASE;
 }
 
 function getTenantHeaders() {
-  if (typeof window === "undefined") return {};
+  const session = getSession();
+
   return {
-    "x-company-id": localStorage.getItem("tc.companyId") || "",
-    "x-user-id": localStorage.getItem("tc.userId") || "",
+    'x-company-id': session?.companyId || '',
+    'x-user-id': session?.userId || '',
   };
 }
 
-export async function apiFetch<T>(path: string, opts: ApiFetchOptions = {}): Promise<T> {
+function joinUrl(base: string, path: string) {
+  const normalizedBase = base.endsWith('/') ? base.slice(0, -1) : base;
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${normalizedBase}${normalizedPath}`;
+}
+
+async function readBody<T = unknown>(res: Response): Promise<T> {
+  if (res.status === 204) return null as T;
+
+  const ct = res.headers.get('content-type') ?? '';
+  if (ct.includes('application/json')) {
+    return (await res.json()) as T;
+  }
+
+  return (await res.text()) as T;
+}
+
+function getErrorMessage(body: unknown, status: number, statusText: string) {
+  if (typeof body === 'string' && body.trim()) {
+    return `API ${status} ${statusText} - ${body}`;
+  }
+
+  if (body && typeof body === 'object') {
+    const json = body as { message?: unknown; error?: unknown };
+
+    if (typeof json.message === 'string' && json.message.trim()) {
+      return `API ${status} ${statusText} - ${json.message}`;
+    }
+
+    if (Array.isArray(json.message)) {
+      const joined = json.message
+        .filter((x): x is string => typeof x === 'string' && !!x.trim())
+        .join(', ');
+
+      if (joined) {
+        return `API ${status} ${statusText} - ${joined}`;
+      }
+    }
+
+    if (typeof json.error === 'string' && json.error.trim()) {
+      return `API ${status} ${statusText} - ${json.error}`;
+    }
+  }
+
+  return `API ${status} ${statusText}`;
+}
+
+export async function apiFetch<T>(
+  path: string,
+  opts: ApiFetchOptions = {},
+): Promise<T> {
   const base = getApiBase();
   const headers = new Headers(opts.headers || {});
   const tenant = getTenantHeaders();
 
-  Object.entries(tenant).forEach(([k, v]) => v && headers.set(k, v));
-  headers.set("Accept", "application/json");
+  Object.entries(tenant).forEach(([k, v]) => {
+    if (v) headers.set(k, v);
+  });
 
-  const res = await fetch(`${base}${path}`, { ...opts, headers });
+  headers.set('Accept', 'application/json');
+
+  const res = await fetch(joinUrl(base, path), {
+    ...opts,
+    headers,
+  });
+
+  const body = await readBody<unknown>(res);
 
   if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`API ${res.status} ${res.statusText} - ${text}`);
+    throw new Error(getErrorMessage(body, res.status, res.statusText));
   }
 
-  return (await res.json()) as T;
+  return body as T;
 }

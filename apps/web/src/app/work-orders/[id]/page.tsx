@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  isTechnicianSession,
+  isAdminRole,
   readTcSession,
+  resolveWorkOrdersPath,
   type TcSession,
 } from '@/lib/tc/session';
 import { errMsg, isRecord, resolveCorePaths, tcGet, tcPatch } from '@/lib/tc/api';
@@ -206,8 +207,8 @@ export default function WorkOrderDetailPage() {
   const [assignedToUserId, setAssignedToUserId] = useState('');
 
   const paths = useMemo(() => resolveCorePaths(session), [session]);
-  const isTechnician = !!session && isTechnicianSession(session);
-  const canAssignTechnician = !!session && !isTechnician;
+  const backHref = useMemo(() => resolveWorkOrdersPath(session), [session]);
+  const canAssignTechnician = isAdminRole(session?.role);
 
   useEffect(() => {
     setMounted(true);
@@ -249,6 +250,7 @@ export default function WorkOrderDetailPage() {
   useEffect(() => {
     if (!mounted) return;
     if (!session) return;
+
     if (!id) {
       setState({ status: 'error', error: 'ID de work order inválido.' });
       return;
@@ -373,7 +375,7 @@ export default function WorkOrderDetailPage() {
           </p>
         </div>
 
-        <Link className="underline" href="/work-orders">
+        <Link className="underline" href={backHref}>
           ← Volver
         </Link>
       </div>
@@ -433,7 +435,9 @@ export default function WorkOrderDetailPage() {
                   <div className="mt-1">{state.data.asset?.name ?? '—'}</div>
                   {state.data.asset?.brand || state.data.asset?.model ? (
                     <div className="mt-1 text-xs text-slate-400">
-                      {[state.data.asset?.brand, state.data.asset?.model].filter(Boolean).join(' · ')}
+                      {[state.data.asset?.brand, state.data.asset?.model]
+                        .filter(Boolean)
+                        .join(' · ')}
                     </div>
                   ) : null}
                 </div>
@@ -484,8 +488,7 @@ export default function WorkOrderDetailPage() {
 
             <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
               {WORK_ORDER_STATUSES.map((status) => {
-                const isCurrent =
-                  state.status === 'ok' && state.data.status === status;
+                const isCurrent = state.status === 'ok' && state.data.status === status;
 
                 return (
                   <button

@@ -150,17 +150,117 @@ function resolveStatusLifecycleData(
 export class WorkOrdersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private ensureCompanyId(companyId?: string) {
-  if (!companyId?.trim()) {
-    throw new BadRequestException('Falta x-company-id');
+  private ensureCompanyId(companyId?: string): string {
+    const normalized = companyId?.trim();
+
+    if (!normalized) {
+      throw new BadRequestException('Falta x-company-id');
+    }
+
+    return normalized;
   }
-}
+
+  private async ensureCustomer(companyId: string, customerId: string) {
+    const customer = await this.prisma.customer.findFirst({
+      where: { id: customerId, companyId },
+      select: { id: true },
+    });
+
+    if (!customer) {
+      throw new NotFoundException('Customer no encontrado para esta company');
+    }
+
+    return customer;
+  }
+
+  private async ensureSite(companyId: string, siteId: string) {
+    const site = await this.prisma.site.findFirst({
+      where: { id: siteId, companyId },
+      select: { id: true, customerId: true },
+    });
+
+    if (!site) {
+      throw new NotFoundException('Site no encontrado para esta company');
+    }
+
+    return site;
+  }
+
+  private async ensureAsset(companyId: string, assetId: string) {
+    const asset = await this.prisma.asset.findFirst({
+      where: { id: assetId, companyId },
+      select: { id: true, siteId: true },
+    });
+
+    if (!asset) {
+      throw new NotFoundException('Asset no encontrado para esta company');
+    }
+
+    return asset;
+  }
+
+  private async ensureTechnicianMembership(companyId: string, userId: string) {
+    const membership = await this.prisma.userCompany.findFirst({
+      where: {
+        companyId,
+        userId,
+        active: true,
+        role: UserRole.TECHNICIAN,
+        user: {
+          isActive: true,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (!membership) {
+      throw new NotFoundException(
+        'assignedToUserId no pertenece a esta company como técnico activo',
+      );
+    }
+  }
+
+  private async validateReferences(
+    companyId: string,
+    refs: {
+      customerId: string;
+      siteId: string;
+      assetId?: string | null;
+      assignedToUserId?: string | null;
+    },
+  ) {
+    const customer = await this.ensureCustomer(companyId, refs.customerId);
+    const site = await this.ensureSite(companyId, refs.siteId);
+
+    if (site.customerId !== customer.id) {
+      throw new BadRequestException(
+        'El site no pertenece al customer indicado',
+      );
+    }
+
+    if (refs.assetId) {
+      const asset = await this.ensureAsset(companyId, refs.assetId);
+
+      if (asset.siteId !== site.id) {
+        throw new BadRequestException('El asset no pertenece al site indicado');
+      }
+    }
+
+    if (refs.assignedToUserId) {
+      await this.ensureTechnicianMembership(companyId, refs.assignedToUserId);
+    }
+  }
 
   private async getLifecycleState(companyId: string, id: string) {
     const item = await this.prisma.workOrder.findFirst({
       where: { companyId, id },
       select: {
         id: true,
+        status: true,
+        customerId: true,
+        siteId: true,
+        assetId: true,
+        assignedToUserId: true,
         startedAt: true,
         completedAt: true,
       },
@@ -174,37 +274,14 @@ export class WorkOrdersService {
   }
 
   async create(companyId: string, _userId: string, dto: CreateWorkOrderDto) {
-    if (!dto.customerId) {
-      throw new BadRequestException('customerId es obligatorio');
-    }
+    const normalizedCompanyId = this.ensureCompanyId(companyId);
 
-    if (!dto.siteId) {
-      throw new BadRequestException('siteId es obligatorio');
-    }
-
-    const customer = await this.prisma.customer.findFirst({
-      where: {
-        id: dto.customerId,
-        companyId,
-      },
-      select: { id: true },
+    await this.validateReferences(normalizedCompanyId, {
+      customerId: dto.customerId,
+      siteId: dto.siteId,
+      assetId: dto.assetId ?? null,
+      assignedToUserId: dto.assignedToUserId ?? null,
     });
-
-    if (!customer) {
-      throw new NotFoundException('Customer no encontrado para esta company');
-    }
-
-    const site = await this.prisma.site.findFirst({
-      where: {
-        id: dto.siteId,
-        companyId,
-      },
-      select: { id: true },
-    });
-
-    if (!site) {
-      throw new NotFoundException('Site no encontrado para esta company');
-    }
 
     const createDto = dto as CreateWorkOrderDto & {
       priority?: unknown;
@@ -213,41 +290,9 @@ export class WorkOrdersService {
       completedAt?: string | Date;
     };
 
-    if (dto.assetId) {
-      const asset = await this.prisma.asset.findFirst({
-        where: {
-          id: dto.assetId,
-          companyId,
-        },
-        select: { id: true },
-      });
-
-      if (!asset) {
-        throw new NotFoundException('Asset no encontrado para esta company');
-      }
-    }
-
-    if (dto.assignedToUserId) {
-      const membership = await this.prisma.userCompany.findFirst({
-        where: {
-          companyId,
-          userId: dto.assignedToUserId,
-          active: true,
-          role: UserRole.TECHNICIAN,
-        },
-        select: { id: true },
-      });
-
-      if (!membership) {
-        throw new NotFoundException(
-          'assignedToUserId no pertenece a esta company como técnico activo',
-        );
-      }
-    }
-
     const item = await this.prisma.workOrder.create({
       data: {
-        companyId,
+        companyId: normalizedCompanyId,
         customerId: dto.customerId,
         siteId: dto.siteId,
         assetId: dto.assetId ?? null,
@@ -277,12 +322,13 @@ export class WorkOrdersService {
   }
 
   async list(companyId: string, q: QueryWorkOrdersDto) {
+    const normalizedCompanyId = this.ensureCompanyId(companyId);
     const page = Math.max(1, q.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, q.pageSize ?? 20));
     const skip = (page - 1) * pageSize;
 
     const where: Prisma.WorkOrderWhereInput = {
-      companyId,
+      companyId: normalizedCompanyId,
       ...(q.status ? { status: q.status } : {}),
       ...(q.customerId ? { customerId: q.customerId } : {}),
       ...(q.siteId ? { siteId: q.siteId } : {}),
@@ -318,9 +364,11 @@ export class WorkOrdersService {
   }
 
   async listTechnicians(companyId: string) {
+    const normalizedCompanyId = this.ensureCompanyId(companyId);
+
     const memberships = await this.prisma.userCompany.findMany({
       where: {
-        companyId,
+        companyId: normalizedCompanyId,
         active: true,
         role: UserRole.TECHNICIAN,
         user: {
@@ -350,8 +398,10 @@ export class WorkOrdersService {
   }
 
   async get(companyId: string, id: string) {
+    const normalizedCompanyId = this.ensureCompanyId(companyId);
+
     const item = await this.prisma.workOrder.findFirst({
-      where: { companyId, id },
+      where: { companyId: normalizedCompanyId, id },
       include: workOrderInclude,
     });
 
@@ -363,7 +413,8 @@ export class WorkOrdersService {
   }
 
   async update(companyId: string, id: string, dto: UpdateWorkOrderDto) {
-    const existing = await this.getLifecycleState(companyId, id);
+    const normalizedCompanyId = this.ensureCompanyId(companyId);
+    const existing = await this.getLifecycleState(normalizedCompanyId, id);
 
     const updateDto = dto as UpdateWorkOrderDto & {
       priority?: unknown;
@@ -375,64 +426,33 @@ export class WorkOrdersService {
       assignedToUserId?: string | null;
     };
 
-    if (dto.customerId) {
-      const customer = await this.prisma.customer.findFirst({
-        where: {
-          id: dto.customerId,
-          companyId,
-        },
-        select: { id: true },
-      });
+    const nextCustomerId = dto.customerId ?? existing.customerId;
+    const nextSiteId = dto.siteId ?? existing.siteId;
+    const nextAssetId =
+      updateDto.assetId !== undefined ? updateDto.assetId : existing.assetId;
+    const nextAssignedToUserId =
+      updateDto.assignedToUserId !== undefined
+        ? updateDto.assignedToUserId
+        : existing.assignedToUserId;
 
-      if (!customer) {
-        throw new NotFoundException('Customer no encontrado para esta company');
-      }
-    }
+    await this.validateReferences(normalizedCompanyId, {
+      customerId: nextCustomerId,
+      siteId: nextSiteId,
+      assetId: nextAssetId ?? null,
+      assignedToUserId: nextAssignedToUserId ?? null,
+    });
 
-    if (dto.siteId) {
-      const site = await this.prisma.site.findFirst({
-        where: {
-          id: dto.siteId,
-          companyId,
-        },
-        select: { id: true },
-      });
+    let nextStatus = updateDto.status;
 
-      if (!site) {
-        throw new NotFoundException('Site no encontrado para esta company');
-      }
-    }
-
-    if (updateDto.assetId) {
-      const asset = await this.prisma.asset.findFirst({
-        where: {
-          id: updateDto.assetId,
-          companyId,
-        },
-        select: { id: true },
-      });
-
-      if (!asset) {
-        throw new NotFoundException('Asset no encontrado para esta company');
-      }
-    }
-
-    if (updateDto.assignedToUserId) {
-      const membership = await this.prisma.userCompany.findFirst({
-        where: {
-          companyId,
-          userId: updateDto.assignedToUserId,
-          active: true,
-          role: UserRole.TECHNICIAN,
-        },
-        select: { id: true },
-      });
-
-      if (!membership) {
-        throw new NotFoundException(
-          'assignedToUserId no pertenece a esta company como técnico activo',
-        );
-      }
+    if (
+      nextStatus === undefined &&
+      updateDto.assignedToUserId !== undefined &&
+      (existing.status === WorkOrderStatus.OPEN ||
+        existing.status === WorkOrderStatus.ASSIGNED)
+    ) {
+      nextStatus = nextAssignedToUserId
+        ? WorkOrderStatus.ASSIGNED
+        : WorkOrderStatus.OPEN;
     }
 
     const item = await this.prisma.workOrder.update({
@@ -449,7 +469,7 @@ export class WorkOrdersService {
         ...(updateDto.priority !== undefined
           ? { priority: normalizePriority(updateDto.priority) }
           : {}),
-        ...(updateDto.status !== undefined ? { status: updateDto.status } : {}),
+        ...(nextStatus !== undefined ? { status: nextStatus } : {}),
         ...(updateDto.scheduledAt !== undefined
           ? { scheduledAt: toDateOrNull(updateDto.scheduledAt) }
           : {}),
@@ -459,7 +479,7 @@ export class WorkOrdersService {
         ...(updateDto.completedAt !== undefined
           ? { completedAt: toDateOrNull(updateDto.completedAt) }
           : {}),
-        ...resolveStatusLifecycleData(updateDto.status, existing),
+        ...resolveStatusLifecycleData(nextStatus, existing),
       },
       include: workOrderInclude,
     });
@@ -468,7 +488,8 @@ export class WorkOrdersService {
   }
 
   async setStatus(companyId: string, id: string, status: WorkOrderStatus) {
-    const existing = await this.getLifecycleState(companyId, id);
+    const normalizedCompanyId = this.ensureCompanyId(companyId);
+    const existing = await this.getLifecycleState(normalizedCompanyId, id);
 
     const item = await this.prisma.workOrder.update({
       where: { id },

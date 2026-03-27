@@ -3,32 +3,19 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import {
-  clearTcSession,
-  isTechnicianRole,
-  readTcSession,
-} from '@/lib/tc/session';
+import { resolveCoreNavItems } from '@/lib/tc/api';
+import { clearTcSession, readTcSession } from '@/lib/tc/session';
 
 type TcSession = ReturnType<typeof readTcSession>;
 
-type NavItem = {
-  label: string;
-  href: string;
-};
+function isActivePath(pathname: string, href: string): boolean {
+  if (pathname === href) return true;
 
-function getNavItems(session: TcSession): NavItem[] {
-  if (isTechnicianRole(session?.role)) {
-    return [
-      { label: 'Dashboard', href: '/technician/dashboard' },
-      { label: 'Work Orders', href: '/technician/dashboard/work-orders' },
-    ];
+  if (href === '/dashboard' || href === '/technician/dashboard') {
+    return pathname === href;
   }
 
-  return [
-    { label: 'Dashboard', href: '/dashboard' },
-    { label: 'Reports', href: '/maintenance-reports' },
-    { label: 'Work Orders', href: '/work-orders' },
-  ];
+  return pathname.startsWith(`${href}/`);
 }
 
 export default function TopBar() {
@@ -52,9 +39,13 @@ export default function TopBar() {
       window.removeEventListener('focus', syncSession);
       document.removeEventListener('visibilitychange', syncSession);
     };
+  }, []);
+
+  useEffect(() => {
+    setSession(readTcSession());
   }, [pathname]);
 
-  const navItems = useMemo(() => getNavItems(session), [session]);
+  const navItems = useMemo(() => resolveCoreNavItems(session), [session]);
 
   if (pathname === '/login') return null;
 
@@ -77,14 +68,15 @@ export default function TopBar() {
 
         <div className="flex items-center gap-3 text-sm">
           {navItems.map((item) => {
-            const active = pathname === item.href;
+            const active = isActivePath(pathname, item.path);
+
             return (
               <Link
-                key={item.href}
+                key={item.key}
                 className={active ? 'underline' : 'hover:underline'}
-                href={item.href}
+                href={item.path}
               >
-                {item.label}
+                {item.title}
               </Link>
             );
           })}

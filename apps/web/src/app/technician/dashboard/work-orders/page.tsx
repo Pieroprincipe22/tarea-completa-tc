@@ -7,6 +7,7 @@ import {
   type TcSession,
   isTechnicianSession,
   readTcSession,
+  resolveHomePath,
 } from '@/lib/tc/session';
 import {
   errMsg,
@@ -161,6 +162,7 @@ export default function TechnicianWorkOrdersPage() {
   const [mounted, setMounted] = useState(false);
   const [session, setSession] = useState<TcSession | null>(null);
   const paths = useMemo(() => resolveCorePaths(session), [session]);
+  const dashboardHref = useMemo(() => resolveHomePath(session), [session]);
 
   const [statusFilter, setStatusFilter] = useState<StatusFilterValue>('');
   const [reloadKey, setReloadKey] = useState(0);
@@ -177,10 +179,11 @@ export default function TechnicianWorkOrdersPage() {
 
   useEffect(() => {
     if (!mounted || !session) return;
+
     if (!isTechnicianSession(session)) {
-      router.replace('/dashboard');
+      router.replace(resolveHomePath(session));
     }
-  }, [mounted, router, session]);
+  }, [mounted, router, session, dashboardHref]);
 
   useEffect(() => {
     if (!mounted || !session || !isTechnicianSession(session)) return;
@@ -296,11 +299,8 @@ export default function TechnicianWorkOrdersPage() {
         </div>
 
         <div className="flex gap-3">
-          <Link className="underline" href="/technician/dashboard">
+          <Link className="underline" href={dashboardHref}>
             Dashboard técnico
-          </Link>
-          <Link className="underline" href="/dashboard">
-            Vista general
           </Link>
         </div>
       </div>
@@ -395,6 +395,13 @@ export default function TechnicianWorkOrdersPage() {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
+                    <Link
+                      href={`/work-orders/${w.id}`}
+                      className="rounded-xl border border-slate-700 px-4 py-2 hover:bg-slate-800"
+                    >
+                      Abrir
+                    </Link>
+
                     {(w.status === 'OPEN' || w.status === 'ASSIGNED') && (
                       <button
                         type="button"
