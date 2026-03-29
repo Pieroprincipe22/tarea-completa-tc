@@ -31,6 +31,13 @@ const reportInclude = {
       serialNumber: true,
     },
   },
+  workOrder: {
+    select: {
+      id: true,
+      title: true,
+      status: true,
+    },
+  },
   createdByUser: {
     select: { id: true, email: true, name: true },
   },
@@ -99,6 +106,13 @@ function serializeReport(report: ReportWithRelations) {
     customer: report.customer,
     site: report.site,
     asset: report.asset,
+    workOrder: report.workOrder
+      ? {
+          id: report.workOrder.id,
+          title: report.workOrder.title,
+          status: report.workOrder.status,
+        }
+      : null,
     createdByUser: report.createdByUser,
     items: report.items.map(serializeReportItem),
   };
@@ -125,6 +139,38 @@ export class MaintenanceReportsService {
     };
   }
 
+  async listByWorkOrderId(companyId: string, workOrderId: string) {
+    if (!companyId) {
+      throw new BadRequestException('Falta header x-company-id');
+    }
+
+    const workOrder = await this.prisma.workOrder.findFirst({
+      where: {
+        id: workOrderId,
+        companyId,
+      },
+      select: { id: true },
+    });
+
+    if (!workOrder) {
+      throw new NotFoundException('WorkOrder no encontrada para esta company.');
+    }
+
+    const items = await this.prisma.maintenanceReport.findMany({
+      where: {
+        companyId,
+        workOrderId,
+      },
+      orderBy: { createdAt: 'desc' },
+      include: reportInclude,
+    });
+
+    return {
+      items: items.map(serializeReport),
+      count: items.length,
+    };
+  }
+
   async createFromTemplate(
     companyId: string,
     userId: string | undefined,
@@ -141,6 +187,7 @@ export class MaintenanceReportsService {
     const createDto = dto as CreateMaintenanceReportDto & {
       title?: string;
       notes?: string;
+      workOrderId?: string;
     };
 
     const userCompany = await this.prisma.userCompany.findFirst({
@@ -221,6 +268,72 @@ export class MaintenanceReportsService {
       throw new BadRequestException('El asset no pertenece al site indicado.');
     }
 
+    let linkedWorkOrder:
+      | {
+          id: string;
+          customerId: string;
+          siteId: string;
+          assetId: string | null;
+        }
+      | null = null;
+
+    if (dto.workOrderId) {
+      linkedWorkOrder = await this.prisma.workOrder.findFirst({
+        where: {
+          id: dto.workOrderId,
+          companyId,
+        },
+        select: {
+          id: true,
+          customerId: true,
+          siteId: true,
+          assetId: true,
+        },
+      });
+
+      if (!linkedWorkOrder) {
+        throw new NotFoundException('WorkOrder no encontrada para esta company.');
+      }
+
+      if (linkedWorkOrder.customerId !== customer.id) {
+        throw new BadRequestException(
+          'La work order no pertenece al customer indicado.',
+        );
+      }
+
+      if (linkedWorkOrder.siteId !== site.id) {
+        throw new BadRequestException(
+          'La work order no pertenece al site indicado.',
+        );
+      }
+
+      if (linkedWorkOrder.assetId && linkedWorkOrder.assetId !== asset.id) {
+        throw new BadRequestException(
+          'El asset del reporte no coincide con el asset de la work order.',
+        );
+      }
+
+      const existingLinkedReport = await this.prisma.maintenanceReport.findFirst({
+        where: {
+          companyId,
+          workOrderId: linkedWorkOrder.id,
+          status: {
+            not: MaintenanceReportStatus.CANCELLED,
+          },
+        },
+        select: {
+          id: true,
+          status: true,
+        },
+      });
+
+      if (existingLinkedReport) {
+        throw new BadRequestException(
+          `Ya existe un parte vinculado a esta work order (${existingLinkedReport.id}).`,
+        );
+      }
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const report = await tx.maintenanceReport.create({
         data: {
@@ -229,6 +342,7 @@ export class MaintenanceReportsService {
           siteId: site.id,
           assetId: asset.id,
           templateId: template.id,
+          workOrderId: linkedWorkOrder?.id ?? null,
           title: createDto.title?.trim() || template.title,
           description: template.description ?? null,
           notes: createDto.notes ?? null,
@@ -338,9 +452,24 @@ export class MaintenanceReportsService {
     return serializeReportItem(updated);
   }
 
-  async finalize(companyId: string, id: string) {
+  async finalize(companyId: string, id: string, userId?: string) {
     if (!companyId) {
       throw new BadRequestException('Falta header x-company-id');
+    }
+
+    if (userId) {
+      const userCompany = await this.prisma.userCompany.findFirst({
+        where: {
+          companyId,
+          userId,
+          active: true,
+        },
+        select: { id: true },
+      });
+
+      if (!userCompany) {
+        throw new BadRequestException('El usuario del header no pertenece a esta company.');
+      }
     }
 
     const report = await this.prisma.maintenanceReport.findFirst({
@@ -352,6 +481,14 @@ export class MaintenanceReportsService {
 
     if (!report) {
       throw new NotFoundException('Reporte no encontrado.');
+    }
+
+    if (report.status === MaintenanceReportStatus.COMPLETED) {
+      throw new BadRequestException('El reporte ya está finalizado.');
+    }
+
+    if (report.status === MaintenanceReportStatus.CANCELLED) {
+      throw new BadRequestException('No se puede finalizar un reporte cancelado.');
     }
 
     if (!report.items.length) {
@@ -368,6 +505,7 @@ export class MaintenanceReportsService {
       data: {
         status: MaintenanceReportStatus.COMPLETED,
         completedAt: new Date(),
+        completedByUserId: userId ?? report.completedByUserId ?? null,
       },
       include: reportInclude,
     });

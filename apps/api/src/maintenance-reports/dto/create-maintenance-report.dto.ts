@@ -14,6 +14,10 @@ export class CreateMaintenanceReportDto {
   assetId!: string;
 
   @IsOptional()
+  @IsUUID()
+  workOrderId?: string;
+
+  @IsOptional()
   @IsString()
   notes?: string;
 }

@@ -9,7 +9,7 @@ import {
   resolveWorkOrdersPath,
   type TcSession,
 } from '@/lib/tc/session';
-import { errMsg, isRecord, resolveCorePaths, tcGet, tcPatch } from '@/lib/tc/api';
+import { errMsg, isRecord, normalizeList, resolveCorePaths, tcGet, tcPatch } from '@/lib/tc/api';
 
 const WORK_ORDER_STATUSES = ['OPEN', 'ASSIGNED', 'IN_PROGRESS', 'DONE', 'CANCELLED'] as const;
 type WorkOrderStatusValue = (typeof WORK_ORDER_STATUSES)[number];
@@ -40,6 +40,16 @@ type WorkOrderDetail = {
   site?: { id: string; name: string; address?: string | null } | null;
   asset?: { id: string; name: string; brand?: string | null; model?: string | null } | null;
   assignedTo?: { id: string; name: string; email?: string } | null;
+};
+
+type RelatedReport = {
+  id: string;
+  title: string;
+  status: string;
+  templateName?: string | null;
+  createdAt?: string | null;
+  completedAt?: string | null;
+  workOrderId?: string | null;
 };
 
 function asStr(v: unknown, fallback = ''): string {
@@ -103,6 +113,25 @@ function parseDetail(value: unknown): WorkOrderDetail | null {
   };
 }
 
+function parseRelatedReport(value: unknown): RelatedReport | null {
+  if (!isRecord(value)) return null;
+
+  const id = asStr(value.id);
+  const title = asStr(value.title, 'Maintenance Report');
+
+  if (!id) return null;
+
+  return {
+    id,
+    title,
+    status: asStr(value.status, '—'),
+    templateName: asNullableStr(value.templateName),
+    createdAt: asNullableStr(value.createdAt),
+    completedAt: asNullableStr(value.completedAt),
+    workOrderId: asNullableStr(value.workOrderId),
+  };
+}
+
 function formatDate(input?: string | null) {
   if (!input) return '—';
   const d = new Date(input);
@@ -121,6 +150,10 @@ function formatStatus(status: string): string {
       return 'Done';
     case 'CANCELLED':
       return 'Cancelled';
+    case 'DRAFT':
+      return 'Borrador';
+    case 'COMPLETED':
+      return 'Finalizado';
     default:
       return status || '—';
   }
@@ -153,6 +186,10 @@ function statusBadgeClass(status: string): string {
       return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
     case 'CANCELLED':
       return 'border-rose-500/40 bg-rose-500/10 text-rose-300';
+    case 'DRAFT':
+      return 'border-yellow-500/40 bg-yellow-500/10 text-yellow-300';
+    case 'COMPLETED':
+      return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
     default:
       return 'border-slate-700 bg-slate-800 text-slate-200';
   }
@@ -203,6 +240,9 @@ export default function WorkOrderDetailPage() {
   const [mounted, setMounted] = useState(false);
   const [session, setSession] = useState<TcSession | null>(null);
   const [state, setState] = useState<LoadState<WorkOrderDetail>>({ status: 'loading' });
+  const [reportState, setReportState] = useState<LoadState<RelatedReport[]>>({
+    status: 'loading',
+  });
   const [actionState, setActionState] = useState<ActionState>({ status: 'idle' });
   const [assignedToUserId, setAssignedToUserId] = useState('');
 
@@ -247,6 +287,28 @@ export default function WorkOrderDetailPage() {
     setState({ status: 'ok', data: parsed });
   }, []);
 
+  const loadRelatedReports = useCallback(async (currentSession: TcSession, currentId: string) => {
+    setReportState({ status: 'loading' });
+
+    const currentPaths = resolveCorePaths(currentSession);
+    const r = await tcGet(currentSession, `${currentPaths.reports}/work-order/${currentId}`);
+
+    if (r.code === 404) {
+      setReportState({ status: 'error', error: 'No existe la ruta de reportes por work order.' });
+      return;
+    }
+
+    if (r.code < 200 || r.code >= 300) {
+      setReportState({ status: 'error', error: `HTTP ${r.code}` });
+      return;
+    }
+
+    const { items } = normalizeList<unknown>(r.json);
+    const rows = items.map(parseRelatedReport).filter((x): x is RelatedReport => !!x);
+
+    setReportState({ status: 'ok', data: rows });
+  }, []);
+
   useEffect(() => {
     if (!mounted) return;
     if (!session) return;
@@ -260,7 +322,7 @@ export default function WorkOrderDetailPage() {
 
     (async () => {
       try {
-        await loadDetail(session, id);
+        await Promise.all([loadDetail(session, id), loadRelatedReports(session, id)]);
       } catch (e) {
         if (!cancelled) {
           setState({ status: 'error', error: errMsg(e) });
@@ -271,7 +333,7 @@ export default function WorkOrderDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [mounted, session, id, loadDetail]);
+  }, [mounted, session, id, loadDetail, loadRelatedReports]);
 
   async function applyPatchedResponse(
     code: number,
@@ -308,8 +370,38 @@ export default function WorkOrderDetailPage() {
     });
   }
 
+  const hasCompletedReport =
+    reportState.status === 'ok' &&
+    reportState.data.some((report) => report.status === 'COMPLETED');
+
+  const latestReport =
+    reportState.status === 'ok' && reportState.data.length > 0 ? reportState.data[0] : null;
+
+  const linkedReportCreateHref = useMemo(() => {
+    if (state.status !== 'ok') return '';
+    if (!id) return '';
+    if (!state.data.customer?.id || !state.data.site?.id || !state.data.asset?.id) return '';
+
+    const qs = new URLSearchParams({
+      workOrderId: id,
+      customerId: state.data.customer.id,
+      siteId: state.data.site.id,
+      assetId: state.data.asset.id,
+    });
+
+    return `/maintenance-reports/new?${qs.toString()}`;
+  }, [state, id]);
+
   async function handleStatusChange(nextStatus: WorkOrderStatusValue) {
     if (!session || !id) return;
+
+    if (nextStatus === 'DONE' && !hasCompletedReport) {
+      setActionState({
+        status: 'error',
+        message: 'Para marcar la work order como DONE, primero debes finalizar el parte de trabajo.',
+      });
+      return;
+    }
 
     try {
       setActionState({ status: 'saving', message: `Actualizando estado a ${nextStatus}...` });
@@ -381,102 +473,195 @@ export default function WorkOrderDetailPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.35fr_0.95fr]">
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
-          {state.status === 'loading' ? (
-            <p>Cargando…</p>
-          ) : state.status === 'error' ? (
-            <p>{state.error}</p>
-          ) : (
-            <div className="space-y-6">
-              <div>
-                <div className="mb-3 flex flex-wrap items-center gap-2">
-                  <span
-                    className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${statusBadgeClass(
-                      state.data.status,
-                    )}`}
-                  >
-                    {formatStatus(state.data.status)}
-                  </span>
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+            {state.status === 'loading' ? (
+              <p>Cargando…</p>
+            ) : state.status === 'error' ? (
+              <p>{state.error}</p>
+            ) : (
+              <div className="space-y-6">
+                <div>
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <span
+                      className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${statusBadgeClass(
+                        state.data.status,
+                      )}`}
+                    >
+                      {formatStatus(state.data.status)}
+                    </span>
 
-                  <span
-                    className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${priorityBadgeClass(
-                      state.data.priority,
-                    )}`}
-                  >
-                    Prioridad: {formatPriority(state.data.priority)}
-                  </span>
+                    <span
+                      className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${priorityBadgeClass(
+                        state.data.priority,
+                      )}`}
+                    >
+                      Prioridad: {formatPriority(state.data.priority)}
+                    </span>
+                  </div>
+
+                  <h2 className="text-2xl font-semibold">{state.data.title}</h2>
+
+                  {state.data.description ? (
+                    <p className="mt-2 text-slate-300">{state.data.description}</p>
+                  ) : (
+                    <p className="mt-2 text-slate-500">Sin descripción.</p>
+                  )}
                 </div>
 
-                <h2 className="text-2xl font-semibold">{state.data.title}</h2>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-xl border border-slate-800 p-4">
+                    <div className="text-sm text-slate-400">Customer</div>
+                    <div className="mt-1">{state.data.customer?.name ?? '—'}</div>
+                  </div>
 
-                {state.data.description ? (
-                  <p className="mt-2 text-slate-300">{state.data.description}</p>
-                ) : (
-                  <p className="mt-2 text-slate-500">Sin descripción.</p>
-                )}
+                  <div className="rounded-xl border border-slate-800 p-4">
+                    <div className="text-sm text-slate-400">Site</div>
+                    <div className="mt-1">{state.data.site?.name ?? '—'}</div>
+                    {state.data.site?.address ? (
+                      <div className="mt-1 text-xs text-slate-400">{state.data.site.address}</div>
+                    ) : null}
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800 p-4">
+                    <div className="text-sm text-slate-400">Asset</div>
+                    <div className="mt-1">{state.data.asset?.name ?? '—'}</div>
+                    {state.data.asset?.brand || state.data.asset?.model ? (
+                      <div className="mt-1 text-xs text-slate-400">
+                        {[state.data.asset?.brand, state.data.asset?.model]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800 p-4">
+                    <div className="text-sm text-slate-400">Asignado a</div>
+                    <div className="mt-1">{state.data.assignedTo?.name ?? 'Sin asignar'}</div>
+                    {state.data.assignedTo?.email ? (
+                      <div className="mt-1 text-xs text-slate-400">{state.data.assignedTo.email}</div>
+                    ) : null}
+                    {state.data.assignedTo?.id ? (
+                      <div className="mt-1 break-all font-mono text-[11px] text-slate-500">
+                        {state.data.assignedTo.id}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800 p-4">
+                    <div className="text-sm text-slate-400">Programado</div>
+                    <div className="mt-1">{formatDate(state.data.scheduledAt)}</div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800 p-4">
+                    <div className="text-sm text-slate-400">Iniciado</div>
+                    <div className="mt-1">{formatDate(state.data.startedAt)}</div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800 p-4">
+                    <div className="text-sm text-slate-400">Completado</div>
+                    <div className="mt-1">{formatDate(state.data.completedAt)}</div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800 p-4">
+                    <div className="text-sm text-slate-400">Actualizado</div>
+                    <div className="mt-1">{formatDate(state.data.updatedAt)}</div>
+                  </div>
+                </div>
               </div>
+            )}
+          </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-xl border border-slate-800 p-4">
-                  <div className="text-sm text-slate-400">Customer</div>
-                  <div className="mt-1">{state.data.customer?.name ?? '—'}</div>
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+            <h3 className="text-lg font-semibold">Parte de trabajo</h3>
+            <p className="mt-1 text-sm text-slate-400">
+              El técnico debe completar y finalizar el parte antes de cerrar la orden.
+            </p>
+
+            <div className="mt-4">
+              {reportState.status === 'loading' ? (
+                <p className="text-sm text-slate-400">Cargando parte vinculado…</p>
+              ) : reportState.status === 'error' ? (
+                <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+                  {reportState.error}
                 </div>
+              ) : reportState.data.length === 0 ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-slate-300">
+                    Esta work order todavía no tiene un parte vinculado.
+                  </p>
 
-                <div className="rounded-xl border border-slate-800 p-4">
-                  <div className="text-sm text-slate-400">Site</div>
-                  <div className="mt-1">{state.data.site?.name ?? '—'}</div>
-                  {state.data.site?.address ? (
-                    <div className="mt-1 text-xs text-slate-400">{state.data.site.address}</div>
-                  ) : null}
+                  {!linkedReportCreateHref ? (
+                    <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                      No se puede crear el parte desde esta work order porque falta customer, site o asset.
+                    </div>
+                  ) : (
+                    <Link
+                      href={linkedReportCreateHref}
+                      className="inline-flex rounded-xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900"
+                    >
+                      Crear parte de trabajo
+                    </Link>
+                  )}
                 </div>
+              ) : (
+                <div className="space-y-4">
+                  {latestReport ? (
+                    <div className="rounded-xl border border-slate-800 p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm text-slate-400">Parte principal</div>
+                          <div className="mt-1 text-lg font-semibold">
+                            {latestReport.templateName || latestReport.title}
+                          </div>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <span
+                              className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${statusBadgeClass(
+                                latestReport.status,
+                              )}`}
+                            >
+                              {formatStatus(latestReport.status)}
+                            </span>
+                            <span className="text-xs text-slate-400">
+                              Creado: {formatDate(latestReport.createdAt)}
+                            </span>
+                            <span className="text-xs text-slate-400">
+                              Finalizado: {formatDate(latestReport.completedAt)}
+                            </span>
+                          </div>
+                        </div>
 
-                <div className="rounded-xl border border-slate-800 p-4">
-                  <div className="text-sm text-slate-400">Asset</div>
-                  <div className="mt-1">{state.data.asset?.name ?? '—'}</div>
-                  {state.data.asset?.brand || state.data.asset?.model ? (
-                    <div className="mt-1 text-xs text-slate-400">
-                      {[state.data.asset?.brand, state.data.asset?.model]
-                        .filter(Boolean)
-                        .join(' · ')}
+                        <div className="flex flex-wrap gap-2">
+                          <Link
+                            href={`/maintenance-reports/${latestReport.id}`}
+                            className="rounded-xl border border-slate-700 px-4 py-2 hover:bg-slate-800"
+                          >
+                            Abrir parte
+                          </Link>
+                        </div>
+                      </div>
                     </div>
                   ) : null}
-                </div>
 
-                <div className="rounded-xl border border-slate-800 p-4">
-                  <div className="text-sm text-slate-400">Asignado a</div>
-                  <div className="mt-1">{state.data.assignedTo?.name ?? 'Sin asignar'}</div>
-                  {state.data.assignedTo?.email ? (
-                    <div className="mt-1 text-xs text-slate-400">{state.data.assignedTo.email}</div>
-                  ) : null}
-                  {state.data.assignedTo?.id ? (
-                    <div className="mt-1 break-all font-mono text-[11px] text-slate-500">
-                      {state.data.assignedTo.id}
+                  {reportState.data.length > 1 ? (
+                    <div className="rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200">
+                      Hay {reportState.data.length} partes vinculados a esta work order. Se está mostrando el más reciente.
                     </div>
                   ) : null}
-                </div>
 
-                <div className="rounded-xl border border-slate-800 p-4">
-                  <div className="text-sm text-slate-400">Programado</div>
-                  <div className="mt-1">{formatDate(state.data.scheduledAt)}</div>
+                  {!hasCompletedReport ? (
+                    <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                      El parte aún no está finalizado. La work order no podrá marcarse como DONE hasta completarlo.
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+                      Ya existe un parte finalizado para esta work order. Ya puedes cerrar la orden con DONE.
+                    </div>
+                  )}
                 </div>
-
-                <div className="rounded-xl border border-slate-800 p-4">
-                  <div className="text-sm text-slate-400">Iniciado</div>
-                  <div className="mt-1">{formatDate(state.data.startedAt)}</div>
-                </div>
-
-                <div className="rounded-xl border border-slate-800 p-4">
-                  <div className="text-sm text-slate-400">Completado</div>
-                  <div className="mt-1">{formatDate(state.data.completedAt)}</div>
-                </div>
-
-                <div className="rounded-xl border border-slate-800 p-4">
-                  <div className="text-sm text-slate-400">Actualizado</div>
-                  <div className="mt-1">{formatDate(state.data.updatedAt)}</div>
-                </div>
-              </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
         <div className="space-y-6">

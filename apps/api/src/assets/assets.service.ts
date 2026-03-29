@@ -1,19 +1,81 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
+
+function normalizeNullableString(value?: string | null): string | null {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
 
 @Injectable()
 export class AssetsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(companyId: string) {
-    if (!companyId) {
-      throw new BadRequestException('Falta header x-company-id');
+  private ensureCompanyId(companyId?: string): string {
+    const normalized = companyId?.trim();
+
+    if (!normalized) {
+      throw new BadRequestException('Falta x-company-id');
     }
 
+    return normalized;
+  }
+
+  private serializeAsset(item: {
+    id: string;
+    companyId: string;
+    siteId: string;
+    name: string;
+    category: string | null;
+    brand: string | null;
+    model: string | null;
+    serialNumber: string | null;
+    internalCode: string | null;
+    status: string | null;
+    installationAt: Date | null;
+    notes: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    site?: { id: string; name: string; customerId: string } | null;
+  }) {
+    return {
+      id: item.id,
+      companyId: item.companyId,
+      siteId: item.siteId,
+      customerId: item.site?.customerId ?? null,
+      name: item.name,
+      category: item.category,
+      brand: item.brand,
+      model: item.model,
+      serialNumber: item.serialNumber,
+      serial: item.serialNumber,
+      internalCode: item.internalCode,
+      status: item.status,
+      installationAt: item.installationAt,
+      notes: item.notes,
+      location: null,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+      site: item.site
+        ? {
+            id: item.site.id,
+            name: item.site.name,
+            customerId: item.site.customerId,
+          }
+        : null,
+    };
+  }
+
+  async list(companyId: string) {
+    const normalizedCompanyId = this.ensureCompanyId(companyId);
+
     const items = await this.prisma.asset.findMany({
-      where: { companyId },
-      orderBy: { createdAt: 'desc' },
+      where: { companyId: normalizedCompanyId },
+      orderBy: [{ name: 'asc' }, { createdAt: 'desc' }],
       include: {
         site: {
           select: {
@@ -26,44 +88,41 @@ export class AssetsService {
     });
 
     return {
-      items: items.map((asset) => ({
-        id: asset.id,
-        name: asset.name,
-        category: asset.category,
-        brand: asset.brand,
-        model: asset.model,
-        serialNumber: asset.serialNumber,
-        serial: asset.serialNumber,
-        internalCode: asset.internalCode,
-        status: asset.status,
-        installationAt: asset.installationAt,
-        notes: asset.notes,
-        location: null,
-        createdAt: asset.createdAt,
-        updatedAt: asset.updatedAt,
-        siteId: asset.siteId,
-        site: asset.site
-          ? {
-              id: asset.site.id,
-              name: asset.site.name,
-              customerId: asset.site.customerId,
-            }
-          : null,
-        customerId: asset.site?.customerId ?? null,
-      })),
+      items: items.map((asset) => this.serializeAsset(asset)),
       count: items.length,
     };
   }
 
-  async create(companyId: string, dto: CreateAssetDto) {
-    if (!companyId) {
-      throw new BadRequestException('Falta header x-company-id');
+  async get(companyId: string, id: string) {
+    const normalizedCompanyId = this.ensureCompanyId(companyId);
+
+    const item = await this.prisma.asset.findFirst({
+      where: { id, companyId: normalizedCompanyId },
+      include: {
+        site: {
+          select: {
+            id: true,
+            name: true,
+            customerId: true,
+          },
+        },
+      },
+    });
+
+    if (!item) {
+      throw new NotFoundException('Asset no encontrado para esta company.');
     }
+
+    return this.serializeAsset(item);
+  }
+
+  async create(companyId: string, dto: CreateAssetDto) {
+    const normalizedCompanyId = this.ensureCompanyId(companyId);
 
     const site = await this.prisma.site.findFirst({
       where: {
         id: dto.siteId,
-        companyId,
+        companyId: normalizedCompanyId,
       },
       select: {
         id: true,
@@ -74,31 +133,41 @@ export class AssetsService {
       throw new NotFoundException('Site no encontrado para esta company.');
     }
 
-    const legacyDto = dto as CreateAssetDto & {
-      serial?: string;
-      location?: string;
-      category?: string;
-      internalCode?: string;
-      status?: string;
-      installationAt?: string | Date;
-    };
+    const installationAt = dto.installationAt ? new Date(dto.installationAt) : null;
 
-    return this.prisma.asset.create({
+    if (installationAt && Number.isNaN(installationAt.getTime())) {
+      throw new BadRequestException('installationAt inválida');
+    }
+
+    const resolvedSerialNumber =
+      normalizeNullableString(dto.serialNumber) ??
+      normalizeNullableString(dto.serial);
+
+    const item = await this.prisma.asset.create({
       data: {
-        companyId,
+        companyId: normalizedCompanyId,
         siteId: dto.siteId,
-        name: dto.name,
-        category: legacyDto.category ?? null,
-        brand: dto.brand ?? null,
-        model: dto.model ?? null,
-        serialNumber: legacyDto.serial ?? null,
-        internalCode: legacyDto.internalCode ?? null,
-        status: legacyDto.status ?? null,
-        installationAt: legacyDto.installationAt
-          ? new Date(legacyDto.installationAt)
-          : null,
-        notes: dto.notes ?? null,
+        name: dto.name.trim(),
+        category: normalizeNullableString(dto.category),
+        brand: normalizeNullableString(dto.brand),
+        model: normalizeNullableString(dto.model),
+        serialNumber: resolvedSerialNumber,
+        internalCode: normalizeNullableString(dto.internalCode),
+        status: normalizeNullableString(dto.status),
+        installationAt,
+        notes: normalizeNullableString(dto.notes),
+      },
+      include: {
+        site: {
+          select: {
+            id: true,
+            name: true,
+            customerId: true,
+          },
+        },
       },
     });
+
+    return this.serializeAsset(item);
   }
 }

@@ -28,14 +28,10 @@ export class UpdateWorkOrderDto {
   @IsOptional()
   @IsInt()
   @Min(1)
-  @Max(5)
+  @Max(4)
   priority?: number;
 
   @IsOptional()
   @IsString()
   scheduledAt?: string;
-
-  @IsOptional()
-  @IsString()
-  dueAt?: string;
 }

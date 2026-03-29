@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { readTcSession, type TcSession } from '@/lib/tc/session';
 import { errMsg, normalizeList, resolveCorePaths, tcFetch, tcGet } from '@/lib/tc/api';
 
@@ -57,6 +57,7 @@ function parseOptionItem(value: unknown): OptionItem | null {
 
 export default function NewMaintenanceReportPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [session, setSession] = useState<TcSession | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -72,16 +73,31 @@ export default function NewMaintenanceReportPage() {
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'saving' | 'error'>('idle');
   const [submitError, setSubmitError] = useState('');
 
+  const [workOrderId, setWorkOrderId] = useState('');
   const [templateId, setTemplateId] = useState('');
   const [customerId, setCustomerId] = useState('');
   const [siteId, setSiteId] = useState('');
   const [assetId, setAssetId] = useState('');
   const [notes, setNotes] = useState('');
 
+  const qpWorkOrderId = searchParams.get('workOrderId')?.trim() ?? '';
+  const qpCustomerId = searchParams.get('customerId')?.trim() ?? '';
+  const qpSiteId = searchParams.get('siteId')?.trim() ?? '';
+  const qpAssetId = searchParams.get('assetId')?.trim() ?? '';
+
   useEffect(() => {
     setMounted(true);
     setSession(readTcSession());
   }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    setWorkOrderId(qpWorkOrderId);
+    if (qpCustomerId) setCustomerId(qpCustomerId);
+    if (qpSiteId) setSiteId(qpSiteId);
+    if (qpAssetId) setAssetId(qpAssetId);
+  }, [mounted, qpWorkOrderId, qpCustomerId, qpSiteId, qpAssetId]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -166,6 +182,12 @@ export default function NewMaintenanceReportPage() {
     return assets.filter((a) => a.siteId === siteId);
   }, [assets, siteId]);
 
+  const backHref = workOrderId ? `/work-orders/${workOrderId}` : '/maintenance-reports';
+
+  const lockCustomer = !!workOrderId && !!customerId;
+  const lockSite = !!workOrderId && !!siteId;
+  const lockAsset = !!workOrderId && !!assetId;
+
   function onChangeCustomer(value: string) {
     setCustomerId(value);
     setSiteId('');
@@ -206,6 +228,7 @@ export default function NewMaintenanceReportPage() {
           customerId,
           siteId,
           assetId,
+          workOrderId: workOrderId || undefined,
           notes: notes.trim() || undefined,
         },
       });
@@ -258,7 +281,7 @@ export default function NewMaintenanceReportPage() {
             <h1 className="text-2xl font-semibold text-white">New Maintenance Report</h1>
             <p className="mt-1 text-sm text-slate-400">Crear reporte desde template.</p>
           </div>
-          <Link href="/maintenance-reports" className="text-sm text-slate-300 hover:text-white">
+          <Link href={backHref} className="text-sm text-slate-300 hover:text-white">
             ← Volver
           </Link>
         </div>
@@ -274,16 +297,28 @@ export default function NewMaintenanceReportPage() {
     <div className="mx-auto max-w-3xl p-6">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-white">New Maintenance Report</h1>
-          <p className="mt-1 text-sm text-slate-400">Crear reporte desde un template existente.</p>
+          <h1 className="text-2xl font-semibold text-white">
+            {workOrderId ? 'Nuevo parte de trabajo' : 'New Maintenance Report'}
+          </h1>
+          <p className="mt-1 text-sm text-slate-400">
+            {workOrderId
+              ? 'Crear parte técnico vinculado a una work order.'
+              : 'Crear reporte desde un template existente.'}
+          </p>
         </div>
 
-        <Link href="/maintenance-reports" className="text-sm text-slate-300 hover:text-white">
+        <Link href={backHref} className="text-sm text-slate-300 hover:text-white">
           ← Volver
         </Link>
       </div>
 
       <div className="mt-6 rounded-2xl bg-slate-900/60 ring-1 ring-white/10 p-5">
+        {workOrderId ? (
+          <div className="mb-5 rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm text-blue-200">
+            Este parte quedará vinculado a la work order <span className="font-mono">{workOrderId}</span>.
+          </div>
+        ) : null}
+
         {loadStatus === 'loading' ? (
           <div className="text-sm text-slate-400">Cargando catálogos…</div>
         ) : loadStatus === 'error' ? (
@@ -309,9 +344,10 @@ export default function NewMaintenanceReportPage() {
             <div>
               <label className="mb-2 block text-sm text-slate-300">Customer</label>
               <select
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none"
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
                 value={customerId}
                 onChange={(e) => onChangeCustomer(e.target.value)}
+                disabled={lockCustomer}
               >
                 <option value="">Selecciona un customer</option>
                 {customers.map((c) => (
@@ -325,10 +361,10 @@ export default function NewMaintenanceReportPage() {
             <div>
               <label className="mb-2 block text-sm text-slate-300">Site</label>
               <select
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none"
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
                 value={siteId}
                 onChange={(e) => onChangeSite(e.target.value)}
-                disabled={!customerId}
+                disabled={lockSite || !customerId}
               >
                 <option value="">Selecciona un site</option>
                 {filteredSites.map((s) => (
@@ -342,10 +378,10 @@ export default function NewMaintenanceReportPage() {
             <div>
               <label className="mb-2 block text-sm text-slate-300">Asset</label>
               <select
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none"
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
                 value={assetId}
                 onChange={(e) => setAssetId(e.target.value)}
-                disabled={!siteId}
+                disabled={lockAsset || !siteId}
               >
                 <option value="">Selecciona un asset</option>
                 {filteredAssets.map((a) => (
@@ -378,11 +414,15 @@ export default function NewMaintenanceReportPage() {
                 disabled={submitStatus === 'saving'}
                 className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-60"
               >
-                {submitStatus === 'saving' ? 'Creating…' : 'Create Report'}
+                {submitStatus === 'saving'
+                  ? 'Creating…'
+                  : workOrderId
+                    ? 'Crear parte'
+                    : 'Create Report'}
               </button>
 
               <Link
-                href="/maintenance-reports"
+                href={backHref}
                 className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800"
               >
                 Cancel
