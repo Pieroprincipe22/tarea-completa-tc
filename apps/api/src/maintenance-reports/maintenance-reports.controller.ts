@@ -12,6 +12,14 @@ export class MaintenanceReportsController {
     return this.service.list(companyId);
   }
 
+  @Get('work-order/:workOrderId')
+  listByWorkOrderId(
+    @Headers('x-company-id') companyId: string,
+    @Param('workOrderId') workOrderId: string,
+  ) {
+    return this.service.listByWorkOrderId(companyId, workOrderId);
+  }
+
   @Post()
   create(
     @Headers('x-company-id') companyId: string,
@@ -37,7 +45,11 @@ export class MaintenanceReportsController {
   }
 
   @Post(':id/finalize')
-  finalize(@Headers('x-company-id') companyId: string, @Param('id') id: string) {
-    return this.service.finalize(companyId, id);
+  finalize(
+    @Headers('x-company-id') companyId: string,
+    @Headers('x-user-id') userId: string | undefined,
+    @Param('id') id: string,
+  ) {
+    return this.service.finalize(companyId, id, userId);
   }
 }
