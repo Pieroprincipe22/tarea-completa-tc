@@ -97,7 +97,6 @@ model Company {
   name      String
   slug      String?  @unique
   isActive  Boolean  @default(true)
-  existe    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

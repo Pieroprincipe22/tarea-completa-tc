@@ -3,12 +3,25 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { AssetStatus } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 
 function normalizeNullableString(value?: string | null): string | null {
   const normalized = value?.trim();
   return normalized ? normalized : null;
+}
+
+function normalizeAssetStatus(value?: string | null): AssetStatus | undefined {
+  const normalized = value?.trim().toUpperCase();
+
+  if (!normalized) return undefined;
+  if (normalized === 'ACTIVE') return AssetStatus.ACTIVE;
+  if (normalized === 'INACTIVE') return AssetStatus.INACTIVE;
+  if (normalized === 'MAINTENANCE') return AssetStatus.MAINTENANCE;
+  if (normalized === 'RETIRED') return AssetStatus.RETIRED;
+
+  throw new BadRequestException('status inválido para asset');
 }
 
 @Injectable()
@@ -28,15 +41,18 @@ export class AssetsService {
   private serializeAsset(item: {
     id: string;
     companyId: string;
-    siteId: string;
+    customerId: string | null;
+    siteId: string | null;
     name: string;
+    code: string | null;
     category: string | null;
     brand: string | null;
     model: string | null;
     serialNumber: string | null;
     internalCode: string | null;
-    status: string | null;
+    status: AssetStatus;
     installationAt: Date | null;
+    location: string | null;
     notes: string | null;
     createdAt: Date;
     updatedAt: Date;
@@ -45,9 +61,10 @@ export class AssetsService {
     return {
       id: item.id,
       companyId: item.companyId,
+      customerId: item.customerId ?? item.site?.customerId ?? null,
       siteId: item.siteId,
-      customerId: item.site?.customerId ?? null,
       name: item.name,
+      code: item.code,
       category: item.category,
       brand: item.brand,
       model: item.model,
@@ -56,8 +73,8 @@ export class AssetsService {
       internalCode: item.internalCode,
       status: item.status,
       installationAt: item.installationAt,
+      location: item.location,
       notes: item.notes,
-      location: null,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
       site: item.site
@@ -126,6 +143,7 @@ export class AssetsService {
       },
       select: {
         id: true,
+        customerId: true,
       },
     });
 
@@ -143,9 +161,12 @@ export class AssetsService {
       normalizeNullableString(dto.serialNumber) ??
       normalizeNullableString(dto.serial);
 
+    const resolvedStatus = normalizeAssetStatus(dto.status);
+
     const item = await this.prisma.asset.create({
       data: {
         companyId: normalizedCompanyId,
+        customerId: site.customerId,
         siteId: dto.siteId,
         name: dto.name.trim(),
         category: normalizeNullableString(dto.category),
@@ -153,8 +174,9 @@ export class AssetsService {
         model: normalizeNullableString(dto.model),
         serialNumber: resolvedSerialNumber,
         internalCode: normalizeNullableString(dto.internalCode),
-        status: normalizeNullableString(dto.status),
+        ...(resolvedStatus ? { status: resolvedStatus } : {}),
         installationAt,
+        location: normalizeNullableString(dto.location),
         notes: normalizeNullableString(dto.notes),
       },
       include: {

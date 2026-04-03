@@ -1,8 +1,10 @@
-import { IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { WorkOrderStatus } from '@prisma/client';
 
 export class UpdateWorkOrderDto {
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   title?: string;
 
   @IsOptional()
@@ -10,28 +12,53 @@ export class UpdateWorkOrderDto {
   description?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   customerId?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   siteId?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   assetId?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   assignedToUserId?: string;
 
   @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(4)
-  priority?: number;
+  @IsString()
+  assignedTechnicianId?: string;
+
+  @IsOptional()
+  @IsString()
+  maintenanceTemplateId?: string;
+
+  @IsOptional()
+  priority?: string | number;
 
   @IsOptional()
   @IsString()
   scheduledAt?: string;
+
+  @IsOptional()
+  @IsString()
+  scheduledFor?: string;
+
+  @IsOptional()
+  @IsString()
+  startedAt?: string;
+
+  @IsOptional()
+  @IsString()
+  completedAt?: string;
+
+  @IsOptional()
+  @IsString()
+  code?: string;
+
+  @IsOptional()
+  @IsEnum(WorkOrderStatus)
+  status?: WorkOrderStatus;
 }

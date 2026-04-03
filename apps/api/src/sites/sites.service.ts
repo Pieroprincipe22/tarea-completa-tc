@@ -32,10 +32,9 @@ export class SitesService {
     name: string;
     address: string | null;
     city: string | null;
-    state: string | null;
-    postalCode: string | null;
     country: string | null;
     notes: string | null;
+    isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
     customer?: { id: string; name: string } | null;
@@ -47,10 +46,11 @@ export class SitesService {
       name: item.name,
       address: item.address,
       city: item.city,
-      state: item.state,
-      postalCode: item.postalCode,
+      state: null,
+      postalCode: null,
       country: item.country,
       notes: item.notes,
+      isActive: item.isActive,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
       customer: item.customer
@@ -81,8 +81,6 @@ export class SitesService {
         name: dto.name.trim(),
         address: normalizeNullableString(dto.address),
         city: normalizeNullableString(dto.city),
-        state: normalizeNullableString(dto.state),
-        postalCode: normalizeNullableString(dto.postalCode),
         country: normalizeNullableString(dto.country),
         notes: normalizeNullableString(dto.notes),
       },

@@ -12,7 +12,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
 
-    "types": ["node", "multer"],
+    "types": ["node", "multer", "jest"],
 
     "baseUrl": ".",
     "paths": {

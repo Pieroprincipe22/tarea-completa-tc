@@ -38,24 +38,28 @@ export class AttachmentsService {
       select: {
         id: true,
         fileName: true,
+        filename: true,
+        originalName: true,
         mimeType: true,
+        contentType: true,
         sizeBytes: true,
+        size: true,
         createdAt: true,
       },
     });
 
     return items.map((item) => ({
       id: item.id,
-      originalName: item.fileName,
-      mime: item.mimeType,
-      size: item.sizeBytes,
+      originalName: item.originalName ?? item.fileName ?? item.filename,
+      mime: item.mimeType ?? item.contentType,
+      size: item.sizeBytes ?? item.size,
       createdAt: item.createdAt,
     }));
   }
 
   async uploadWorkOrderAttachment(
     companyId: string,
-    _userId: string,
+    userId: string,
     workOrderId: string,
     file: Express.Multer.File,
   ) {
@@ -72,11 +76,15 @@ export class AttachmentsService {
         companyId,
         ownerType: AttachmentOwnerType.WORK_ORDER,
         ownerId: workOrderId,
-        workOrderId,
         fileName: safeName,
-        fileUrl: 'PENDING',
+        filename: safeName,
+        originalName: file.originalname || safeName,
         mimeType: file.mimetype || 'application/octet-stream',
+        contentType: file.mimetype || 'application/octet-stream',
         sizeBytes: file.size ?? file.buffer.length,
+        size: file.size ?? file.buffer.length,
+        uploadedByUserId: userId,
+        storageKey: 'PENDING',
       },
       select: { id: true },
     });
@@ -87,21 +95,28 @@ export class AttachmentsService {
 
     const saved = await this.prisma.attachment.update({
       where: { id: created.id },
-      data: { fileUrl: objectKey },
+      data: {
+        storageKey: objectKey,
+        url: objectKey,
+      },
       select: {
         id: true,
         fileName: true,
+        filename: true,
+        originalName: true,
         mimeType: true,
+        contentType: true,
         sizeBytes: true,
+        size: true,
         createdAt: true,
       },
     });
 
     return {
       id: saved.id,
-      originalName: saved.fileName,
-      mime: saved.mimeType,
-      size: saved.sizeBytes,
+      originalName: saved.originalName ?? saved.fileName ?? saved.filename,
+      mime: saved.mimeType ?? saved.contentType,
+      size: saved.sizeBytes ?? saved.size,
       createdAt: saved.createdAt,
     };
   }
@@ -109,14 +124,20 @@ export class AttachmentsService {
   async getAttachmentUrl(companyId: string, attachmentId: string) {
     const att = await this.prisma.attachment.findFirst({
       where: { id: attachmentId, companyId },
-      select: { fileUrl: true },
+      select: { storageKey: true, url: true },
     });
 
     if (!att) {
       throw new NotFoundException('Attachment not found');
     }
 
-    const url = await this.storage.getSignedUrl(att.fileUrl);
+    const objectKey = att.storageKey ?? att.url;
+
+    if (!objectKey) {
+      throw new NotFoundException('Attachment sin storageKey/url');
+    }
+
+    const url = await this.storage.getSignedUrl(objectKey);
     return { url };
   }
 }

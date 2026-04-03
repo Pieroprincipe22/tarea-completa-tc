@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { WorkOrderStatus } from '@prisma/client';
 
 export class QueryWorkOrdersDto {
@@ -8,20 +8,28 @@ export class QueryWorkOrdersDto {
   status?: WorkOrderStatus;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   customerId?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   siteId?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   assetId?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   assignedToUserId?: string;
+
+  @IsOptional()
+  @IsString()
+  assignedTechnicianId?: string;
+
+  @IsOptional()
+  @IsString()
+  maintenanceTemplateId?: string;
 
   @IsOptional()
   @IsString()

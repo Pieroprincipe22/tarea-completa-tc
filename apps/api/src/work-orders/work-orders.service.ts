@@ -16,7 +16,7 @@ import { QueryWorkOrdersDto } from './dto/query-work-orders.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 
 function toDateOrNull(v?: string | Date | null): Date | null {
-  if (!v) return null;
+  if (v === undefined || v === null || v === '') return null;
   const date = v instanceof Date ? v : new Date(v);
   return Number.isNaN(date.getTime()) ? null : date;
 }
@@ -50,34 +50,86 @@ function normalizePriority(value: unknown): WorkOrderPriority | undefined {
   throw new BadRequestException('priority inválida');
 }
 
+const userSelect = {
+  id: true,
+  name: true,
+  email: true,
+} as const;
+
 const workOrderInclude = {
   customer: true,
   site: true,
   asset: true,
-  assignedTo: true,
+  createdBy: {
+    select: userSelect,
+  },
+  assignedTo: {
+    select: userSelect,
+  },
+  assignedTechnician: {
+    select: userSelect,
+  },
+  maintenanceTemplate: {
+    select: {
+      id: true,
+      name: true,
+      title: true,
+      description: true,
+      isActive: true,
+    },
+  },
+  maintenanceReport: {
+    select: {
+      id: true,
+      status: true,
+      state: true,
+      createdAt: true,
+      completedAt: true,
+    },
+  },
 } satisfies Prisma.WorkOrderInclude;
 
 type WorkOrderWithRelations = Prisma.WorkOrderGetPayload<{
   include: typeof workOrderInclude;
 }>;
 
+function serializeUser(user?: { id: string; name: string; email: string } | null) {
+  if (!user) return null;
+
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+  };
+}
+
 function serializeWorkOrder(item: WorkOrderWithRelations) {
+  const assignedUser = item.assignedTo ?? item.assignedTechnician ?? null;
+  const assignedUserId = item.assignedToUserId ?? item.assignedTechnicianId ?? null;
+  const scheduledValue = item.scheduledAt ?? item.scheduledFor ?? null;
+
   return {
     id: item.id,
     companyId: item.companyId,
+    customerId: item.customerId,
+    siteId: item.siteId,
+    assetId: item.assetId,
+    createdById: item.createdById,
+    assignedToUserId: assignedUserId,
+    assignedTechnicianId: item.assignedTechnicianId ?? item.assignedToUserId ?? null,
+    maintenanceTemplateId: item.maintenanceTemplateId,
+    code: item.code,
     title: item.title,
     description: item.description,
     status: item.status,
     priority: item.priority,
-    scheduledAt: item.scheduledAt,
+    scheduledAt: scheduledValue,
+    scheduledFor: scheduledValue,
     startedAt: item.startedAt,
     completedAt: item.completedAt,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
-    customerId: item.customerId,
-    siteId: item.siteId,
-    assetId: item.assetId,
-    assignedToUserId: item.assignedToUserId,
+
     customer: item.customer
       ? {
           id: item.customer.id,
@@ -89,24 +141,26 @@ function serializeWorkOrder(item: WorkOrderWithRelations) {
           id: item.site.id,
           name: item.site.name,
           address: item.site.address ?? null,
+          city: item.site.city ?? null,
+          country: item.site.country ?? null,
         }
       : null,
     asset: item.asset
       ? {
           id: item.asset.id,
           name: item.asset.name,
+          code: item.asset.code ?? null,
+          internalCode: item.asset.internalCode ?? null,
           brand: item.asset.brand ?? null,
           model: item.asset.model ?? null,
           serialNumber: item.asset.serialNumber ?? null,
         }
       : null,
-    assignedTo: item.assignedTo
-      ? {
-          id: item.assignedTo.id,
-          name: item.assignedTo.name,
-          email: item.assignedTo.email,
-        }
-      : null,
+    createdBy: serializeUser(item.createdBy),
+    assignedTo: serializeUser(assignedUser),
+    assignedTechnician: serializeUser(item.assignedTechnician ?? item.assignedTo),
+    maintenanceTemplate: item.maintenanceTemplate,
+    maintenanceReport: item.maintenanceReport,
   };
 }
 
@@ -116,7 +170,11 @@ function resolveStatusLifecycleData(
 ): Pick<Prisma.WorkOrderUpdateInput, 'startedAt' | 'completedAt'> {
   if (!status) return {};
 
-  if (status === WorkOrderStatus.OPEN || status === WorkOrderStatus.ASSIGNED) {
+  if (
+    status === WorkOrderStatus.OPEN ||
+    status === WorkOrderStatus.ASSIGNED ||
+    status === WorkOrderStatus.PENDING
+  ) {
     return {
       startedAt: null,
       completedAt: null,
@@ -160,7 +218,9 @@ export class WorkOrdersService {
     return normalized;
   }
 
-  private async ensureCustomer(companyId: string, customerId: string) {
+  private async ensureCustomer(companyId: string, customerId?: string | null) {
+    if (!customerId) return null;
+
     const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, companyId },
       select: { id: true },
@@ -173,7 +233,9 @@ export class WorkOrdersService {
     return customer;
   }
 
-  private async ensureSite(companyId: string, siteId: string) {
+  private async ensureSite(companyId: string, siteId?: string | null) {
+    if (!siteId) return null;
+
     const site = await this.prisma.site.findFirst({
       where: { id: siteId, companyId },
       select: { id: true, customerId: true },
@@ -186,7 +248,9 @@ export class WorkOrdersService {
     return site;
   }
 
-  private async ensureAsset(companyId: string, assetId: string) {
+  private async ensureAsset(companyId: string, assetId?: string | null) {
+    if (!assetId) return null;
+
     const asset = await this.prisma.asset.findFirst({
       where: { id: assetId, companyId },
       select: { id: true, siteId: true },
@@ -199,21 +263,73 @@ export class WorkOrdersService {
     return asset;
   }
 
-  private async ensureTechnicianMembership(companyId: string, userId: string) {
-    const membership = await this.prisma.userCompany.findFirst({
+  private async ensureTemplate(companyId: string, maintenanceTemplateId?: string | null) {
+    if (!maintenanceTemplateId) return null;
+
+    const template = await this.prisma.maintenanceTemplate.findFirst({
+      where: { id: maintenanceTemplateId, companyId },
+      select: { id: true },
+    });
+
+    if (!template) {
+      throw new NotFoundException('MaintenanceTemplate no encontrado para esta company');
+    }
+
+    return template;
+  }
+
+  private async ensureActiveUserInCompany(companyId: string, userId: string) {
+    const user = await this.prisma.user.findFirst({
       where: {
-        companyId,
-        userId,
-        active: true,
-        role: UserRole.TECHNICIAN,
-        user: {
-          isActive: true,
-        },
+        id: userId,
+        isActive: true,
+        OR: [
+          { companyId },
+          {
+            memberships: {
+              some: {
+                companyId,
+                active: true,
+              },
+            },
+          },
+        ],
       },
       select: { id: true },
     });
 
-    if (!membership) {
+    if (!user) {
+      throw new NotFoundException('El usuario no pertenece a esta company');
+    }
+
+    return user;
+  }
+
+  private async ensureTechnicianMembership(companyId: string, userId: string) {
+    const technician = await this.prisma.user.findFirst({
+      where: {
+        id: userId,
+        isActive: true,
+        OR: [
+          {
+            companyId,
+            role: UserRole.TECHNICIAN,
+          },
+          {
+            memberships: {
+              some: {
+                companyId,
+                active: true,
+                role: UserRole.TECHNICIAN,
+              },
+            },
+          },
+        ],
+      },
+      select: { id: true },
+    });
+
+    if (!technician) {
       throw new NotFoundException(
         'assignedToUserId no pertenece a esta company como técnico activo',
       );
@@ -223,16 +339,17 @@ export class WorkOrdersService {
   private async validateReferences(
     companyId: string,
     refs: {
-      customerId: string;
-      siteId: string;
+      customerId?: string | null;
+      siteId?: string | null;
       assetId?: string | null;
-      assignedToUserId?: string | null;
+      assignedUserId?: string | null;
+      maintenanceTemplateId?: string | null;
     },
   ) {
     const customer = await this.ensureCustomer(companyId, refs.customerId);
     const site = await this.ensureSite(companyId, refs.siteId);
 
-    if (site.customerId !== customer.id) {
+    if (site && customer && site.customerId !== customer.id) {
       throw new BadRequestException(
         'El site no pertenece al customer indicado',
       );
@@ -241,13 +358,17 @@ export class WorkOrdersService {
     if (refs.assetId) {
       const asset = await this.ensureAsset(companyId, refs.assetId);
 
-      if (asset.siteId !== site.id) {
+      if (asset && site && asset.siteId && asset.siteId !== site.id) {
         throw new BadRequestException('El asset no pertenece al site indicado');
       }
     }
 
-    if (refs.assignedToUserId) {
-      await this.ensureTechnicianMembership(companyId, refs.assignedToUserId);
+    if (refs.assignedUserId) {
+      await this.ensureTechnicianMembership(companyId, refs.assignedUserId);
+    }
+
+    if (refs.maintenanceTemplateId) {
+      await this.ensureTemplate(companyId, refs.maintenanceTemplateId);
     }
   }
 
@@ -261,6 +382,8 @@ export class WorkOrdersService {
         siteId: true,
         assetId: true,
         assignedToUserId: true,
+        assignedTechnicianId: true,
+        maintenanceTemplateId: true,
         startedAt: true,
         completedAt: true,
       },
@@ -273,22 +396,38 @@ export class WorkOrdersService {
     return item;
   }
 
-  async create(companyId: string, _userId: string, dto: CreateWorkOrderDto) {
+  async create(companyId: string, userId: string, dto: CreateWorkOrderDto) {
     const normalizedCompanyId = this.ensureCompanyId(companyId);
+    const normalizedUserId = userId?.trim();
+
+    if (!normalizedUserId) {
+      throw new BadRequestException('Falta x-user-id');
+    }
+
+    await this.ensureActiveUserInCompany(normalizedCompanyId, normalizedUserId);
+
+    const createDto = dto as CreateWorkOrderDto & {
+      priority?: unknown;
+      scheduledAt?: string | Date;
+      scheduledFor?: string | Date;
+      assignedTechnicianId?: string | null;
+    };
+
+    const assignedUserId =
+      createDto.assignedToUserId ?? createDto.assignedTechnicianId ?? null;
+
+    const scheduledValue =
+      createDto.scheduledAt !== undefined
+        ? createDto.scheduledAt
+        : createDto.scheduledFor;
 
     await this.validateReferences(normalizedCompanyId, {
       customerId: dto.customerId,
       siteId: dto.siteId,
       assetId: dto.assetId ?? null,
-      assignedToUserId: dto.assignedToUserId ?? null,
+      assignedUserId,
+      maintenanceTemplateId: dto.maintenanceTemplateId ?? null,
     });
-
-    const createDto = dto as CreateWorkOrderDto & {
-      priority?: unknown;
-      scheduledAt?: string | Date;
-      startedAt?: string | Date;
-      completedAt?: string | Date;
-    };
 
     const item = await this.prisma.workOrder.create({
       data: {
@@ -296,23 +435,24 @@ export class WorkOrdersService {
         customerId: dto.customerId,
         siteId: dto.siteId,
         assetId: dto.assetId ?? null,
-        assignedToUserId: dto.assignedToUserId ?? null,
+        createdById: normalizedUserId,
+        assignedToUserId: assignedUserId,
+        assignedTechnicianId: assignedUserId,
+        maintenanceTemplateId: dto.maintenanceTemplateId ?? null,
+        code: dto.code ?? null,
         title: dto.title,
         description: dto.description ?? null,
-        status: dto.assignedToUserId
+        status: assignedUserId
           ? WorkOrderStatus.ASSIGNED
           : WorkOrderStatus.OPEN,
         ...(createDto.priority !== undefined
           ? { priority: normalizePriority(createDto.priority) }
           : {}),
-        ...(createDto.scheduledAt !== undefined
-          ? { scheduledAt: toDateOrNull(createDto.scheduledAt) }
-          : {}),
-        ...(createDto.startedAt !== undefined
-          ? { startedAt: toDateOrNull(createDto.startedAt) }
-          : {}),
-        ...(createDto.completedAt !== undefined
-          ? { completedAt: toDateOrNull(createDto.completedAt) }
+        ...(scheduledValue !== undefined
+          ? {
+              scheduledAt: toDateOrNull(scheduledValue),
+              scheduledFor: toDateOrNull(scheduledValue),
+            }
           : {}),
       },
       include: workOrderInclude,
@@ -322,73 +462,97 @@ export class WorkOrdersService {
   }
 
   async list(companyId: string, q: QueryWorkOrdersDto) {
-    const normalizedCompanyId = this.ensureCompanyId(companyId);
-    const page = Math.max(1, q.page ?? 1);
-    const pageSize = Math.min(100, Math.max(1, q.pageSize ?? 20));
-    const skip = (page - 1) * pageSize;
+  const normalizedCompanyId = this.ensureCompanyId(companyId);
+  const page = Math.max(1, q.page ?? 1);
+  const pageSize = Math.min(100, Math.max(1, q.pageSize ?? 20));
+  const skip = (page - 1) * pageSize;
 
-    const where: Prisma.WorkOrderWhereInput = {
-      companyId: normalizedCompanyId,
-      ...(q.status ? { status: q.status } : {}),
-      ...(q.customerId ? { customerId: q.customerId } : {}),
-      ...(q.siteId ? { siteId: q.siteId } : {}),
-      ...(q.assetId ? { assetId: q.assetId } : {}),
-      ...(q.assignedToUserId ? { assignedToUserId: q.assignedToUserId } : {}),
-    };
+  const assignedUserId = q.assignedToUserId ?? q.assignedTechnicianId;
+  const andFilters: Prisma.WorkOrderWhereInput[] = [];
 
-    if (q.q?.trim()) {
-      const term = q.q.trim();
-      where.OR = [
+  if (assignedUserId) {
+    andFilters.push({
+      OR: [
+        { assignedToUserId: assignedUserId },
+        { assignedTechnicianId: assignedUserId },
+      ],
+    });
+  }
+
+  if (q.q?.trim()) {
+    const term = q.q.trim();
+    andFilters.push({
+      OR: [
         { title: { contains: term, mode: 'insensitive' } },
         { description: { contains: term, mode: 'insensitive' } },
-      ];
-    }
-
-    const [items, total] = await this.prisma.$transaction([
-      this.prisma.workOrder.findMany({
-        where,
-        skip,
-        take: pageSize,
-        orderBy: { updatedAt: 'desc' },
-        include: workOrderInclude,
-      }),
-      this.prisma.workOrder.count({ where }),
-    ]);
-
-    return {
-      items: items.map(serializeWorkOrder),
-      total,
-      page,
-      pageSize,
-    };
+        { code: { contains: term, mode: 'insensitive' } },
+      ],
+    });
   }
+
+  const where: Prisma.WorkOrderWhereInput = {
+    companyId: normalizedCompanyId,
+    ...(q.status ? { status: q.status } : {}),
+    ...(q.customerId ? { customerId: q.customerId } : {}),
+    ...(q.siteId ? { siteId: q.siteId } : {}),
+    ...(q.assetId ? { assetId: q.assetId } : {}),
+    ...(q.maintenanceTemplateId ? { maintenanceTemplateId: q.maintenanceTemplateId } : {}),
+    ...(andFilters.length ? { AND: andFilters } : {}),
+  };
+
+  const [items, total] = await this.prisma.$transaction([
+    this.prisma.workOrder.findMany({
+      where,
+      skip,
+      take: pageSize,
+      orderBy: { updatedAt: 'desc' },
+      include: workOrderInclude,
+    }),
+    this.prisma.workOrder.count({ where }),
+  ]);
+
+  return {
+    items: items.map(serializeWorkOrder),
+    total,
+    page,
+    pageSize,
+  };
+}
 
   async listTechnicians(companyId: string) {
     const normalizedCompanyId = this.ensureCompanyId(companyId);
 
-    const memberships = await this.prisma.userCompany.findMany({
+    const users = await this.prisma.user.findMany({
       where: {
-        companyId: normalizedCompanyId,
-        active: true,
-        role: UserRole.TECHNICIAN,
-        user: {
-          isActive: true,
-        },
-      },
-      select: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+        isActive: true,
+        OR: [
+          {
+            companyId: normalizedCompanyId,
+            role: UserRole.TECHNICIAN,
           },
-        },
+          {
+            memberships: {
+              some: {
+                companyId: normalizedCompanyId,
+                active: true,
+                role: UserRole.TECHNICIAN,
+              },
+            },
+          },
+        ],
       },
+      select: userSelect,
+      orderBy: { name: 'asc' },
     });
 
-    return memberships
-      .map((row) => row.user)
-      .filter((user): user is NonNullable<typeof user> => !!user)
+    const seen = new Set<string>();
+
+    return users
+      .filter((user) => {
+        if (seen.has(user.id)) return false;
+        seen.add(user.id);
+        return true;
+      })
       .map((user) => ({
         id: user.id,
         name: user.name?.trim() || user.email,
@@ -419,41 +583,63 @@ export class WorkOrdersService {
     const updateDto = dto as UpdateWorkOrderDto & {
       priority?: unknown;
       scheduledAt?: string | Date | null;
+      scheduledFor?: string | Date | null;
       startedAt?: string | Date | null;
       completedAt?: string | Date | null;
       status?: WorkOrderStatus;
       assetId?: string | null;
       assignedToUserId?: string | null;
+      assignedTechnicianId?: string | null;
+      maintenanceTemplateId?: string | null;
     };
 
-    const nextCustomerId = dto.customerId ?? existing.customerId;
-    const nextSiteId = dto.siteId ?? existing.siteId;
+    const nextCustomerId =
+      dto.customerId !== undefined ? dto.customerId : existing.customerId;
+
+    const nextSiteId = dto.siteId !== undefined ? dto.siteId : existing.siteId;
+
     const nextAssetId =
       updateDto.assetId !== undefined ? updateDto.assetId : existing.assetId;
-    const nextAssignedToUserId =
+
+    const nextAssignedUserId =
       updateDto.assignedToUserId !== undefined
         ? updateDto.assignedToUserId
-        : existing.assignedToUserId;
+        : updateDto.assignedTechnicianId !== undefined
+          ? updateDto.assignedTechnicianId
+          : existing.assignedToUserId ?? existing.assignedTechnicianId;
+
+    const nextTemplateId =
+      updateDto.maintenanceTemplateId !== undefined
+        ? updateDto.maintenanceTemplateId
+        : existing.maintenanceTemplateId;
 
     await this.validateReferences(normalizedCompanyId, {
       customerId: nextCustomerId,
       siteId: nextSiteId,
       assetId: nextAssetId ?? null,
-      assignedToUserId: nextAssignedToUserId ?? null,
+      assignedUserId: nextAssignedUserId ?? null,
+      maintenanceTemplateId: nextTemplateId ?? null,
     });
 
     let nextStatus = updateDto.status;
 
     if (
       nextStatus === undefined &&
-      updateDto.assignedToUserId !== undefined &&
+      (updateDto.assignedToUserId !== undefined ||
+        updateDto.assignedTechnicianId !== undefined) &&
       (existing.status === WorkOrderStatus.OPEN ||
-        existing.status === WorkOrderStatus.ASSIGNED)
+        existing.status === WorkOrderStatus.ASSIGNED ||
+        existing.status === WorkOrderStatus.PENDING)
     ) {
-      nextStatus = nextAssignedToUserId
+      nextStatus = nextAssignedUserId
         ? WorkOrderStatus.ASSIGNED
         : WorkOrderStatus.OPEN;
     }
+
+    const scheduledValue =
+      updateDto.scheduledAt !== undefined
+        ? updateDto.scheduledAt
+        : updateDto.scheduledFor;
 
     const item = await this.prisma.workOrder.update({
       where: { id },
@@ -463,15 +649,26 @@ export class WorkOrdersService {
         ...(dto.customerId !== undefined ? { customerId: dto.customerId } : {}),
         ...(dto.siteId !== undefined ? { siteId: dto.siteId } : {}),
         ...(updateDto.assetId !== undefined ? { assetId: updateDto.assetId } : {}),
-        ...(updateDto.assignedToUserId !== undefined
-          ? { assignedToUserId: updateDto.assignedToUserId }
+        ...(dto.code !== undefined ? { code: dto.code ?? null } : {}),
+        ...(updateDto.maintenanceTemplateId !== undefined
+          ? { maintenanceTemplateId: updateDto.maintenanceTemplateId }
+          : {}),
+        ...(updateDto.assignedToUserId !== undefined ||
+        updateDto.assignedTechnicianId !== undefined
+          ? {
+              assignedToUserId: nextAssignedUserId ?? null,
+              assignedTechnicianId: nextAssignedUserId ?? null,
+            }
           : {}),
         ...(updateDto.priority !== undefined
           ? { priority: normalizePriority(updateDto.priority) }
           : {}),
         ...(nextStatus !== undefined ? { status: nextStatus } : {}),
-        ...(updateDto.scheduledAt !== undefined
-          ? { scheduledAt: toDateOrNull(updateDto.scheduledAt) }
+        ...(scheduledValue !== undefined
+          ? {
+              scheduledAt: toDateOrNull(scheduledValue),
+              scheduledFor: toDateOrNull(scheduledValue),
+            }
           : {}),
         ...(updateDto.startedAt !== undefined
           ? { startedAt: toDateOrNull(updateDto.startedAt) }

@@ -1,31 +1,44 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   MaintenanceItemStatus,
+  MaintenanceItemType,
   MaintenanceReportStatus,
+  MaintenanceReportState,
   Prisma,
+  WorkOrderStatus,
 } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { CreateMaintenanceReportDto } from './dto/create-maintenance-report.dto';
 import { UpdateMaintenanceReportItemDto } from './dto/update-maintenance-report-items.dto';
 
+const userSelect = {
+  id: true,
+  email: true,
+  name: true,
+} as const;
+
 const reportInclude = {
   template: {
     select: {
       id: true,
+      name: true,
       title: true,
       description: true,
+      isActive: true,
     },
   },
   customer: {
     select: { id: true, name: true },
   },
   site: {
-    select: { id: true, name: true, address: true },
+    select: { id: true, name: true, address: true, city: true, country: true },
   },
   asset: {
     select: {
       id: true,
       name: true,
+      code: true,
+      internalCode: true,
       brand: true,
       model: true,
       serialNumber: true,
@@ -34,15 +47,59 @@ const reportInclude = {
   workOrder: {
     select: {
       id: true,
+      code: true,
       title: true,
+      description: true,
       status: true,
+      priority: true,
+      customerId: true,
+      siteId: true,
+      assetId: true,
+      assignedTechnicianId: true,
+      assignedToUserId: true,
     },
   },
+  createdBy: {
+    select: userSelect,
+  },
   createdByUser: {
-    select: { id: true, email: true, name: true },
+    select: userSelect,
+  },
+  completedByUser: {
+    select: userSelect,
+  },
+  assignedTechnician: {
+    select: userSelect,
+  },
+  submittedBy: {
+    select: userSelect,
+  },
+  reviewedBy: {
+    select: userSelect,
   },
   items: {
-    orderBy: { itemOrder: 'asc' },
+    orderBy: [{ sortOrder: 'asc' }, { itemOrder: 'asc' }, { createdAt: 'asc' }],
+    include: {
+      templateItem: {
+        select: {
+          id: true,
+          label: true,
+          title: true,
+          description: true,
+          type: true,
+          valueType: true,
+          required: true,
+          sortOrder: true,
+          itemOrder: true,
+          unit: true,
+          helpText: true,
+          placeholder: true,
+        },
+      },
+    },
+  },
+  materials: {
+    orderBy: { sortOrder: 'asc' },
   },
 } satisfies Prisma.MaintenanceReportInclude;
 
@@ -52,28 +109,90 @@ type ReportWithRelations = Prisma.MaintenanceReportGetPayload<{
 
 type ReportItemEntity = ReportWithRelations['items'][number];
 
+function hasOwn<T extends object>(obj: T, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+function normalizeCompanyId(companyId?: string): string {
+  const normalized = companyId?.trim();
+
+  if (!normalized) {
+    throw new BadRequestException('Falta header x-company-id');
+  }
+
+  return normalized;
+}
+
+function stringifyLegacyValue(value: unknown): string | null {
+  if (value === undefined) return null;
+  if (value === null) return null;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function toDateOrNull(value?: string | Date | null): Date | null {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function serializeReportItem(item: ReportItemEntity) {
-  const parsedNumber =
-    item.value !== null && item.value.trim() !== '' ? Number(item.value) : NaN;
+  const resolvedType = item.type ?? item.templateItem?.type ?? null;
+  const resolvedValueType = item.valueType ?? item.templateItem?.valueType ?? null;
+
+  const legacyValue =
+    item.value ??
+    item.valueText ??
+    (item.valueNumber !== null ? String(item.valueNumber) : null) ??
+    (item.valueBoolean !== null ? String(item.valueBoolean) : null) ??
+    (item.valueDate ? item.valueDate.toISOString() : null) ??
+    (item.valueJson !== null ? stringifyLegacyValue(item.valueJson) : null);
 
   return {
     id: item.id,
     reportId: item.reportId,
     templateItemId: item.templateItemId,
-    title: item.title,
-    description: item.description,
+    label: item.label ?? item.templateItem?.label ?? item.title ?? item.templateItem?.title ?? null,
+    title: item.title ?? item.templateItem?.title ?? item.label ?? item.templateItem?.label ?? null,
+    description: item.description ?? item.templateItem?.description ?? null,
+    type: resolvedType,
+    valueType: resolvedValueType,
+    required: item.required,
+    sortOrder: item.sortOrder,
     itemOrder: item.itemOrder,
-    sortOrder: item.itemOrder,
+    unit: item.unit ?? item.templateItem?.unit ?? null,
+    helpText: item.templateItem?.helpText ?? null,
+    placeholder: item.templateItem?.placeholder ?? null,
     status: item.status,
-    value: item.value,
-    valueText: item.value,
-    valueChoice: null,
-    valueNumber: Number.isFinite(parsedNumber) ? parsedNumber : null,
+    value: legacyValue,
+    valueText: item.valueText,
+    valueNumber: item.valueNumber,
+    valueBoolean: item.valueBoolean,
+    valueDate: item.valueDate,
+    valueJson: item.valueJson,
     notes: item.notes,
-    resultValue: item.value,
+    resultValue: legacyValue,
     resultNotes: item.notes,
+    templateItem: item.templateItem,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
+  };
+}
+
+function serializeUser(user?: { id: string; name: string; email: string } | null) {
+  if (!user) return null;
+
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
   };
 }
 
@@ -81,40 +200,60 @@ function serializeReport(report: ReportWithRelations) {
   return {
     id: report.id,
     companyId: report.companyId,
+    workOrderId: report.workOrderId,
+    templateId: report.templateId,
     customerId: report.customerId,
     siteId: report.siteId,
     assetId: report.assetId,
-    templateId: report.templateId,
-    workOrderId: report.workOrderId,
+
+    createdById: report.createdById,
+    createdByUserId: report.createdByUserId,
+    completedByUserId: report.completedByUserId,
+    assignedTechnicianId: report.assignedTechnicianId,
+    submittedById: report.submittedById,
+    reviewedById: report.reviewedById,
+
     title: report.title,
     description: report.description,
     notes: report.notes,
+    summary: report.summary,
+    diagnosis: report.diagnosis,
+    workPerformed: report.workPerformed,
+    recommendations: report.recommendations,
+    observations: report.observations,
+    technicianNotes: report.technicianNotes,
+    reviewNotes: report.reviewNotes,
+    laborHours: report.laborHours,
+
     status: report.status,
-    state: report.status,
-    createdByUserId: report.createdByUserId,
-    completedByUserId: report.completedByUserId,
+    state: report.state,
+
+    assignedAt: report.assignedAt,
+    startedAt: report.startedAt,
+    submittedAt: report.submittedAt,
     completedAt: report.completedAt,
+    reviewedAt: report.reviewedAt,
     createdAt: report.createdAt,
     updatedAt: report.updatedAt,
 
-    performedAt: report.completedAt ?? report.createdAt,
-    templateName: report.template?.title ?? report.title,
+    performedAt: report.completedAt ?? report.submittedAt ?? report.startedAt ?? report.createdAt,
+    templateName: report.template?.title ?? report.template?.name ?? report.title ?? null,
     templateDesc: report.template?.description ?? report.description ?? null,
-    summary: report.description ?? null,
 
     template: report.template,
     customer: report.customer,
     site: report.site,
     asset: report.asset,
-    workOrder: report.workOrder
-      ? {
-          id: report.workOrder.id,
-          title: report.workOrder.title,
-          status: report.workOrder.status,
-        }
-      : null,
-    createdByUser: report.createdByUser,
+    workOrder: report.workOrder,
+    createdBy: serializeUser(report.createdBy),
+    createdByUser: serializeUser(report.createdByUser),
+    completedByUser: serializeUser(report.completedByUser),
+    assignedTechnician: serializeUser(report.assignedTechnician),
+    submittedBy: serializeUser(report.submittedBy),
+    reviewedBy: serializeUser(report.reviewedBy),
+
     items: report.items.map(serializeReportItem),
+    materials: report.materials,
   };
 }
 
@@ -122,13 +261,38 @@ function serializeReport(report: ReportWithRelations) {
 export class MaintenanceReportsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(companyId: string) {
-    if (!companyId) {
-      throw new BadRequestException('Falta header x-company-id');
+  private async ensureActiveUserInCompany(companyId: string, userId: string) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: userId,
+        isActive: true,
+        OR: [
+          { companyId },
+          {
+            memberships: {
+              some: {
+                companyId,
+                active: true,
+              },
+            },
+          },
+        ],
+      },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new BadRequestException('El usuario del header no pertenece a esta company.');
     }
 
+    return user;
+  }
+
+  async list(companyId: string) {
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+
     const items = await this.prisma.maintenanceReport.findMany({
-      where: { companyId },
+      where: { companyId: normalizedCompanyId },
       orderBy: { createdAt: 'desc' },
       include: reportInclude,
     });
@@ -140,14 +304,12 @@ export class MaintenanceReportsService {
   }
 
   async listByWorkOrderId(companyId: string, workOrderId: string) {
-    if (!companyId) {
-      throw new BadRequestException('Falta header x-company-id');
-    }
+    const normalizedCompanyId = normalizeCompanyId(companyId);
 
     const workOrder = await this.prisma.workOrder.findFirst({
       where: {
         id: workOrderId,
-        companyId,
+        companyId: normalizedCompanyId,
       },
       select: { id: true },
     });
@@ -158,7 +320,7 @@ export class MaintenanceReportsService {
 
     const items = await this.prisma.maintenanceReport.findMany({
       where: {
-        companyId,
+        companyId: normalizedCompanyId,
         workOrderId,
       },
       orderBy: { createdAt: 'desc' },
@@ -176,42 +338,24 @@ export class MaintenanceReportsService {
     userId: string | undefined,
     dto: CreateMaintenanceReportDto,
   ) {
-    if (!companyId) {
-      throw new BadRequestException('Falta header x-company-id');
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+
+    if (!userId?.trim()) {
+      throw new BadRequestException('Falta header x-user-id');
     }
 
-    if (!userId) {
-      throw new BadRequestException('Falta header x-user-id (createdByUserId es obligatorio)');
-    }
-
-    const createDto = dto as CreateMaintenanceReportDto & {
-      title?: string;
-      notes?: string;
-      workOrderId?: string;
-    };
-
-    const userCompany = await this.prisma.userCompany.findFirst({
-      where: {
-        companyId,
-        userId,
-        active: true,
-      },
-      select: { id: true },
-    });
-
-    if (!userCompany) {
-      throw new BadRequestException('El usuario del header no pertenece a esta company.');
-    }
+    const normalizedUserId = userId.trim();
+    await this.ensureActiveUserInCompany(normalizedCompanyId, normalizedUserId);
 
     const template = await this.prisma.maintenanceTemplate.findFirst({
       where: {
         id: dto.templateId,
-        companyId,
+        companyId: normalizedCompanyId,
         isActive: true,
       },
       include: {
         items: {
-          orderBy: { itemOrder: 'asc' },
+          orderBy: [{ sortOrder: 'asc' }, { itemOrder: 'asc' }, { createdAt: 'asc' }],
         },
       },
     });
@@ -224,10 +368,46 @@ export class MaintenanceReportsService {
       throw new BadRequestException('El template no tiene items.');
     }
 
+    const linkedWorkOrder = dto.workOrderId
+      ? await this.prisma.workOrder.findFirst({
+          where: {
+            id: dto.workOrderId,
+            companyId: normalizedCompanyId,
+          },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            customerId: true,
+            siteId: true,
+            assetId: true,
+            assignedTechnicianId: true,
+            assignedToUserId: true,
+            status: true,
+          },
+        })
+      : null;
+
+    if (dto.workOrderId && !linkedWorkOrder) {
+      throw new NotFoundException('WorkOrder no encontrada para esta company.');
+    }
+
+    const resolvedCustomerId = dto.customerId ?? linkedWorkOrder?.customerId ?? null;
+    const resolvedSiteId = dto.siteId ?? linkedWorkOrder?.siteId ?? null;
+    const resolvedAssetId = dto.assetId ?? linkedWorkOrder?.assetId ?? null;
+
+    if (!resolvedCustomerId) {
+      throw new BadRequestException('customerId es obligatorio.');
+    }
+
+    if (!resolvedSiteId) {
+      throw new BadRequestException('siteId es obligatorio.');
+    }
+
     const customer = await this.prisma.customer.findFirst({
       where: {
-        id: dto.customerId,
-        companyId,
+        id: resolvedCustomerId,
+        companyId: normalizedCompanyId,
       },
       select: { id: true },
     });
@@ -238,8 +418,8 @@ export class MaintenanceReportsService {
 
     const site = await this.prisma.site.findFirst({
       where: {
-        id: dto.siteId,
-        companyId,
+        id: resolvedSiteId,
+        companyId: normalizedCompanyId,
       },
       select: { id: true, customerId: true },
     });
@@ -252,62 +432,41 @@ export class MaintenanceReportsService {
       throw new BadRequestException('El site no pertenece al customer indicado.');
     }
 
-    const asset = await this.prisma.asset.findFirst({
-      where: {
-        id: dto.assetId,
-        companyId,
-      },
-      select: { id: true, siteId: true },
-    });
-
-    if (!asset) {
-      throw new NotFoundException('Asset no encontrado para esta company.');
-    }
-
-    if (asset.siteId !== site.id) {
-      throw new BadRequestException('El asset no pertenece al site indicado.');
-    }
-
-    let linkedWorkOrder:
+    let asset:
       | {
           id: string;
-          customerId: string;
-          siteId: string;
-          assetId: string | null;
+          siteId: string | null;
         }
       | null = null;
 
-    if (dto.workOrderId) {
-      linkedWorkOrder = await this.prisma.workOrder.findFirst({
+    if (resolvedAssetId) {
+      asset = await this.prisma.asset.findFirst({
         where: {
-          id: dto.workOrderId,
-          companyId,
+          id: resolvedAssetId,
+          companyId: normalizedCompanyId,
         },
-        select: {
-          id: true,
-          customerId: true,
-          siteId: true,
-          assetId: true,
-        },
+        select: { id: true, siteId: true },
       });
 
-      if (!linkedWorkOrder) {
-        throw new NotFoundException('WorkOrder no encontrada para esta company.');
+      if (!asset) {
+        throw new NotFoundException('Asset no encontrado para esta company.');
       }
 
-      if (linkedWorkOrder.customerId !== customer.id) {
-        throw new BadRequestException(
-          'La work order no pertenece al customer indicado.',
-        );
+      if (asset.siteId && asset.siteId !== site.id) {
+        throw new BadRequestException('El asset no pertenece al site indicado.');
+      }
+    }
+
+    if (linkedWorkOrder) {
+      if (linkedWorkOrder.customerId && linkedWorkOrder.customerId !== customer.id) {
+        throw new BadRequestException('La work order no pertenece al customer indicado.');
       }
 
-      if (linkedWorkOrder.siteId !== site.id) {
-        throw new BadRequestException(
-          'La work order no pertenece al site indicado.',
-        );
+      if (linkedWorkOrder.siteId && linkedWorkOrder.siteId !== site.id) {
+        throw new BadRequestException('La work order no pertenece al site indicado.');
       }
 
-      if (linkedWorkOrder.assetId && linkedWorkOrder.assetId !== asset.id) {
+      if (linkedWorkOrder.assetId && asset && linkedWorkOrder.assetId !== asset.id) {
         throw new BadRequestException(
           'El asset del reporte no coincide con el asset de la work order.',
         );
@@ -315,7 +474,7 @@ export class MaintenanceReportsService {
 
       const existingLinkedReport = await this.prisma.maintenanceReport.findFirst({
         where: {
-          companyId,
+          companyId: normalizedCompanyId,
           workOrderId: linkedWorkOrder.id,
           status: {
             not: MaintenanceReportStatus.CANCELLED,
@@ -334,32 +493,59 @@ export class MaintenanceReportsService {
       }
     }
 
+    const assignedTechnicianId =
+      linkedWorkOrder?.assignedTechnicianId ?? linkedWorkOrder?.assignedToUserId ?? null;
+
     return this.prisma.$transaction(async (tx) => {
       const report = await tx.maintenanceReport.create({
         data: {
-          companyId,
+          companyId: normalizedCompanyId,
+          workOrderId: linkedWorkOrder?.id ?? null,
+          templateId: template.id,
           customerId: customer.id,
           siteId: site.id,
-          assetId: asset.id,
-          templateId: template.id,
-          workOrderId: linkedWorkOrder?.id ?? null,
-          title: createDto.title?.trim() || template.title,
-          description: template.description ?? null,
-          notes: createDto.notes ?? null,
-          status: MaintenanceReportStatus.DRAFT,
-          createdByUserId: userId,
+          assetId: asset?.id ?? null,
+
+          createdById: normalizedUserId,
+          createdByUserId: normalizedUserId,
+          assignedTechnicianId,
+
+          title:
+            dto.title?.trim() ||
+            template.title ||
+            template.name ||
+            linkedWorkOrder?.title ||
+            'Parte de mantenimiento',
+          description: template.description ?? linkedWorkOrder?.description ?? null,
+          notes: dto.notes ?? null,
+
+          status: assignedTechnicianId
+            ? MaintenanceReportStatus.ASSIGNED
+            : MaintenanceReportStatus.DRAFT,
+          state: MaintenanceReportState.DRAFT,
+          assignedAt: assignedTechnicianId ? new Date() : null,
         },
       });
 
       await tx.maintenanceReportItem.createMany({
-        data: template.items.map((it) => ({
+        data: template.items.map((it, idx) => ({
           reportId: report.id,
           templateItemId: it.id,
-          title: it.title,
+          label: it.label ?? it.title ?? `Item ${idx + 1}`,
+          title: it.title ?? it.label ?? `Item ${idx + 1}`,
           description: it.description ?? null,
-          itemOrder: it.itemOrder,
+          type: it.type ?? MaintenanceItemType.TEXT,
+          valueType: it.valueType ?? String(it.type ?? MaintenanceItemType.TEXT),
+          required: it.required,
+          sortOrder: it.sortOrder ?? it.itemOrder ?? idx + 1,
+          itemOrder: it.itemOrder ?? it.sortOrder ?? idx + 1,
+          unit: it.unit ?? null,
           status: MaintenanceItemStatus.PENDING,
           value: null,
+          valueText: null,
+          valueNumber: null,
+          valueBoolean: null,
+          valueDate: null,
           notes: null,
         })),
       });
@@ -367,7 +553,7 @@ export class MaintenanceReportsService {
       const fullReport = await tx.maintenanceReport.findFirst({
         where: {
           id: report.id,
-          companyId,
+          companyId: normalizedCompanyId,
         },
         include: reportInclude,
       });
@@ -381,12 +567,10 @@ export class MaintenanceReportsService {
   }
 
   async getById(companyId: string, id: string) {
-    if (!companyId) {
-      throw new BadRequestException('Falta header x-company-id');
-    }
+    const normalizedCompanyId = normalizeCompanyId(companyId);
 
     const report = await this.prisma.maintenanceReport.findFirst({
-      where: { id, companyId },
+      where: { id, companyId: normalizedCompanyId },
       include: reportInclude,
     });
 
@@ -403,18 +587,18 @@ export class MaintenanceReportsService {
     itemId: string,
     dto: UpdateMaintenanceReportItemDto,
   ) {
-    if (!companyId) {
-      throw new BadRequestException('Falta header x-company-id');
-    }
+    const normalizedCompanyId = normalizeCompanyId(companyId);
 
     const report = await this.prisma.maintenanceReport.findFirst({
       where: {
         id: reportId,
-        companyId,
+        companyId: normalizedCompanyId,
       },
       select: {
         id: true,
         status: true,
+        state: true,
+        startedAt: true,
       },
     });
 
@@ -423,7 +607,9 @@ export class MaintenanceReportsService {
     }
 
     if (
+      report.state === MaintenanceReportState.FINAL ||
       report.status === MaintenanceReportStatus.COMPLETED ||
+      report.status === MaintenanceReportStatus.APPROVED ||
       report.status === MaintenanceReportStatus.CANCELLED
     ) {
       throw new BadRequestException('No se pueden editar items de un reporte cerrado.');
@@ -434,48 +620,138 @@ export class MaintenanceReportsService {
         id: itemId,
         reportId,
       },
+      include: {
+        templateItem: true,
+      },
     });
 
     if (!item) {
       throw new NotFoundException('Item no encontrado.');
     }
 
-    const updated = await this.prisma.maintenanceReportItem.update({
-      where: { id: itemId },
-      data: {
-        status: dto.status ?? item.status,
-        value: dto.value ?? dto.resultValue ?? item.value,
-        notes: dto.notes ?? dto.resultNotes ?? item.notes,
+    const data: Prisma.MaintenanceReportItemUpdateInput = {};
+
+    if (dto.status !== undefined) {
+      data.status = dto.status;
+    }
+
+    if (dto.notes !== undefined || dto.resultNotes !== undefined) {
+      data.notes = dto.notes ?? dto.resultNotes ?? null;
+    }
+
+    if (hasOwn(dto, 'valueJson')) {
+      const rawJson = dto.valueJson;
+
+      if (rawJson === null || rawJson === undefined) {
+        data.valueJson = Prisma.DbNull;
+        data.value = null;
+      } else {
+        data.valueJson = rawJson as Prisma.InputJsonValue;
+        data.value = stringifyLegacyValue(rawJson);
+      }
+
+      data.valueDate = null;
+      data.valueBoolean = null;
+      data.valueNumber = null;
+      data.valueText = null;
+    } else if (hasOwn(dto, 'valueDate')) {
+      const nextDate = toDateOrNull(dto.valueDate ?? null);
+
+      if (dto.valueDate && !nextDate) {
+        throw new BadRequestException('valueDate inválida');
+      }
+
+      data.valueDate = nextDate;
+      data.valueBoolean = null;
+      data.valueNumber = null;
+      data.valueText = null;
+      data.valueJson = Prisma.DbNull;
+      data.value = stringifyLegacyValue(nextDate);
+    } else if (hasOwn(dto, 'valueBoolean')) {
+      data.valueBoolean = dto.valueBoolean ?? null;
+      data.valueDate = null;
+      data.valueNumber = null;
+      data.valueText = null;
+      data.valueJson = Prisma.DbNull;
+      data.value = stringifyLegacyValue(dto.valueBoolean ?? null);
+    } else if (hasOwn(dto, 'valueNumber')) {
+      data.valueNumber = dto.valueNumber ?? null;
+      data.valueDate = null;
+      data.valueBoolean = null;
+      data.valueText = null;
+      data.valueJson = Prisma.DbNull;
+      data.value = stringifyLegacyValue(dto.valueNumber ?? null);
+    } else if (
+      hasOwn(dto, 'valueText') ||
+      hasOwn(dto, 'value') ||
+      hasOwn(dto, 'resultValue')
+    ) {
+      const textValue = dto.valueText ?? dto.value ?? dto.resultValue ?? null;
+
+      data.valueText = textValue;
+      data.valueNumber = null;
+      data.valueBoolean = null;
+      data.valueDate = null;
+      data.valueJson = Prisma.DbNull;
+      data.value = textValue;
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const nextItem = await tx.maintenanceReportItem.update({
+        where: { id: itemId },
+        data,
+      });
+
+      if (
+        report.status === MaintenanceReportStatus.DRAFT ||
+        report.status === MaintenanceReportStatus.ASSIGNED
+      ) {
+        await tx.maintenanceReport.update({
+          where: { id: report.id },
+          data: {
+            status: MaintenanceReportStatus.IN_PROGRESS,
+            startedAt: report.startedAt ?? new Date(),
+          },
+        });
+      }
+
+      return nextItem;
+    });
+
+    const fullUpdated = await this.prisma.maintenanceReportItem.findFirst({
+      where: { id: updated.id },
+      include: {
+        templateItem: true,
       },
     });
 
-    return serializeReportItem(updated);
+    if (!fullUpdated) {
+      throw new NotFoundException('No se pudo recuperar el item actualizado.');
+    }
+
+    return serializeReportItem(fullUpdated as ReportItemEntity);
   }
 
   async finalize(companyId: string, id: string, userId?: string) {
-    if (!companyId) {
-      throw new BadRequestException('Falta header x-company-id');
-    }
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+    const normalizedUserId = userId?.trim();
 
-    if (userId) {
-      const userCompany = await this.prisma.userCompany.findFirst({
-        where: {
-          companyId,
-          userId,
-          active: true,
-        },
-        select: { id: true },
-      });
-
-      if (!userCompany) {
-        throw new BadRequestException('El usuario del header no pertenece a esta company.');
-      }
+    if (normalizedUserId) {
+      await this.ensureActiveUserInCompany(normalizedCompanyId, normalizedUserId);
     }
 
     const report = await this.prisma.maintenanceReport.findFirst({
-      where: { id, companyId },
+      where: { id, companyId: normalizedCompanyId },
       include: {
         items: true,
+        workOrder: {
+          select: {
+            id: true,
+            status: true,
+            startedAt: true,
+            completedAt: true,
+          },
+        },
       },
     });
 
@@ -491,23 +767,51 @@ export class MaintenanceReportsService {
       throw new BadRequestException('No se puede finalizar un reporte cancelado.');
     }
 
+    if (report.state === MaintenanceReportState.FINAL) {
+      throw new BadRequestException('El reporte ya está en estado FINAL.');
+    }
+
     if (!report.items.length) {
       throw new BadRequestException('El reporte no tiene items.');
     }
 
     const pendingItems = report.items.filter((item) => item.status === MaintenanceItemStatus.PENDING);
+
     if (pendingItems.length > 0) {
-      throw new BadRequestException('No se puede finalizar: todavía hay items en estado PENDING.');
+      throw new BadRequestException(
+        'No se puede finalizar: todavía hay items en estado PENDING.',
+      );
     }
 
-    const updated = await this.prisma.maintenanceReport.update({
-      where: { id },
-      data: {
-        status: MaintenanceReportStatus.COMPLETED,
-        completedAt: new Date(),
-        completedByUserId: userId ?? report.completedByUserId ?? null,
-      },
-      include: reportInclude,
+    const now = new Date();
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const nextReport = await tx.maintenanceReport.update({
+        where: { id },
+        data: {
+          status: MaintenanceReportStatus.COMPLETED,
+          state: MaintenanceReportState.FINAL,
+          startedAt: report.startedAt ?? now,
+          submittedAt: report.submittedAt ?? now,
+          submittedById: normalizedUserId ?? report.submittedById ?? null,
+          completedAt: now,
+          completedByUserId: normalizedUserId ?? report.completedByUserId ?? null,
+        },
+        include: reportInclude,
+      });
+
+      if (report.workOrderId && report.workOrder?.status !== WorkOrderStatus.CANCELLED) {
+        await tx.workOrder.update({
+          where: { id: report.workOrderId },
+          data: {
+            status: WorkOrderStatus.DONE,
+            startedAt: report.workOrder?.startedAt ?? now,
+            completedAt: now,
+          },
+        });
+      }
+
+      return nextReport;
     });
 
     return serializeReport(updated);

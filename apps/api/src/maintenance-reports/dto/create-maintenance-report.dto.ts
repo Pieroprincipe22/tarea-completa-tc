@@ -1,23 +1,30 @@
-import { IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CreateMaintenanceReportDto {
-  @IsUUID()
+  @IsString()
   templateId!: string;
 
-  @IsUUID()
+  @IsString()
   customerId!: string;
 
-  @IsUUID()
+  @IsString()
   siteId!: string;
 
-  @IsUUID()
-  assetId!: string;
+  @IsOptional()
+  @IsString()
+  assetId?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   workOrderId?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(200)
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
   notes?: string;
 }

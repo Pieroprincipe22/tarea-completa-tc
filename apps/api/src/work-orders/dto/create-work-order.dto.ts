@@ -1,28 +1,34 @@
-import { IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CreateWorkOrderDto {
   @IsString()
+  @MaxLength(200)
   title!: string;
 
-  @IsUUID()
+  @IsString()
   customerId!: string;
 
-  @IsUUID()
+  @IsString()
   siteId!: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   assetId?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   assignedToUserId?: string;
 
   @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(4)
-  priority?: number;
+  @IsString()
+  assignedTechnicianId?: string;
+
+  @IsOptional()
+  @IsString()
+  maintenanceTemplateId?: string;
+
+  @IsOptional()
+  priority?: string | number;
 
   @IsOptional()
   @IsString()
@@ -31,4 +37,12 @@ export class CreateWorkOrderDto {
   @IsOptional()
   @IsString()
   scheduledAt?: string;
+
+  @IsOptional()
+  @IsString()
+  scheduledFor?: string;
+
+  @IsOptional()
+  @IsString()
+  code?: string;
 }

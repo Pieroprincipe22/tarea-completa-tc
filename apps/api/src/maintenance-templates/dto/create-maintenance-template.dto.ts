@@ -34,6 +34,16 @@ export class CreateMaintenanceTemplateItemDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(250)
+  helpText?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(250)
+  placeholder?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(50)
   valueType?: string;
 

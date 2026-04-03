@@ -5,7 +5,6 @@ import {
   Get,
   Headers,
   Param,
-  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -50,7 +49,7 @@ export class WorkOrdersController {
   @Get(':id')
   get(
     @Headers('x-company-id') companyIdHeader: string | undefined,
-    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('id') id: string,
   ) {
     const companyId = requiredHeader(companyIdHeader, 'x-company-id');
     return this.service.get(companyId, id);
@@ -70,7 +69,7 @@ export class WorkOrdersController {
   @Patch(':id')
   update(
     @Headers('x-company-id') companyIdHeader: string | undefined,
-    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('id') id: string,
     @Body() dto: UpdateWorkOrderDto,
   ) {
     const companyId = requiredHeader(companyIdHeader, 'x-company-id');
@@ -80,7 +79,7 @@ export class WorkOrdersController {
   @Patch(':id/status')
   setStatus(
     @Headers('x-company-id') companyIdHeader: string | undefined,
-    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('id') id: string,
     @Body() dto: UpdateWorkOrderStatusDto,
   ) {
     const companyId = requiredHeader(companyIdHeader, 'x-company-id');
