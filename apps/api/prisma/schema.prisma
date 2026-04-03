@@ -15,6 +15,7 @@ enum UserRole {
 
 enum WorkOrderStatus {
   OPEN
+  ASSIGNED
   PENDING
   IN_PROGRESS
   DONE
@@ -26,6 +27,13 @@ enum WorkOrderPriority {
   MEDIUM
   HIGH
   URGENT
+}
+
+enum AssetStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+  RETIRED
 }
 
 enum MaintenanceItemType {
@@ -41,13 +49,46 @@ enum MaintenanceItemType {
   SIGNATURE
 }
 
+enum MaintenanceItemStatus {
+  PENDING
+  OK
+  FAIL
+  NA
+}
+
 enum MaintenanceReportStatus {
   DRAFT
   ASSIGNED
   IN_PROGRESS
   SUBMITTED
+  COMPLETED
   APPROVED
   REJECTED
+  CANCELLED
+}
+
+enum MaintenanceReportState {
+  DRAFT
+  FINAL
+}
+
+enum AttachmentOwnerType {
+  WORK_ORDER
+  MAINTENANCE_REPORT
+  MAINTENANCE_REPORT_ITEM
+  ASSET
+  SITE
+  CUSTOMER
+  MAINTENANCE_TEMPLATE
+  EMERGENCY_REQUEST
+  OTHER
+}
+
+enum EmergencyRequestStatus {
+  OPEN
+  DISPATCHED
+  IN_PROGRESS
+  DONE
   CANCELLED
 }
 
@@ -56,40 +97,68 @@ model Company {
   name      String
   slug      String?  @unique
   isActive  Boolean  @default(true)
+  existe    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   users                User[]
+  userCompanies        UserCompany[]
   customers            Customer[]
+  sites                Site[]
+  contacts             Contact[]
   assets               Asset[]
   workOrders           WorkOrder[]
   maintenanceTemplates MaintenanceTemplate[]
   maintenanceReports   MaintenanceReport[]
+  attachments          Attachment[]
+  counters             CompanyCounter[]
+  emergencyRequests    EmergencyRequest[]
 }
 
 model User {
-  id           String   @id @default(cuid())
-  companyId    String
+  id           String    @id @default(cuid())
+  companyId    String?
   name         String
-  email        String   @unique
+  email        String    @unique
   passwordHash String
-  role         UserRole
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  role         UserRole?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
 
-  createdWorkOrders  WorkOrder[] @relation("WorkOrderCreatedBy")
-  assignedWorkOrders WorkOrder[] @relation("WorkOrderAssignedTechnician")
-
-  createdMaintenanceReports   MaintenanceReport[] @relation("MaintenanceReportCreatedBy")
-  assignedMaintenanceReports  MaintenanceReport[] @relation("MaintenanceReportAssignedTechnician")
-  submittedMaintenanceReports MaintenanceReport[] @relation("MaintenanceReportSubmittedBy")
-  reviewedMaintenanceReports  MaintenanceReport[] @relation("MaintenanceReportReviewedBy")
+  memberships                     UserCompany[]
+  createdWorkOrders               WorkOrder[]         @relation("WorkOrderCreatedBy")
+  assignedTechnicianWorkOrders    WorkOrder[]         @relation("WorkOrderAssignedTechnician")
+  assignedToWorkOrders            WorkOrder[]         @relation("WorkOrderAssignedTo")
+  createdMaintenanceReports       MaintenanceReport[] @relation("MaintenanceReportCreatedBy")
+  legacyCreatedMaintenanceReports MaintenanceReport[] @relation("MaintenanceReportCreatedByUser")
+  completedMaintenanceReports     MaintenanceReport[] @relation("MaintenanceReportCompletedByUser")
+  assignedMaintenanceReports      MaintenanceReport[] @relation("MaintenanceReportAssignedTechnician")
+  submittedMaintenanceReports     MaintenanceReport[] @relation("MaintenanceReportSubmittedBy")
+  reviewedMaintenanceReports      MaintenanceReport[] @relation("MaintenanceReportReviewedBy")
+  uploadedAttachments             Attachment[]        @relation("AttachmentUploadedByUser")
+  assignedEmergencyRequests       EmergencyRequest[]  @relation("EmergencyRequestAssignedTo")
 
   @@index([companyId])
   @@index([companyId, role])
+}
+
+model UserCompany {
+  id        String   @id @default(cuid())
+  userId    String
+  companyId String
+  role      UserRole
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([companyId, role, active])
 }
 
 model Customer {
@@ -103,39 +172,95 @@ model Customer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  assets     Asset[]
-  workOrders WorkOrder[]
+  company            Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sites              Site[]
+  assets             Asset[]
+  workOrders         WorkOrder[]
+  maintenanceReports MaintenanceReport[]
+  emergencyRequests  EmergencyRequest[]
 
   @@index([companyId, name])
 }
 
-model Asset {
-  id           String   @id @default(cuid())
-  companyId    String
-  customerId   String?
-  name         String
-  code         String?
-  brand        String?
-  model        String?
-  serialNumber String?
-  location     String?
-  notes        String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+model Site {
+  id         String   @id @default(cuid())
+  companyId  String
+  customerId String
+  name       String
+  address    String?
+  city       String?
+  country    String?
+  notes      String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  customer   Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  workOrders WorkOrder[]
+  company            Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer           Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  contacts           Contact[]
+  assets             Asset[]
+  workOrders         WorkOrder[]
+  maintenanceReports MaintenanceReport[]
+  emergencyRequests  EmergencyRequest[]
+
+  @@index([companyId, customerId, name])
+}
+
+model Contact {
+  id        String   @id @default(cuid())
+  companyId String
+  siteId    String
+  name      String
+  email     String?
+  phone     String?
+  role      String?
+  isMain    Boolean  @default(false)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  site    Site    @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, siteId])
+}
+
+model Asset {
+  id             String      @id @default(cuid())
+  companyId      String
+  customerId     String?
+  siteId         String?
+  name           String
+  code           String?
+  internalCode   String?
+  category       String?
+  brand          String?
+  model          String?
+  serialNumber   String?
+  status         AssetStatus @default(ACTIVE)
+  installationAt DateTime?
+  location       String?
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  company            Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer           Customer?           @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  site               Site?               @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  workOrders         WorkOrder[]
+  maintenanceReports MaintenanceReport[]
+  emergencyRequests  EmergencyRequest[]
 
   @@index([companyId, name])
   @@index([customerId])
+  @@index([siteId])
 }
 
 model MaintenanceTemplate {
   id          String   @id @default(cuid())
   companyId   String
-  name        String
+  name        String?
+  title       String?
   description String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -147,33 +272,43 @@ model MaintenanceTemplate {
   maintenanceReports MaintenanceReport[]
 
   @@index([companyId, isActive])
+  @@index([companyId, name])
+  @@index([companyId, title])
 }
 
 model MaintenanceTemplateItem {
-  id          String              @id @default(cuid())
+  id          String               @id @default(cuid())
   templateId  String
-  label       String
-  type        MaintenanceItemType
-  required    Boolean             @default(false)
-  sortOrder   Int                 @default(0)
+  label       String?
+  title       String?
+  description String?
+  type        MaintenanceItemType?
+  valueType   String?
+  required    Boolean              @default(false)
+  sortOrder   Int                  @default(0)
+  itemOrder   Int                  @default(0)
+  unit        String?
   helpText    String?
   placeholder String?
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
 
   template    MaintenanceTemplate     @relation(fields: [templateId], references: [id], onDelete: Cascade)
   reportItems MaintenanceReportItem[]
 
   @@index([templateId, sortOrder])
+  @@index([templateId, itemOrder])
 }
 
 model WorkOrder {
   id                    String            @id @default(cuid())
   companyId             String
   customerId            String?
+  siteId                String?
   assetId               String?
   createdById           String?
   assignedTechnicianId  String?
+  assignedToUserId      String?
   maintenanceTemplateId String?
   code                  String?
   title                 String
@@ -181,6 +316,7 @@ model WorkOrder {
   status                WorkOrderStatus   @default(OPEN)
   priority              WorkOrderPriority @default(MEDIUM)
   scheduledFor          DateTime?
+  scheduledAt           DateTime?
   startedAt             DateTime?
   completedAt           DateTime?
   createdAt             DateTime          @default(now())
@@ -188,15 +324,19 @@ model WorkOrder {
 
   company             Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
   customer            Customer?            @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  site                Site?                @relation(fields: [siteId], references: [id], onDelete: SetNull)
   asset               Asset?               @relation(fields: [assetId], references: [id], onDelete: SetNull)
   createdBy           User?                @relation("WorkOrderCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   assignedTechnician  User?                @relation("WorkOrderAssignedTechnician", fields: [assignedTechnicianId], references: [id], onDelete: SetNull)
+  assignedTo          User?                @relation("WorkOrderAssignedTo", fields: [assignedToUserId], references: [id], onDelete: SetNull)
   maintenanceTemplate MaintenanceTemplate? @relation(fields: [maintenanceTemplateId], references: [id], onDelete: SetNull)
   maintenanceReport   MaintenanceReport?
 
   @@index([companyId, status])
   @@index([assignedTechnicianId, status])
+  @@index([assignedToUserId, status])
   @@index([customerId])
+  @@index([siteId])
   @@index([assetId])
   @@index([maintenanceTemplateId])
   @@index([companyId, code])
@@ -205,14 +345,23 @@ model WorkOrder {
 model MaintenanceReport {
   id                   String                  @id @default(cuid())
   companyId            String
-  workOrderId          String                  @unique
+  workOrderId          String?                 @unique
   templateId           String?
+  customerId           String?
+  siteId               String?
+  assetId              String?
   createdById          String?
+  createdByUserId      String?
+  completedByUserId    String?
   assignedTechnicianId String?
   submittedById        String?
   reviewedById         String?
   status               MaintenanceReportStatus @default(DRAFT)
+  state                MaintenanceReportState  @default(DRAFT)
 
+  title           String?
+  description     String?
+  notes           String?
   summary         String?
   diagnosis       String?
   workPerformed   String?
@@ -226,34 +375,50 @@ model MaintenanceReport {
   assignedAt  DateTime?
   startedAt   DateTime?
   submittedAt DateTime?
+  completedAt DateTime?
   reviewedAt  DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  company            Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  workOrder          WorkOrder            @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
-  template           MaintenanceTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  createdBy          User?                @relation("MaintenanceReportCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  assignedTechnician User?                @relation("MaintenanceReportAssignedTechnician", fields: [assignedTechnicianId], references: [id], onDelete: SetNull)
-  submittedBy        User?                @relation("MaintenanceReportSubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull)
-  reviewedBy         User?                @relation("MaintenanceReportReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
-
-  items     MaintenanceReportItem[]
-  materials MaintenanceReportMaterial[]
+  company            Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  workOrder          WorkOrder?                  @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+  template           MaintenanceTemplate?        @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  customer           Customer?                   @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  site               Site?                       @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  asset              Asset?                      @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  createdBy          User?                       @relation("MaintenanceReportCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdByUser      User?                       @relation("MaintenanceReportCreatedByUser", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  completedByUser    User?                       @relation("MaintenanceReportCompletedByUser", fields: [completedByUserId], references: [id], onDelete: SetNull)
+  assignedTechnician User?                       @relation("MaintenanceReportAssignedTechnician", fields: [assignedTechnicianId], references: [id], onDelete: SetNull)
+  submittedBy        User?                       @relation("MaintenanceReportSubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull)
+  reviewedBy         User?                       @relation("MaintenanceReportReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  items              MaintenanceReportItem[]
+  materials          MaintenanceReportMaterial[]
 
   @@index([companyId, status])
   @@index([assignedTechnicianId, status])
   @@index([templateId])
+  @@index([customerId])
+  @@index([siteId])
+  @@index([assetId])
 }
 
 model MaintenanceReportItem {
-  id             String              @id @default(cuid())
+  id             String                @id @default(cuid())
   reportId       String
   templateItemId String?
-  label          String
-  type           MaintenanceItemType
-  required       Boolean             @default(false)
-  sortOrder      Int                 @default(0)
+  label          String?
+  title          String?
+  description    String?
+  type           MaintenanceItemType?
+  valueType      String?
+  required       Boolean               @default(false)
+  sortOrder      Int                   @default(0)
+  itemOrder      Int                   @default(0)
+  unit           String?
+  status         MaintenanceItemStatus @default(PENDING)
+  value          String?
+  notes          String?
 
   valueText    String?
   valueNumber  Float?
@@ -268,6 +433,7 @@ model MaintenanceReportItem {
   templateItem MaintenanceTemplateItem? @relation(fields: [templateItemId], references: [id], onDelete: SetNull)
 
   @@index([reportId, sortOrder])
+  @@index([reportId, itemOrder])
   @@index([templateItemId])
 }
 
@@ -286,4 +452,73 @@ model MaintenanceReportMaterial {
   report MaintenanceReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   @@index([reportId, sortOrder])
+}
+
+model Attachment {
+  id               String              @id @default(cuid())
+  companyId        String?
+  ownerType        AttachmentOwnerType
+  ownerId          String
+  name             String?
+  fileName         String?
+  filename         String?
+  originalName     String?
+  mimeType         String?
+  contentType      String?
+  path             String?
+  url              String?
+  storageKey       String?
+  size             Int?
+  sizeBytes        Int?
+  uploadedByUserId String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  company        Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  uploadedByUser User?    @relation("AttachmentUploadedByUser", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([ownerType, ownerId])
+}
+
+model CompanyCounter {
+  id        String   @id @default(cuid())
+  companyId String
+  key       String
+  value     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, key])
+}
+
+model EmergencyRequest {
+  id               String                 @id @default(cuid())
+  companyId        String
+  customerId       String?
+  siteId           String?
+  assetId          String?
+  assignedToUserId String?
+  title            String
+  description      String?
+  status           EmergencyRequestStatus @default(OPEN)
+  priority         WorkOrderPriority      @default(MEDIUM)
+  requestedByName  String?
+  requestedByPhone String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  site       Site?     @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  asset      Asset?    @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  assignedTo User?     @relation("EmergencyRequestAssignedTo", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, status])
+  @@index([customerId])
+  @@index([siteId])
+  @@index([assetId])
+  @@index([assignedToUserId])
 }
