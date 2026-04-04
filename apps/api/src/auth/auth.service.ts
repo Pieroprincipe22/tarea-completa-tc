@@ -31,6 +31,18 @@ export class AuthService {
             name: true,
           },
         },
+        memberships: {
+          where: { active: true },
+          include: {
+            company: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'asc' },
+        },
       },
     });
 
@@ -38,26 +50,39 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    if (!user.companyId || !user.company) {
-      throw new UnauthorizedException('User has no company assigned');
+    const companies = user.memberships.map((membership) => ({
+      companyId: membership.company.id,
+      name: membership.company.name,
+      role: membership.role,
+    }));
+
+    if (
+      companies.length === 0 &&
+      user.companyId &&
+      user.company &&
+      user.role
+    ) {
+      companies.push({
+        companyId: user.company.id,
+        name: user.company.name,
+        role: user.role,
+      });
     }
 
-    const company = user.company;
+    if (companies.length === 0) {
+      throw new UnauthorizedException('User has no active company membership');
+    }
+
+    const primaryCompany = companies[0];
 
     return {
       userId: user.id,
       name: user.name,
       email: user.email,
-      companyId: user.companyId,
-      companyName: company.name,
-      role: user.role,
-      companies: [
-        {
-          companyId: company.id,
-          name: company.name,
-          role: user.role,
-        },
-      ],
+      companyId: primaryCompany.companyId,
+      companyName: primaryCompany.name,
+      role: primaryCompany.role,
+      companies,
     };
   }
 }

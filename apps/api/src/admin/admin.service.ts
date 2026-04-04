@@ -93,6 +93,25 @@ export class AdminService {
         select: { id: true },
       });
 
+      await tx.userCompany.upsert({
+        where: {
+          userId_companyId: {
+            userId: user.id,
+            companyId: company.id,
+          },
+        },
+        update: {
+          role,
+          active: true,
+        },
+        create: {
+          userId: user.id,
+          companyId: company.id,
+          role,
+          active: true,
+        },
+      });
+
       return {
         ok: true,
         companyId: company.id,
