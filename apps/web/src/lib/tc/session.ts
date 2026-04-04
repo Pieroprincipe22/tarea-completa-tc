@@ -20,37 +20,127 @@ export const TC_STORAGE_KEYS = {
 
 export const TC_LS_KEYS = TC_STORAGE_KEYS;
 
-export function writeTcSession(session: TcSession) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(TC_STORAGE_KEYS.session, JSON.stringify(session));
-  localStorage.setItem(TC_STORAGE_KEYS.apiBase, session.apiBase);
-  localStorage.setItem(TC_STORAGE_KEYS.companyId, session.companyId);
-  localStorage.setItem(TC_STORAGE_KEYS.userId, session.userId);
+function normalizeRole(role?: string | null): string {
+  return String(role ?? '').trim().toUpperCase();
 }
 
-export function readTcSession(): TcSession | null {
+function isValidSession(value: unknown): value is TcSession {
+  if (!value || typeof value !== 'object') return false;
+
+  const row = value as Record<string, unknown>;
+
+  return (
+    typeof row.apiBase === 'string' &&
+    row.apiBase.trim().length > 0 &&
+    typeof row.companyId === 'string' &&
+    row.companyId.trim().length > 0 &&
+    typeof row.userId === 'string' &&
+    row.userId.trim().length > 0
+  );
+}
+
+function getSessionStorage(): Storage | null {
   if (typeof window === 'undefined') return null;
 
-  const raw = localStorage.getItem(TC_STORAGE_KEYS.session);
-  if (!raw) return null;
-
   try {
-    return JSON.parse(raw) as TcSession;
+    return window.sessionStorage;
   } catch {
     return null;
   }
 }
 
+function getLocalStorage(): Storage | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+export function writeTcSession(session: TcSession) {
+  const ss = getSessionStorage();
+  const ls = getLocalStorage();
+
+  const safe: TcSession = {
+    apiBase: session.apiBase.trim(),
+    companyId: session.companyId.trim(),
+    companyName: session.companyName?.trim() || undefined,
+    userId: session.userId.trim(),
+    email: session.email?.trim() || undefined,
+    name: session.name?.trim() || undefined,
+    role: normalizeRole(session.role) || undefined,
+  };
+
+  if (ss) {
+    ss.setItem(TC_STORAGE_KEYS.session, JSON.stringify(safe));
+    ss.setItem(TC_STORAGE_KEYS.apiBase, safe.apiBase);
+    ss.setItem(TC_STORAGE_KEYS.companyId, safe.companyId);
+    ss.setItem(TC_STORAGE_KEYS.userId, safe.userId);
+  }
+
+  // limpieza de restos antiguos compartidos entre pestañas
+  if (ls) {
+    ls.removeItem(TC_STORAGE_KEYS.session);
+    ls.removeItem(TC_STORAGE_KEYS.apiBase);
+    ls.removeItem(TC_STORAGE_KEYS.companyId);
+    ls.removeItem(TC_STORAGE_KEYS.userId);
+  }
+}
+
+export function readTcSession(): TcSession | null {
+  const ss = getSessionStorage();
+  if (!ss) return null;
+
+  const raw = ss.getItem(TC_STORAGE_KEYS.session);
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+
+    if (!isValidSession(parsed)) {
+      clearTcSession();
+      return null;
+    }
+
+    return {
+      ...parsed,
+      role: normalizeRole(parsed.role),
+    };
+  } catch {
+    clearTcSession();
+    return null;
+  }
+}
+
 export function clearTcSession() {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem(TC_STORAGE_KEYS.session);
-  localStorage.removeItem(TC_STORAGE_KEYS.apiBase);
-  localStorage.removeItem(TC_STORAGE_KEYS.companyId);
-  localStorage.removeItem(TC_STORAGE_KEYS.userId);
+  const ss = getSessionStorage();
+  const ls = getLocalStorage();
+
+  if (ss) {
+    ss.removeItem(TC_STORAGE_KEYS.session);
+    ss.removeItem(TC_STORAGE_KEYS.apiBase);
+    ss.removeItem(TC_STORAGE_KEYS.companyId);
+    ss.removeItem(TC_STORAGE_KEYS.userId);
+  }
+
+  // limpieza legacy por si quedó algo viejo
+  if (ls) {
+    ls.removeItem(TC_STORAGE_KEYS.session);
+    ls.removeItem(TC_STORAGE_KEYS.apiBase);
+    ls.removeItem(TC_STORAGE_KEYS.companyId);
+    ls.removeItem(TC_STORAGE_KEYS.userId);
+  }
 }
 
 export function isTechnicianRole(role?: string | null) {
-  return String(role || '').toUpperCase() === 'TECHNICIAN';
+  return normalizeRole(role) === 'TECHNICIAN';
+}
+
+export function isAdminRole(role?: string | null) {
+  const normalized = normalizeRole(role);
+  return normalized === 'ADMIN' || normalized === 'SUPER_ADMIN';
 }
 
 export function isTechnicianSession(
@@ -59,12 +149,18 @@ export function isTechnicianSession(
   return isTechnicianRole(session?.role);
 }
 
+export function isAdminSession(
+  session?: Pick<TcSession, 'role'> | null,
+) {
+  return isAdminRole(session?.role);
+}
+
 export function resolveHomePath(
   session?: Pick<TcSession, 'role'> | null,
 ): string {
   return isTechnicianSession(session)
     ? '/technician/dashboard'
-    : '/admin/dashboard';
+    : '/dashboard';
 }
 
 export function resolveWorkOrdersPath(
@@ -72,5 +168,5 @@ export function resolveWorkOrdersPath(
 ): string {
   return isTechnicianSession(session)
     ? '/technician/dashboard/work-orders'
-    : '/admin/dashboard/work-orders';
+    : '/work-orders';
 }

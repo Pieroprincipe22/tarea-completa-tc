@@ -2,6 +2,8 @@ import { Body, Controller, Get, Headers, Param, Patch, Post } from '@nestjs/comm
 import { MaintenanceReportsService } from './maintenance-reports.service';
 import { CreateMaintenanceReportDto } from './dto/create-maintenance-report.dto';
 import { UpdateMaintenanceReportItemDto } from './dto/update-maintenance-report-items.dto';
+import { UpdateMaintenanceReportDto } from './dto/update-maintenance-report.dto';
+import { ReviewMaintenanceReportDto } from './dto/review-maintenance-report.dto';
 
 @Controller('maintenance-reports')
 export class MaintenanceReportsController {
@@ -34,6 +36,16 @@ export class MaintenanceReportsController {
     return this.service.getById(companyId, id);
   }
 
+  @Patch(':id')
+  update(
+    @Headers('x-company-id') companyId: string,
+    @Headers('x-user-id') userId: string | undefined,
+    @Param('id') id: string,
+    @Body() dto: UpdateMaintenanceReportDto,
+  ) {
+    return this.service.updateReport(companyId, id, userId, dto);
+  }
+
   @Patch(':id/items/:itemId')
   updateItem(
     @Headers('x-company-id') companyId: string,
@@ -51,5 +63,15 @@ export class MaintenanceReportsController {
     @Param('id') id: string,
   ) {
     return this.service.finalize(companyId, id, userId);
+  }
+
+  @Post(':id/review')
+  review(
+    @Headers('x-company-id') companyId: string,
+    @Headers('x-user-id') userId: string | undefined,
+    @Param('id') id: string,
+    @Body() dto: ReviewMaintenanceReportDto,
+  ) {
+    return this.service.review(companyId, id, userId, dto);
   }
 }

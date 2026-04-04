@@ -10,6 +10,8 @@ import {
 import { PrismaService } from '../database/prisma.service';
 import { CreateMaintenanceReportDto } from './dto/create-maintenance-report.dto';
 import { UpdateMaintenanceReportItemDto } from './dto/update-maintenance-report-items.dto';
+import { UpdateMaintenanceReportDto } from './dto/update-maintenance-report.dto';
+import { ReviewMaintenanceReportDto } from './dto/review-maintenance-report.dto';
 
 const userSelect = {
   id: true,
@@ -278,7 +280,7 @@ export class MaintenanceReportsService {
           },
         ],
       },
-      select: { id: true },
+      select: { id: true, role: true },
     });
 
     if (!user) {
@@ -458,20 +460,6 @@ export class MaintenanceReportsService {
     }
 
     if (linkedWorkOrder) {
-      if (linkedWorkOrder.customerId && linkedWorkOrder.customerId !== customer.id) {
-        throw new BadRequestException('La work order no pertenece al customer indicado.');
-      }
-
-      if (linkedWorkOrder.siteId && linkedWorkOrder.siteId !== site.id) {
-        throw new BadRequestException('La work order no pertenece al site indicado.');
-      }
-
-      if (linkedWorkOrder.assetId && asset && linkedWorkOrder.assetId !== asset.id) {
-        throw new BadRequestException(
-          'El asset del reporte no coincide con el asset de la work order.',
-        );
-      }
-
       const existingLinkedReport = await this.prisma.maintenanceReport.findFirst({
         where: {
           companyId: normalizedCompanyId,
@@ -581,6 +569,129 @@ export class MaintenanceReportsService {
     return serializeReport(report);
   }
 
+  async updateReport(
+    companyId: string,
+    id: string,
+    userId: string | undefined,
+    dto: UpdateMaintenanceReportDto,
+  ) {
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+
+    if (!userId?.trim()) {
+      throw new BadRequestException('Falta header x-user-id');
+    }
+
+    const normalizedUserId = userId.trim();
+    await this.ensureActiveUserInCompany(normalizedCompanyId, normalizedUserId);
+
+    const report = await this.prisma.maintenanceReport.findFirst({
+      where: { id, companyId: normalizedCompanyId },
+      include: {
+        workOrder: {
+          select: {
+            id: true,
+            status: true,
+            startedAt: true,
+          },
+        },
+      },
+    });
+
+    if (!report) {
+      throw new NotFoundException('Reporte no encontrado.');
+    }
+
+    if (
+      report.status === MaintenanceReportStatus.APPROVED ||
+      report.status === MaintenanceReportStatus.CANCELLED
+    ) {
+      throw new BadRequestException('Este parte ya no admite edición.');
+    }
+
+    if (
+      report.state === MaintenanceReportState.FINAL &&
+      report.status !== MaintenanceReportStatus.REJECTED
+    ) {
+      throw new BadRequestException('El parte ya fue enviado y no admite cambios directos.');
+    }
+
+    const startedAt = hasOwn(dto, 'startedAt') ? toDateOrNull(dto.startedAt ?? null) : undefined;
+    const completedAt = hasOwn(dto, 'completedAt')
+      ? toDateOrNull(dto.completedAt ?? null)
+      : undefined;
+
+    if (dto.startedAt && startedAt === null) {
+      throw new BadRequestException('startedAt inválida');
+    }
+
+    if (dto.completedAt && completedAt === null) {
+      throw new BadRequestException('completedAt inválida');
+    }
+
+    const laborHours =
+      dto.laborHours === undefined || dto.laborHours === null
+        ? undefined
+        : new Prisma.Decimal(dto.laborHours);
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const next = await tx.maintenanceReport.update({
+        where: { id },
+        data: {
+          ...(dto.title !== undefined ? { title: dto.title ?? null } : {}),
+          ...(dto.description !== undefined ? { description: dto.description ?? null } : {}),
+          ...(dto.notes !== undefined ? { notes: dto.notes ?? null } : {}),
+          ...(dto.summary !== undefined ? { summary: dto.summary ?? null } : {}),
+          ...(dto.diagnosis !== undefined ? { diagnosis: dto.diagnosis ?? null } : {}),
+          ...(dto.workPerformed !== undefined ? { workPerformed: dto.workPerformed ?? null } : {}),
+          ...(dto.recommendations !== undefined
+            ? { recommendations: dto.recommendations ?? null }
+            : {}),
+          ...(dto.observations !== undefined ? { observations: dto.observations ?? null } : {}),
+          ...(dto.technicianNotes !== undefined
+            ? { technicianNotes: dto.technicianNotes ?? null }
+            : {}),
+          ...(laborHours !== undefined ? { laborHours } : {}),
+          ...(startedAt !== undefined ? { startedAt } : {}),
+          ...(completedAt !== undefined ? { completedAt } : {}),
+          ...(dto.materials !== undefined
+            ? {
+                materials: {
+                  deleteMany: {},
+                  create: dto.materials.map((item, idx) => ({
+                    name: item.name,
+                    description: item.description ?? null,
+                    quantity: item.quantity,
+                    unit: item.unit ?? null,
+                    sortOrder: item.sortOrder ?? idx + 1,
+                    notes: item.notes ?? null,
+                  })),
+                },
+              }
+            : {}),
+        },
+        include: reportInclude,
+      });
+
+      if (report.workOrderId && startedAt) {
+        await tx.workOrder.update({
+          where: { id: report.workOrderId },
+          data: {
+            status:
+              report.workOrder?.status === WorkOrderStatus.OPEN ||
+              report.workOrder?.status === WorkOrderStatus.ASSIGNED
+                ? WorkOrderStatus.IN_PROGRESS
+                : report.workOrder?.status,
+            startedAt: report.workOrder?.startedAt ?? startedAt,
+          },
+        });
+      }
+
+      return next;
+    });
+
+    return serializeReport(updated);
+  }
+
   async updateItem(
     companyId: string,
     reportId: string,
@@ -608,7 +719,6 @@ export class MaintenanceReportsService {
 
     if (
       report.state === MaintenanceReportState.FINAL ||
-      report.status === MaintenanceReportStatus.COMPLETED ||
       report.status === MaintenanceReportStatus.APPROVED ||
       report.status === MaintenanceReportStatus.CANCELLED
     ) {
@@ -704,12 +814,14 @@ export class MaintenanceReportsService {
 
       if (
         report.status === MaintenanceReportStatus.DRAFT ||
-        report.status === MaintenanceReportStatus.ASSIGNED
+        report.status === MaintenanceReportStatus.ASSIGNED ||
+        report.status === MaintenanceReportStatus.REJECTED
       ) {
         await tx.maintenanceReport.update({
           where: { id: report.id },
           data: {
             status: MaintenanceReportStatus.IN_PROGRESS,
+            state: MaintenanceReportState.DRAFT,
             startedAt: report.startedAt ?? new Date(),
           },
         });
@@ -749,7 +861,6 @@ export class MaintenanceReportsService {
             id: true,
             status: true,
             startedAt: true,
-            completedAt: true,
           },
         },
       },
@@ -759,16 +870,15 @@ export class MaintenanceReportsService {
       throw new NotFoundException('Reporte no encontrado.');
     }
 
-    if (report.status === MaintenanceReportStatus.COMPLETED) {
-      throw new BadRequestException('El reporte ya está finalizado.');
+    if (
+      report.status === MaintenanceReportStatus.SUBMITTED ||
+      report.status === MaintenanceReportStatus.APPROVED
+    ) {
+      throw new BadRequestException('El parte ya fue enviado al admin.');
     }
 
     if (report.status === MaintenanceReportStatus.CANCELLED) {
       throw new BadRequestException('No se puede finalizar un reporte cancelado.');
-    }
-
-    if (report.state === MaintenanceReportState.FINAL) {
-      throw new BadRequestException('El reporte ya está en estado FINAL.');
     }
 
     if (!report.items.length) {
@@ -779,7 +889,7 @@ export class MaintenanceReportsService {
 
     if (pendingItems.length > 0) {
       throw new BadRequestException(
-        'No se puede finalizar: todavía hay items en estado PENDING.',
+        'No se puede enviar: todavía hay items en estado PENDING.',
       );
     }
 
@@ -789,12 +899,12 @@ export class MaintenanceReportsService {
       const nextReport = await tx.maintenanceReport.update({
         where: { id },
         data: {
-          status: MaintenanceReportStatus.COMPLETED,
+          status: MaintenanceReportStatus.SUBMITTED,
           state: MaintenanceReportState.FINAL,
           startedAt: report.startedAt ?? now,
-          submittedAt: report.submittedAt ?? now,
+          submittedAt: now,
           submittedById: normalizedUserId ?? report.submittedById ?? null,
-          completedAt: now,
+          completedAt: report.completedAt ?? now,
           completedByUserId: normalizedUserId ?? report.completedByUserId ?? null,
         },
         include: reportInclude,
@@ -804,11 +914,96 @@ export class MaintenanceReportsService {
         await tx.workOrder.update({
           where: { id: report.workOrderId },
           data: {
-            status: WorkOrderStatus.DONE,
-            startedAt: report.workOrder?.startedAt ?? now,
-            completedAt: now,
+            status: WorkOrderStatus.PENDING,
+            startedAt: report.workOrder?.startedAt ?? report.startedAt ?? now,
+            completedAt: null,
           },
         });
+      }
+
+      return nextReport;
+    });
+
+    return serializeReport(updated);
+  }
+
+  async review(
+    companyId: string,
+    id: string,
+    userId: string | undefined,
+    dto: ReviewMaintenanceReportDto,
+  ) {
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+
+    if (!userId?.trim()) {
+      throw new BadRequestException('Falta header x-user-id');
+    }
+
+    const normalizedUserId = userId.trim();
+    await this.ensureActiveUserInCompany(normalizedCompanyId, normalizedUserId);
+
+    const report = await this.prisma.maintenanceReport.findFirst({
+      where: { id, companyId: normalizedCompanyId },
+      include: {
+        workOrder: {
+          select: {
+            id: true,
+            status: true,
+            startedAt: true,
+          },
+        },
+      },
+    });
+
+    if (!report) {
+      throw new NotFoundException('Reporte no encontrado.');
+    }
+
+    if (report.status !== MaintenanceReportStatus.SUBMITTED) {
+      throw new BadRequestException('Solo se puede revisar un parte en estado SUBMITTED.');
+    }
+
+    const now = new Date();
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const nextReport = await tx.maintenanceReport.update({
+        where: { id },
+        data: dto.approved
+          ? {
+              status: MaintenanceReportStatus.APPROVED,
+              state: MaintenanceReportState.FINAL,
+              reviewedAt: now,
+              reviewedById: normalizedUserId,
+              reviewNotes: dto.reviewNotes ?? null,
+            }
+          : {
+              status: MaintenanceReportStatus.REJECTED,
+              state: MaintenanceReportState.DRAFT,
+              reviewedAt: now,
+              reviewedById: normalizedUserId,
+              reviewNotes: dto.reviewNotes ?? null,
+            },
+        include: reportInclude,
+      });
+
+      if (report.workOrderId && report.workOrder?.status !== WorkOrderStatus.CANCELLED) {
+        await tx.workOrder.update({
+          where: { id: report.workOrderId },
+          data: dto.approved
+            ? {
+                status: WorkOrderStatus.DONE,
+                startedAt: report.workOrder?.startedAt ?? report.startedAt ?? now,
+                completedAt: report.completedAt ?? now,
+              }
+            : {
+                status: WorkOrderStatus.IN_PROGRESS,
+                startedAt: report.workOrder?.startedAt ?? report.startedAt ?? now,
+                completedAt: null,
+              },
+        });
+
+        // Aquí va el hook de facturación real en la siguiente fase.
+        // approve => generar factura / enviar email / crear documento PDF
       }
 
       return nextReport;

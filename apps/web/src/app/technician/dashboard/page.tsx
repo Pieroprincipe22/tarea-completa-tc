@@ -426,9 +426,9 @@ export default function TechnicianDashboardPage() {
 
               <Link
                 className="rounded-xl border border-slate-700 px-4 py-3 hover:bg-slate-800"
-                href="/dashboard"
+                href="/technician/dashboard/work-orders"
               >
-                Ir a vista general
+                Ir a mis work orders
               </Link>
             </div>
           </div>

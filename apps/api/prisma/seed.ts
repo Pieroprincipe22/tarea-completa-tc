@@ -1,11 +1,13 @@
 import {
+  MaintenanceItemStatus,
+  MaintenanceItemType,
+  MaintenanceReportState,
+  MaintenanceReportStatus,
   Prisma,
   PrismaClient,
   UserRole,
   WorkOrderPriority,
   WorkOrderStatus,
-  MaintenanceItemType,
-  MaintenanceReportStatus,
 } from '@prisma/client';
 import { randomBytes, scryptSync } from 'node:crypto';
 
@@ -15,6 +17,31 @@ function hashPassword(password: string): string {
   const salt = randomBytes(16).toString('hex');
   const derivedKey = scryptSync(password, salt, 64).toString('hex');
   return `scrypt:${salt}:${derivedKey}`;
+}
+
+async function ensureUserMembership(
+  userId: string,
+  companyId: string,
+  role: UserRole,
+) {
+  await prisma.userCompany.upsert({
+    where: {
+      userId_companyId: {
+        userId,
+        companyId,
+      },
+    },
+    update: {
+      role,
+      active: true,
+    },
+    create: {
+      userId,
+      companyId,
+      role,
+      active: true,
+    },
+  });
 }
 
 async function main() {
@@ -84,6 +111,9 @@ async function main() {
     },
   });
 
+  await ensureUserMembership(adminUser.id, company.id, UserRole.ADMIN);
+  await ensureUserMembership(technicianUser.id, company.id, UserRole.TECHNICIAN);
+
   const customer1 =
     (await prisma.customer.findFirst({
       where: {
@@ -120,11 +150,138 @@ async function main() {
       },
     }));
 
+  const site1 =
+    (await prisma.site.findFirst({
+      where: {
+        companyId: company.id,
+        customerId: customer1.id,
+        name: 'Sala Técnica Cliente 1',
+      },
+    })) ??
+    (await prisma.site.create({
+      data: {
+        companyId: company.id,
+        customerId: customer1.id,
+        name: 'Sala Técnica Cliente 1',
+        address: 'Dirección demo 1',
+        city: 'Madrid',
+        country: 'España',
+        notes: 'Site principal de pruebas del cliente 1',
+        isActive: true,
+      },
+    }));
+
+  const site2 =
+    (await prisma.site.findFirst({
+      where: {
+        companyId: company.id,
+        customerId: customer2.id,
+        name: 'Cuarto Eléctrico Cliente 2',
+      },
+    })) ??
+    (await prisma.site.create({
+      data: {
+        companyId: company.id,
+        customerId: customer2.id,
+        name: 'Cuarto Eléctrico Cliente 2',
+        address: 'Dirección demo 2',
+        city: 'Barcelona',
+        country: 'España',
+        notes: 'Site principal de pruebas del cliente 2',
+        isActive: true,
+      },
+    }));
+
+  await prisma.contact.upsert({
+    where: {
+      id:
+        (
+          await prisma.contact.findFirst({
+            where: {
+              companyId: company.id,
+              siteId: site1.id,
+              email: 'mantenimiento.cliente1@demo.local',
+            },
+            select: { id: true },
+          })
+        )?.id ?? 'missing-contact-1',
+    },
+    update: {
+      name: 'Encargado Cliente 1',
+      phone: '600111111',
+      isMain: true,
+      notes: 'Contacto principal cliente 1',
+    },
+    create: {
+      companyId: company.id,
+      siteId: site1.id,
+      name: 'Encargado Cliente 1',
+      email: 'mantenimiento.cliente1@demo.local',
+      phone: '600111111',
+      role: 'Responsable de mantenimiento',
+      isMain: true,
+      notes: 'Contacto principal cliente 1',
+    },
+  }).catch(async () => {
+    const existing = await prisma.contact.findFirst({
+      where: {
+        companyId: company.id,
+        siteId: site1.id,
+        email: 'mantenimiento.cliente1@demo.local',
+      },
+    });
+
+    if (!existing) throw new Error('No se pudo asegurar el contacto 1');
+  });
+
+  await prisma.contact.upsert({
+    where: {
+      id:
+        (
+          await prisma.contact.findFirst({
+            where: {
+              companyId: company.id,
+              siteId: site2.id,
+              email: 'mantenimiento.cliente2@demo.local',
+            },
+            select: { id: true },
+          })
+        )?.id ?? 'missing-contact-2',
+    },
+    update: {
+      name: 'Encargado Cliente 2',
+      phone: '600222222',
+      isMain: true,
+      notes: 'Contacto principal cliente 2',
+    },
+    create: {
+      companyId: company.id,
+      siteId: site2.id,
+      name: 'Encargado Cliente 2',
+      email: 'mantenimiento.cliente2@demo.local',
+      phone: '600222222',
+      role: 'Responsable de mantenimiento',
+      isMain: true,
+      notes: 'Contacto principal cliente 2',
+    },
+  }).catch(async () => {
+    const existing = await prisma.contact.findFirst({
+      where: {
+        companyId: company.id,
+        siteId: site2.id,
+        email: 'mantenimiento.cliente2@demo.local',
+      },
+    });
+
+    if (!existing) throw new Error('No se pudo asegurar el contacto 2');
+  });
+
   const asset1 =
     (await prisma.asset.findFirst({
       where: {
         companyId: company.id,
         customerId: customer1.id,
+        siteId: site1.id,
         name: 'Bomba Principal',
       },
     })) ??
@@ -132,8 +289,11 @@ async function main() {
       data: {
         companyId: company.id,
         customerId: customer1.id,
+        siteId: site1.id,
         name: 'Bomba Principal',
         code: 'ASSET-001',
+        internalCode: 'INT-BOMBA-001',
+        category: 'Bombas',
         brand: 'Grundfos',
         model: 'CR-32',
         serialNumber: 'SN-BOMBA-001',
@@ -147,6 +307,7 @@ async function main() {
       where: {
         companyId: company.id,
         customerId: customer2.id,
+        siteId: site2.id,
         name: 'Tablero Eléctrico',
       },
     })) ??
@@ -154,8 +315,11 @@ async function main() {
       data: {
         companyId: company.id,
         customerId: customer2.id,
+        siteId: site2.id,
         name: 'Tablero Eléctrico',
         code: 'ASSET-002',
+        internalCode: 'INT-TABLERO-001',
+        category: 'Electricidad',
         brand: 'Schneider',
         model: 'Panel-X',
         serialNumber: 'SN-TABLERO-001',
@@ -181,31 +345,41 @@ async function main() {
       data: {
         companyId: company.id,
         name: 'Checklist Preventivo Base',
+        title: 'Checklist Preventivo Base',
         description: 'Template demo para reportes de mantenimiento',
         isActive: true,
         items: {
           create: [
             {
               label: 'Inspección visual general',
+              title: 'Inspección visual general',
               type: MaintenanceItemType.TEXT,
+              valueType: 'TEXT',
               required: true,
               sortOrder: 1,
+              itemOrder: 1,
               helpText: 'Revisar el estado visible general del equipo',
               placeholder: 'Sin daños visibles / con observaciones',
             },
             {
               label: 'Presión medida',
+              title: 'Presión medida',
               type: MaintenanceItemType.NUMBER,
+              valueType: 'NUMBER',
               required: false,
               sortOrder: 2,
+              itemOrder: 2,
               helpText: 'Registrar el valor de presión tomado en campo',
               placeholder: 'Ej. 58',
             },
             {
               label: 'Observaciones técnicas',
+              title: 'Observaciones técnicas',
               type: MaintenanceItemType.LONG_TEXT,
+              valueType: 'LONG_TEXT',
               required: false,
               sortOrder: 3,
+              itemOrder: 3,
               helpText: 'Anotar hallazgos, recomendaciones o incidencias',
               placeholder: 'Detalle técnico del trabajo realizado',
             },
@@ -233,9 +407,11 @@ async function main() {
       data: {
         companyId: company.id,
         customerId: customer1.id,
+        siteId: site1.id,
         assetId: asset1.id,
         createdById: adminUser.id,
         assignedTechnicianId: technicianUser.id,
+        assignedToUserId: technicianUser.id,
         maintenanceTemplateId: template.id,
         code: 'WO-1001',
         title: 'Revisión preventiva de bomba principal',
@@ -258,9 +434,11 @@ async function main() {
       data: {
         companyId: company.id,
         customerId: customer1.id,
+        siteId: site1.id,
         assetId: asset1.id,
         createdById: adminUser.id,
         assignedTechnicianId: technicianUser.id,
+        assignedToUserId: technicianUser.id,
         maintenanceTemplateId: template.id,
         code: 'WO-1002',
         title: 'Mantenimiento correctivo de bomba principal',
@@ -284,9 +462,11 @@ async function main() {
       data: {
         companyId: company.id,
         customerId: customer2.id,
+        siteId: site2.id,
         assetId: asset2.id,
         createdById: adminUser.id,
         assignedTechnicianId: technicianUser.id,
+        assignedToUserId: technicianUser.id,
         maintenanceTemplateId: template.id,
         code: 'WO-1003',
         title: 'Inspección final de tablero eléctrico',
@@ -319,9 +499,15 @@ async function main() {
         companyId: company.id,
         workOrderId: workOrder2.id,
         templateId: template.id,
+        customerId: customer1.id,
+        siteId: site1.id,
+        assetId: asset1.id,
         createdById: adminUser.id,
+        createdByUserId: adminUser.id,
         assignedTechnicianId: technicianUser.id,
         status: MaintenanceReportStatus.IN_PROGRESS,
+        state: MaintenanceReportState.DRAFT,
+        title: 'Parte correctivo bomba principal',
         summary: 'Mantenimiento correctivo en ejecución',
         diagnosis: 'Se detectó caída de presión por desgaste en componentes.',
         workPerformed:
@@ -339,10 +525,17 @@ async function main() {
               return {
                 templateItemId: item.id,
                 label: item.label,
+                title: item.title,
+                description: item.description,
                 type: item.type,
+                valueType: item.valueType,
                 required: item.required,
                 sortOrder: item.sortOrder,
+                itemOrder: item.itemOrder,
+                unit: item.unit,
+                status: MaintenanceItemStatus.OK,
                 valueText: 'Inspección completada con desgaste visible en sello',
+                value: 'Inspección completada con desgaste visible en sello',
               };
             }
 
@@ -350,20 +543,34 @@ async function main() {
               return {
                 templateItemId: item.id,
                 label: item.label,
+                title: item.title,
+                description: item.description,
                 type: item.type,
+                valueType: item.valueType,
                 required: item.required,
                 sortOrder: item.sortOrder,
+                itemOrder: item.itemOrder,
+                unit: item.unit,
+                status: MaintenanceItemStatus.OK,
                 valueNumber: 58,
+                value: '58',
               };
             }
 
             return {
               templateItemId: item.id,
               label: item.label,
+              title: item.title,
+              description: item.description,
               type: item.type,
+              valueType: item.valueType,
               required: item.required,
               sortOrder: item.sortOrder,
+              itemOrder: item.itemOrder,
+              unit: item.unit,
+              status: MaintenanceItemStatus.PENDING,
               valueText: 'Pendiente sustitución de repuesto para cierre final',
+              value: 'Pendiente sustitución de repuesto para cierre final',
             };
           }),
         },
@@ -418,11 +625,18 @@ async function main() {
         companyId: company.id,
         workOrderId: workOrder3.id,
         templateId: template.id,
+        customerId: customer2.id,
+        siteId: site2.id,
+        assetId: asset2.id,
         createdById: adminUser.id,
+        createdByUserId: adminUser.id,
+        completedByUserId: technicianUser.id,
         assignedTechnicianId: technicianUser.id,
         submittedById: technicianUser.id,
         reviewedById: adminUser.id,
         status: MaintenanceReportStatus.APPROVED,
+        state: MaintenanceReportState.FINAL,
+        title: 'Parte final tablero eléctrico',
         summary: 'Inspección final completada y aprobada',
         diagnosis: 'Sistema estable, sin anomalías críticas.',
         workPerformed:
@@ -434,6 +648,7 @@ async function main() {
         assignedAt: new Date(Date.now() - 1000 * 60 * 60 * 6),
         startedAt: new Date(Date.now() - 1000 * 60 * 60 * 5),
         submittedAt: new Date(Date.now() - 1000 * 60 * 60 * 2),
+        completedAt: new Date(Date.now() - 1000 * 60 * 60 * 2),
         reviewedAt: new Date(Date.now() - 1000 * 60 * 30),
         laborHours: new Prisma.Decimal('2.25'),
         items: {
@@ -442,10 +657,17 @@ async function main() {
               return {
                 templateItemId: item.id,
                 label: item.label,
+                title: item.title,
+                description: item.description,
                 type: item.type,
+                valueType: item.valueType,
                 required: item.required,
                 sortOrder: item.sortOrder,
+                itemOrder: item.itemOrder,
+                unit: item.unit,
+                status: MaintenanceItemStatus.OK,
                 valueText: 'Estado general correcto',
+                value: 'Estado general correcto',
               };
             }
 
@@ -453,20 +675,34 @@ async function main() {
               return {
                 templateItemId: item.id,
                 label: item.label,
+                title: item.title,
+                description: item.description,
                 type: item.type,
+                valueType: item.valueType,
                 required: item.required,
                 sortOrder: item.sortOrder,
+                itemOrder: item.itemOrder,
+                unit: item.unit,
+                status: MaintenanceItemStatus.OK,
                 valueNumber: 61,
+                value: '61',
               };
             }
 
             return {
               templateItemId: item.id,
               label: item.label,
+              title: item.title,
+              description: item.description,
               type: item.type,
+              valueType: item.valueType,
               required: item.required,
               sortOrder: item.sortOrder,
+              itemOrder: item.itemOrder,
+              unit: item.unit,
+              status: MaintenanceItemStatus.OK,
               valueText: 'Se recomienda seguimiento preventivo estándar',
+              value: 'Se recomienda seguimiento preventivo estándar',
             };
           }),
         },
@@ -504,6 +740,8 @@ async function main() {
   console.log('technicianUserId:', technicianUser.id);
   console.log('customer1Id:', customer1.id);
   console.log('customer2Id:', customer2.id);
+  console.log('site1Id:', site1.id);
+  console.log('site2Id:', site2.id);
   console.log('asset1Id:', asset1.id);
   console.log('asset2Id:', asset2.id);
   console.log('templateId:', template.id);
