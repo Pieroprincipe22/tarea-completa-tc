@@ -20,10 +20,7 @@ function hashPassword(password: string): string {
 function resolveRole(input?: string): UserRole {
   const value = (input ?? 'ADMIN').trim().toUpperCase();
 
-  if (value === 'ADMIN' || value === 'OWNER') {
-    return UserRole.ADMIN;
-  }
-
+  if (value === 'ADMIN' || value === 'OWNER') return UserRole.ADMIN;
   if (value === 'TECHNICIAN' || value === 'TECNICO' || value === 'TÉCNICO') {
     return UserRole.TECHNICIAN;
   }
@@ -43,33 +40,45 @@ export class AdminService {
     const rawPassword = dto.password?.trim();
 
     if (!companyName) {
-      throw new BadRequestException('DevUserDto must include companyName (or company)');
+      throw new BadRequestException(
+        'DevUserDto must include companyName (or company)',
+      );
     }
 
     if (!email) {
-      throw new BadRequestException('DevUserDto must include email (or userEmail)');
+      throw new BadRequestException(
+        'DevUserDto must include email (or userEmail)',
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {
+      const existingCompany = await tx.company.findFirst({
+        where: { name: companyName },
+        select: { id: true },
+      });
+
       const company =
-        (await tx.company.findFirst({
-          where: { name: companyName },
-          select: { id: true },
-        })) ??
+        existingCompany ??
         (await tx.company.create({
-          data: { name: companyName },
+          data: { name: companyName, isActive: true },
           select: { id: true },
         }));
 
       const createData: Prisma.UserCreateInput = {
+        company: { connect: { id: company.id } },
         email,
         name,
         passwordHash: hashPassword(rawPassword || 'dev12345'),
+        role,
         isActive: true,
       };
 
       const updateData: Prisma.UserUpdateInput = {
+        company: {
+          connect: { id: company.id },
+        },
         name,
+        role,
         isActive: true,
       };
 
@@ -81,26 +90,6 @@ export class AdminService {
         where: { email },
         create: createData,
         update: updateData,
-        select: { id: true },
-      });
-
-      await tx.userCompany.upsert({
-        where: {
-          userId_companyId: {
-            userId: user.id,
-            companyId: company.id,
-          },
-        },
-        create: {
-          userId: user.id,
-          companyId: company.id,
-          role,
-          active: true,
-        },
-        update: {
-          role,
-          active: true,
-        },
         select: { id: true },
       });
 

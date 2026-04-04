@@ -20,6 +20,9 @@ type LoginResponse = {
   userId: string;
   name?: string;
   email?: string;
+  companyId?: string;
+  companyName?: string;
+  role?: string;
   companies: LoginCompany[];
 };
 
@@ -40,7 +43,9 @@ function isValidHttpUrl(s: string) {
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+  return value && typeof value === 'object'
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 function asString(value: unknown): string {
@@ -49,9 +54,15 @@ function asString(value: unknown): string {
 
 function parseLoginResponse(value: unknown): LoginResponse | null {
   const obj = asRecord(value);
+
   const userId = asString(obj.userId);
   const name = asString(obj.name);
   const email = asString(obj.email);
+
+  const topLevelCompanyId = asString(obj.companyId);
+  const topLevelCompanyName = asString(obj.companyName);
+  const topLevelRole = asString(obj.role);
+
   const companiesRaw = Array.isArray(obj.companies) ? obj.companies : [];
 
   const companies = companiesRaw
@@ -69,10 +80,26 @@ function parseLoginResponse(value: unknown): LoginResponse | null {
 
   if (!userId) return null;
 
+  if (
+    companies.length === 0 &&
+    topLevelCompanyId &&
+    topLevelCompanyName &&
+    topLevelRole
+  ) {
+    companies.push({
+      companyId: topLevelCompanyId,
+      name: topLevelCompanyName,
+      role: topLevelRole,
+    });
+  }
+
   return {
     userId,
     name: name || undefined,
     email: email || undefined,
+    companyId: topLevelCompanyId || undefined,
+    companyName: topLevelCompanyName || undefined,
+    role: topLevelRole || undefined,
     companies,
   };
 }
@@ -99,8 +126,8 @@ export default function LoginPage() {
   const initial = useMemo<FormState>(
     () => ({
       apiBase: DEFAULT_API_BASE,
-      email: '',
-      password: '',
+      email: 'admin@tc.local',
+      password: 'admin123',
       selectedCompanyId: '',
     }),
     [],
@@ -113,6 +140,11 @@ export default function LoginPage() {
 
   function onChange<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+
+    if (key !== 'selectedCompanyId') {
+      setLoginData(null);
+      setError(null);
+    }
   }
 
   function finishLogin(
@@ -182,7 +214,9 @@ export default function LoginPage() {
       const parsed = parseLoginResponse(json);
 
       if (!parsed) {
-        throw new Error('La respuesta de /auth/login no tiene el formato esperado.');
+        throw new Error(
+          'La respuesta de /auth/login no tiene el formato esperado.',
+        );
       }
 
       if (parsed.companies.length === 0) {
@@ -221,7 +255,9 @@ export default function LoginPage() {
     const apiBase = form.apiBase.trim();
     const email = loginData.email ?? form.email.trim().toLowerCase();
     const name = loginData.name ?? email;
-    const company = loginData.companies.find((c) => c.companyId === form.selectedCompanyId);
+    const company = loginData.companies.find(
+      (c) => c.companyId === form.selectedCompanyId,
+    );
 
     if (!company) {
       setError('Selecciona una company válida.');
@@ -236,7 +272,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900/40 p-6 space-y-4">
         <h1 className="text-xl font-semibold">Login</h1>
         <p className="text-sm text-slate-300">
-          Inicia sesión contra <code>/auth/login</code> y guarda la sesión tenant real.
+          Inicia sesión contra <code>/auth/login</code> y guarda la sesión tenant
+          real.
         </p>
 
         <form className="space-y-3" onSubmit={onSubmit}>
