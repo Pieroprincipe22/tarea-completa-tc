@@ -4,6 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  MaintenanceReportState,
+  MaintenanceReportStatus,
   Prisma,
   UserRole,
   WorkOrderPriority,
@@ -396,6 +398,46 @@ export class WorkOrdersService {
     return item;
   }
 
+  private async ensureFinalizedReportForDone(
+    companyId: string,
+    workOrderId: string,
+  ) {
+    const report = await this.prisma.maintenanceReport.findFirst({
+      where: {
+        companyId,
+        workOrderId,
+        status: {
+          not: MaintenanceReportStatus.CANCELLED,
+        },
+        OR: [
+          { state: MaintenanceReportState.FINAL },
+          {
+            status: {
+              in: [
+                MaintenanceReportStatus.SUBMITTED,
+                MaintenanceReportStatus.COMPLETED,
+                MaintenanceReportStatus.APPROVED,
+              ],
+            },
+          },
+        ],
+      },
+      select: {
+        id: true,
+        status: true,
+        state: true,
+      },
+    });
+
+    if (!report) {
+      throw new BadRequestException(
+        'No se puede marcar DONE sin un parte finalizado.',
+      );
+    }
+
+    return report;
+  }
+
   async create(companyId: string, userId: string, dto: CreateWorkOrderDto) {
     const normalizedCompanyId = this.ensureCompanyId(companyId);
     const normalizedUserId = userId?.trim();
@@ -462,62 +504,62 @@ export class WorkOrdersService {
   }
 
   async list(companyId: string, q: QueryWorkOrdersDto) {
-  const normalizedCompanyId = this.ensureCompanyId(companyId);
-  const page = Math.max(1, q.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, q.pageSize ?? 20));
-  const skip = (page - 1) * pageSize;
+    const normalizedCompanyId = this.ensureCompanyId(companyId);
+    const page = Math.max(1, q.page ?? 1);
+    const pageSize = Math.min(100, Math.max(1, q.pageSize ?? 20));
+    const skip = (page - 1) * pageSize;
 
-  const assignedUserId = q.assignedToUserId ?? q.assignedTechnicianId;
-  const andFilters: Prisma.WorkOrderWhereInput[] = [];
+    const assignedUserId = q.assignedToUserId ?? q.assignedTechnicianId;
+    const andFilters: Prisma.WorkOrderWhereInput[] = [];
 
-  if (assignedUserId) {
-    andFilters.push({
-      OR: [
-        { assignedToUserId: assignedUserId },
-        { assignedTechnicianId: assignedUserId },
-      ],
-    });
+    if (assignedUserId) {
+      andFilters.push({
+        OR: [
+          { assignedToUserId: assignedUserId },
+          { assignedTechnicianId: assignedUserId },
+        ],
+      });
+    }
+
+    if (q.q?.trim()) {
+      const term = q.q.trim();
+      andFilters.push({
+        OR: [
+          { title: { contains: term, mode: 'insensitive' } },
+          { description: { contains: term, mode: 'insensitive' } },
+          { code: { contains: term, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    const where: Prisma.WorkOrderWhereInput = {
+      companyId: normalizedCompanyId,
+      ...(q.status ? { status: q.status } : {}),
+      ...(q.customerId ? { customerId: q.customerId } : {}),
+      ...(q.siteId ? { siteId: q.siteId } : {}),
+      ...(q.assetId ? { assetId: q.assetId } : {}),
+      ...(q.maintenanceTemplateId ? { maintenanceTemplateId: q.maintenanceTemplateId } : {}),
+      ...(andFilters.length ? { AND: andFilters } : {}),
+    };
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.workOrder.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { updatedAt: 'desc' },
+        include: workOrderInclude,
+      }),
+      this.prisma.workOrder.count({ where }),
+    ]);
+
+    return {
+      items: items.map(serializeWorkOrder),
+      total,
+      page,
+      pageSize,
+    };
   }
-
-  if (q.q?.trim()) {
-    const term = q.q.trim();
-    andFilters.push({
-      OR: [
-        { title: { contains: term, mode: 'insensitive' } },
-        { description: { contains: term, mode: 'insensitive' } },
-        { code: { contains: term, mode: 'insensitive' } },
-      ],
-    });
-  }
-
-  const where: Prisma.WorkOrderWhereInput = {
-    companyId: normalizedCompanyId,
-    ...(q.status ? { status: q.status } : {}),
-    ...(q.customerId ? { customerId: q.customerId } : {}),
-    ...(q.siteId ? { siteId: q.siteId } : {}),
-    ...(q.assetId ? { assetId: q.assetId } : {}),
-    ...(q.maintenanceTemplateId ? { maintenanceTemplateId: q.maintenanceTemplateId } : {}),
-    ...(andFilters.length ? { AND: andFilters } : {}),
-  };
-
-  const [items, total] = await this.prisma.$transaction([
-    this.prisma.workOrder.findMany({
-      where,
-      skip,
-      take: pageSize,
-      orderBy: { updatedAt: 'desc' },
-      include: workOrderInclude,
-    }),
-    this.prisma.workOrder.count({ where }),
-  ]);
-
-  return {
-    items: items.map(serializeWorkOrder),
-    total,
-    page,
-    pageSize,
-  };
-}
 
   async listTechnicians(companyId: string) {
     const normalizedCompanyId = this.ensureCompanyId(companyId);
@@ -636,6 +678,10 @@ export class WorkOrdersService {
         : WorkOrderStatus.OPEN;
     }
 
+    if (nextStatus === WorkOrderStatus.DONE) {
+      await this.ensureFinalizedReportForDone(normalizedCompanyId, id);
+    }
+
     const scheduledValue =
       updateDto.scheduledAt !== undefined
         ? updateDto.scheduledAt
@@ -687,6 +733,10 @@ export class WorkOrdersService {
   async setStatus(companyId: string, id: string, status: WorkOrderStatus) {
     const normalizedCompanyId = this.ensureCompanyId(companyId);
     const existing = await this.getLifecycleState(normalizedCompanyId, id);
+
+    if (status === WorkOrderStatus.DONE) {
+      await this.ensureFinalizedReportForDone(normalizedCompanyId, id);
+    }
 
     const item = await this.prisma.workOrder.update({
       where: { id },

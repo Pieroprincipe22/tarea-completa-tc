@@ -9,9 +9,22 @@ import {
   resolveWorkOrdersPath,
   type TcSession,
 } from '@/lib/tc/session';
-import { errMsg, isRecord, normalizeList, resolveCorePaths, tcGet, tcPatch } from '@/lib/tc/api';
+import {
+  errMsg,
+  isRecord,
+  normalizeList,
+  resolveCorePaths,
+  tcGet,
+  tcPatch,
+} from '@/lib/tc/api';
 
-const WORK_ORDER_STATUSES = ['OPEN', 'ASSIGNED', 'IN_PROGRESS', 'DONE', 'CANCELLED'] as const;
+const WORK_ORDER_STATUSES = [
+  'OPEN',
+  'ASSIGNED',
+  'IN_PROGRESS',
+  'DONE',
+  'CANCELLED',
+] as const;
 type WorkOrderStatusValue = (typeof WORK_ORDER_STATUSES)[number];
 
 type LoadState<T> =
@@ -46,10 +59,17 @@ type RelatedReport = {
   id: string;
   title: string;
   status: string;
+  state?: string | null;
   templateName?: string | null;
   createdAt?: string | null;
   completedAt?: string | null;
   workOrderId?: string | null;
+};
+
+type TechnicianOption = {
+  id: string;
+  name: string;
+  email?: string;
 };
 
 function asStr(v: unknown, fallback = ''): string {
@@ -125,11 +145,39 @@ function parseRelatedReport(value: unknown): RelatedReport | null {
     id,
     title,
     status: asStr(value.status, '—'),
+    state: asNullableStr(value.state),
     templateName: asNullableStr(value.templateName),
     createdAt: asNullableStr(value.createdAt),
     completedAt: asNullableStr(value.completedAt),
     workOrderId: asNullableStr(value.workOrderId),
   };
+}
+
+function parseTechnician(value: unknown): TechnicianOption | null {
+  if (!isRecord(value)) return null;
+
+  const id = asStr(value.id);
+  const name = asStr(value.name);
+
+  if (!id || !name) return null;
+
+  return {
+    id,
+    name,
+    email: asNullableStr(value.email) ?? undefined,
+  };
+}
+
+function isReportFinalized(report: RelatedReport): boolean {
+  const status = report.status.toUpperCase();
+  const state = String(report.state ?? '').toUpperCase();
+
+  return (
+    state === 'FINAL' ||
+    status === 'SUBMITTED' ||
+    status === 'COMPLETED' ||
+    status === 'APPROVED'
+  );
 }
 
 function formatDate(input?: string | null) {
@@ -152,8 +200,18 @@ function formatStatus(status: string): string {
       return 'Cancelled';
     case 'DRAFT':
       return 'Borrador';
+    case 'ASSIGNED_REPORT':
+      return 'Asignado';
+    case 'SUBMITTED':
+      return 'Enviado';
     case 'COMPLETED':
       return 'Finalizado';
+    case 'APPROVED':
+      return 'Aprobado';
+    case 'REJECTED':
+      return 'Rechazado';
+    case 'FINAL':
+      return 'Final';
     default:
       return status || '—';
   }
@@ -188,7 +246,15 @@ function statusBadgeClass(status: string): string {
       return 'border-rose-500/40 bg-rose-500/10 text-rose-300';
     case 'DRAFT':
       return 'border-yellow-500/40 bg-yellow-500/10 text-yellow-300';
+    case 'SUBMITTED':
+      return 'border-sky-500/40 bg-sky-500/10 text-sky-300';
     case 'COMPLETED':
+      return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
+    case 'APPROVED':
+      return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
+    case 'REJECTED':
+      return 'border-rose-500/40 bg-rose-500/10 text-rose-300';
+    case 'FINAL':
       return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
     default:
       return 'border-slate-700 bg-slate-800 text-slate-200';
@@ -245,6 +311,9 @@ export default function WorkOrderDetailPage() {
   });
   const [actionState, setActionState] = useState<ActionState>({ status: 'idle' });
   const [assignedToUserId, setAssignedToUserId] = useState('');
+  const [techniciansState, setTechniciansState] = useState<LoadState<TechnicianOption[]>>({
+    status: 'loading',
+  });
 
   const paths = useMemo(() => resolveCorePaths(session), [session]);
   const backHref = useMemo(() => resolveWorkOrdersPath(session), [session]);
@@ -254,6 +323,46 @@ export default function WorkOrderDetailPage() {
     setMounted(true);
     setSession(readTcSession());
   }, []);
+
+  useEffect(() => {
+    if (!mounted || !session || !canAssignTechnician) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        setTechniciansState({ status: 'loading' });
+
+        const r = await tcGet(session, `${paths.workOrders}/meta/technicians`);
+
+        if (cancelled) return;
+
+        if (r.code < 200 || r.code >= 300) {
+          setTechniciansState({
+            status: 'error',
+            error: getApiError(r.json, r.code),
+          });
+          return;
+        }
+
+        const { items } = normalizeList<unknown>(r.json);
+        const rows = items.map(parseTechnician).filter((x): x is TechnicianOption => !!x);
+
+        setTechniciansState({ status: 'ok', data: rows });
+      } catch (e) {
+        if (!cancelled) {
+          setTechniciansState({
+            status: 'error',
+            error: errMsg(e),
+          });
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mounted, session, canAssignTechnician, paths.workOrders]);
 
   const loadDetail = useCallback(async (currentSession: TcSession, currentId: string) => {
     setState({ status: 'loading' });
@@ -370,9 +479,8 @@ export default function WorkOrderDetailPage() {
     });
   }
 
-  const hasCompletedReport =
-    reportState.status === 'ok' &&
-    reportState.data.some((report) => report.status === 'COMPLETED');
+  const hasFinalizedReport =
+    reportState.status === 'ok' && reportState.data.some(isReportFinalized);
 
   const latestReport =
     reportState.status === 'ok' && reportState.data.length > 0 ? reportState.data[0] : null;
@@ -380,14 +488,17 @@ export default function WorkOrderDetailPage() {
   const linkedReportCreateHref = useMemo(() => {
     if (state.status !== 'ok') return '';
     if (!id) return '';
-    if (!state.data.customer?.id || !state.data.site?.id || !state.data.asset?.id) return '';
+    if (!state.data.customer?.id || !state.data.site?.id) return '';
 
     const qs = new URLSearchParams({
       workOrderId: id,
       customerId: state.data.customer.id,
       siteId: state.data.site.id,
-      assetId: state.data.asset.id,
     });
+
+    if (state.data.asset?.id) {
+      qs.set('assetId', state.data.asset.id);
+    }
 
     return `/maintenance-reports/new?${qs.toString()}`;
   }, [state, id]);
@@ -395,7 +506,7 @@ export default function WorkOrderDetailPage() {
   async function handleStatusChange(nextStatus: WorkOrderStatusValue) {
     if (!session || !id) return;
 
-    if (nextStatus === 'DONE' && !hasCompletedReport) {
+    if (nextStatus === 'DONE' && !hasFinalizedReport) {
       setActionState({
         status: 'error',
         message: 'Para marcar la work order como DONE, primero debes finalizar el parte de trabajo.',
@@ -424,7 +535,7 @@ export default function WorkOrderDetailPage() {
     if (!technicianId) {
       setActionState({
         status: 'error',
-        message: 'Pega el UUID del técnico en el campo antes de asignar.',
+        message: 'Selecciona un técnico antes de asignar.',
       });
       return;
     }
@@ -593,7 +704,7 @@ export default function WorkOrderDetailPage() {
 
                   {!linkedReportCreateHref ? (
                     <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-                      No se puede crear el parte desde esta work order porque falta customer, site o asset.
+                      No se puede crear el parte desde esta work order porque falta customer o site.
                     </div>
                   ) : (
                     <Link
@@ -617,10 +728,14 @@ export default function WorkOrderDetailPage() {
                           <div className="mt-2 flex flex-wrap items-center gap-2">
                             <span
                               className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${statusBadgeClass(
-                                latestReport.status,
+                                latestReport.state === 'FINAL'
+                                  ? 'FINAL'
+                                  : latestReport.status,
                               )}`}
                             >
-                              {formatStatus(latestReport.status)}
+                              {latestReport.state === 'FINAL'
+                                ? 'Final'
+                                : formatStatus(latestReport.status)}
                             </span>
                             <span className="text-xs text-slate-400">
                               Creado: {formatDate(latestReport.createdAt)}
@@ -645,17 +760,20 @@ export default function WorkOrderDetailPage() {
 
                   {reportState.data.length > 1 ? (
                     <div className="rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200">
-                      Hay {reportState.data.length} partes vinculados a esta work order. Se está mostrando el más reciente.
+                      Hay {reportState.data.length} partes vinculados a esta work order. Se está
+                      mostrando el más reciente.
                     </div>
                   ) : null}
 
-                  {!hasCompletedReport ? (
+                  {!hasFinalizedReport ? (
                     <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-                      El parte aún no está finalizado. La work order no podrá marcarse como DONE hasta completarlo.
+                      El parte aún no está finalizado. La work order no podrá marcarse como DONE
+                      hasta completarlo.
                     </div>
                   ) : (
                     <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-                      Ya existe un parte finalizado para esta work order. Ya puedes cerrar la orden con DONE.
+                      Ya existe un parte finalizado para esta work order. Ya puedes cerrar la orden
+                      con DONE.
                     </div>
                   )}
                 </div>
@@ -698,22 +816,43 @@ export default function WorkOrderDetailPage() {
             <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
               <h3 className="text-lg font-semibold">Asignar técnico</h3>
               <p className="mt-1 text-sm text-slate-400">
-                Por ahora esta versión asigna por UUID del usuario técnico.
+                Reutiliza el catálogo real de técnicos de la API.
               </p>
 
               <div className="mt-4 space-y-3">
-                <input
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none"
-                  value={assignedToUserId}
-                  onChange={(e) => setAssignedToUserId(e.target.value)}
-                  placeholder="UUID del técnico"
-                />
+                {techniciansState.status === 'error' ? (
+                  <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+                    {techniciansState.error}
+                  </div>
+                ) : (
+                  <select
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none disabled:opacity-70"
+                    value={assignedToUserId}
+                    onChange={(e) => setAssignedToUserId(e.target.value)}
+                    disabled={
+                      techniciansState.status !== 'ok' || actionState.status === 'saving'
+                    }
+                  >
+                    <option value="">Selecciona un técnico</option>
+                    {techniciansState.status === 'ok' &&
+                      techniciansState.data.map((tech) => (
+                        <option key={tech.id} value={tech.id}>
+                          {tech.name}
+                          {tech.email ? ` · ${tech.email}` : ''}
+                        </option>
+                      ))}
+                  </select>
+                )}
 
                 <button
                   type="button"
                   className="w-full rounded-xl border border-slate-700 px-4 py-2 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={handleAssignTechnician}
-                  disabled={actionState.status === 'saving' || state.status !== 'ok'}
+                  disabled={
+                    actionState.status === 'saving' ||
+                    state.status !== 'ok' ||
+                    techniciansState.status !== 'ok'
+                  }
                 >
                   Guardar asignación
                 </button>

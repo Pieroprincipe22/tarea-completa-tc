@@ -6,6 +6,7 @@ export type TcSession = {
   companyId: string;
   companyName?: string;
   userId: string;
+  accessToken: string;
   email?: string;
   name?: string;
   role?: string;
@@ -16,6 +17,7 @@ export const TC_STORAGE_KEYS = {
   apiBase: 'tc.apiBase',
   companyId: 'tc.companyId',
   userId: 'tc.userId',
+  accessToken: 'tc.accessToken',
 } as const;
 
 export const TC_LS_KEYS = TC_STORAGE_KEYS;
@@ -35,7 +37,9 @@ function isValidSession(value: unknown): value is TcSession {
     typeof row.companyId === 'string' &&
     row.companyId.trim().length > 0 &&
     typeof row.userId === 'string' &&
-    row.userId.trim().length > 0
+    row.userId.trim().length > 0 &&
+    typeof row.accessToken === 'string' &&
+    row.accessToken.trim().length > 0
   );
 }
 
@@ -68,6 +72,7 @@ export function writeTcSession(session: TcSession) {
     companyId: session.companyId.trim(),
     companyName: session.companyName?.trim() || undefined,
     userId: session.userId.trim(),
+    accessToken: session.accessToken.trim(),
     email: session.email?.trim() || undefined,
     name: session.name?.trim() || undefined,
     role: normalizeRole(session.role) || undefined,
@@ -78,14 +83,15 @@ export function writeTcSession(session: TcSession) {
     ss.setItem(TC_STORAGE_KEYS.apiBase, safe.apiBase);
     ss.setItem(TC_STORAGE_KEYS.companyId, safe.companyId);
     ss.setItem(TC_STORAGE_KEYS.userId, safe.userId);
+    ss.setItem(TC_STORAGE_KEYS.accessToken, safe.accessToken);
   }
 
-  // limpieza de restos antiguos compartidos entre pestañas
   if (ls) {
     ls.removeItem(TC_STORAGE_KEYS.session);
     ls.removeItem(TC_STORAGE_KEYS.apiBase);
     ls.removeItem(TC_STORAGE_KEYS.companyId);
     ls.removeItem(TC_STORAGE_KEYS.userId);
+    ls.removeItem(TC_STORAGE_KEYS.accessToken);
   }
 }
 
@@ -104,9 +110,15 @@ export function readTcSession(): TcSession | null {
       return null;
     }
 
+    const typed = parsed as TcSession;
+
     return {
-      ...parsed,
-      role: normalizeRole(parsed.role),
+      ...typed,
+      apiBase: typed.apiBase.trim(),
+      companyId: typed.companyId.trim(),
+      userId: typed.userId.trim(),
+      accessToken: typed.accessToken.trim(),
+      role: normalizeRole(typed.role),
     };
   } catch {
     clearTcSession();
@@ -123,14 +135,15 @@ export function clearTcSession() {
     ss.removeItem(TC_STORAGE_KEYS.apiBase);
     ss.removeItem(TC_STORAGE_KEYS.companyId);
     ss.removeItem(TC_STORAGE_KEYS.userId);
+    ss.removeItem(TC_STORAGE_KEYS.accessToken);
   }
 
-  // limpieza legacy por si quedó algo viejo
   if (ls) {
     ls.removeItem(TC_STORAGE_KEYS.session);
     ls.removeItem(TC_STORAGE_KEYS.apiBase);
     ls.removeItem(TC_STORAGE_KEYS.companyId);
     ls.removeItem(TC_STORAGE_KEYS.userId);
+    ls.removeItem(TC_STORAGE_KEYS.accessToken);
   }
 }
 

@@ -208,9 +208,9 @@ export default function NewMaintenanceReportPage() {
       return;
     }
 
-    if (!templateId || !customerId || !siteId || !assetId) {
+    if (!templateId || !customerId || !siteId) {
       setSubmitStatus('error');
-      setSubmitError('Template, Customer, Site y Asset son obligatorios.');
+      setSubmitError('Template, Customer y Site son obligatorios.');
       return;
     }
 
@@ -227,7 +227,7 @@ export default function NewMaintenanceReportPage() {
           templateId,
           customerId,
           siteId,
-          assetId,
+          assetId: assetId || undefined,
           workOrderId: workOrderId || undefined,
           notes: notes.trim() || undefined,
         },
@@ -266,7 +266,7 @@ export default function NewMaintenanceReportPage() {
   if (!mounted) {
     return (
       <div className="mx-auto max-w-3xl p-6">
-        <div className="rounded-2xl bg-slate-900/60 ring-1 ring-white/10 p-4 text-sm text-slate-400">
+        <div className="rounded-2xl bg-slate-900/60 p-4 text-sm text-slate-400 ring-1 ring-white/10">
           Cargando sesión…
         </div>
       </div>
@@ -286,8 +286,12 @@ export default function NewMaintenanceReportPage() {
           </Link>
         </div>
 
-        <div className="mt-6 rounded-2xl bg-slate-900/60 ring-1 ring-white/10 p-4 text-sm text-red-200">
-          No hay sesión tenant. Ve a <Link href="/login" className="underline text-white">/login</Link>.
+        <div className="mt-6 rounded-2xl bg-slate-900/60 p-4 text-sm text-red-200 ring-1 ring-white/10">
+          No hay sesión tenant. Ve a{' '}
+          <Link href="/login" className="text-white underline">
+            /login
+          </Link>
+          .
         </div>
       </div>
     );
@@ -312,10 +316,11 @@ export default function NewMaintenanceReportPage() {
         </Link>
       </div>
 
-      <div className="mt-6 rounded-2xl bg-slate-900/60 ring-1 ring-white/10 p-5">
+      <div className="mt-6 rounded-2xl bg-slate-900/60 p-5 ring-1 ring-white/10">
         {workOrderId ? (
           <div className="mb-5 rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm text-blue-200">
-            Este parte quedará vinculado a la work order <span className="font-mono">{workOrderId}</span>.
+            Este parte quedará vinculado a la work order{' '}
+            <span className="font-mono">{workOrderId}</span>.
           </div>
         ) : null}
 
@@ -383,7 +388,7 @@ export default function NewMaintenanceReportPage() {
                 onChange={(e) => setAssetId(e.target.value)}
                 disabled={lockAsset || !siteId}
               >
-                <option value="">Selecciona un asset</option>
+                <option value="">Sin asset específico</option>
                 {filteredAssets.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}

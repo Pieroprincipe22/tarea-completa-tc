@@ -17,6 +17,7 @@ type LoginCompany = {
 };
 
 type LoginResponse = {
+  accessToken: string;
   userId: string;
   name?: string;
   email?: string;
@@ -55,6 +56,7 @@ function asString(value: unknown): string {
 function parseLoginResponse(value: unknown): LoginResponse | null {
   const obj = asRecord(value);
 
+  const accessToken = asString(obj.accessToken);
   const userId = asString(obj.userId);
   const name = asString(obj.name);
   const email = asString(obj.email);
@@ -94,6 +96,7 @@ function parseLoginResponse(value: unknown): LoginResponse | null {
   }
 
   return {
+    accessToken,
     userId,
     name: name || undefined,
     email: email || undefined,
@@ -149,6 +152,7 @@ export default function LoginPage() {
 
   function finishLogin(
     apiBase: string,
+    accessToken: string,
     userId: string,
     userEmail: string,
     userName: string,
@@ -159,6 +163,7 @@ export default function LoginPage() {
       companyId: company.companyId,
       companyName: company.name,
       userId,
+      accessToken,
       email: userEmail,
       name: userName,
       role: company.role,
@@ -213,6 +218,10 @@ export default function LoginPage() {
 
       const parsed = parseLoginResponse(json);
 
+      if (!parsed?.accessToken) {
+        throw new Error('La respuesta de /auth/login no devolvió accessToken.');
+      }
+
       if (!parsed) {
         throw new Error(
           'La respuesta de /auth/login no tiene el formato esperado.',
@@ -229,6 +238,7 @@ export default function LoginPage() {
       if (parsed.companies.length === 1) {
         finishLogin(
           apiBase,
+          parsed.accessToken,
           parsed.userId,
           sessionEmail,
           sessionName,
@@ -264,12 +274,19 @@ export default function LoginPage() {
       return;
     }
 
-    finishLogin(apiBase, loginData.userId, email, name, company);
+    finishLogin(
+      apiBase,
+      loginData.accessToken,
+      loginData.userId,
+      email,
+      name,
+      company,
+    );
   }
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center p-6">
-      <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900/40 p-6 space-y-4">
+    <div className="flex min-h-[80vh] items-center justify-center p-6">
+      <div className="w-full max-w-md space-y-4 rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
         <h1 className="text-xl font-semibold">Login</h1>
         <p className="text-sm text-slate-300">
           Inicia sesión contra <code>/auth/login</code> y guarda la sesión tenant
@@ -338,7 +355,7 @@ export default function LoginPage() {
           <div className="flex gap-2">
             {!loginData ? (
               <button
-                className="flex-1 rounded-xl bg-slate-100 px-4 py-2 text-slate-900 font-medium disabled:opacity-60"
+                className="flex-1 rounded-xl bg-slate-100 px-4 py-2 font-medium text-slate-900 disabled:opacity-60"
                 disabled={loading}
                 type="submit"
               >
@@ -346,7 +363,7 @@ export default function LoginPage() {
               </button>
             ) : (
               <button
-                className="flex-1 rounded-xl bg-slate-100 px-4 py-2 text-slate-900 font-medium"
+                className="flex-1 rounded-xl bg-slate-100 px-4 py-2 font-medium text-slate-900"
                 type="button"
                 onClick={onContinueWithCompany}
               >

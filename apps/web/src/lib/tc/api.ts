@@ -88,7 +88,9 @@ export async function tcFetch<T = unknown>(
 
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (session?.companyId) headers['x-company-id'] = session.companyId;
-  if (session?.userId) headers['x-user-id'] = session.userId;
+  if (session?.accessToken) {
+    headers.Authorization = `Bearer ${session.accessToken}`;
+  }
 
   const res = await fetch(toUrl(base, path), {
     method,

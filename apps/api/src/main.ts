@@ -8,10 +8,16 @@ async function bootstrap() {
     bufferLogs: true,
   });
 
-  app.enableCors({
+    app.enableCors({
     origin: ['http://localhost:3001', 'http://localhost:3003'],
     credentials: true,
-    allowedHeaders: ['content-type', 'x-company-id', 'x-user-id', 'x-admin-key'],
+    allowedHeaders: [
+      'content-type',
+      'authorization',
+      'x-company-id',
+      'x-user-id',
+      'x-admin-key',
+    ],
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 
