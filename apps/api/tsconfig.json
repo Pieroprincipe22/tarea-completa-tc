@@ -11,9 +11,7 @@
     "strict": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-
-    "types": ["node", "multer", "jest"],
-
+    "types": ["node", "multer"],
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
