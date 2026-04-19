@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { readTcSession, type TcSession } from '@/lib/tc/session';
 import { errMsg, normalizeList, resolveCorePaths, tcGet } from '@/lib/tc/api';
 
@@ -14,6 +14,11 @@ type MaintenanceReport = {
   createdAt?: string;
   completedAt?: string;
   status?: string;
+  workOrderId?: string;
+  customerName?: string;
+  siteName?: string;
+  assetName?: string;
+  technicianName?: string;
 };
 
 type LoadState<T> =
@@ -32,6 +37,10 @@ function asString(value: unknown): string | undefined {
 function parseReport(value: unknown): MaintenanceReport {
   const obj = asRecord(value);
   const template = asRecord(obj.template);
+  const customer = asRecord(obj.customer);
+  const site = asRecord(obj.site);
+  const asset = asRecord(obj.asset);
+  const assignedTechnician = asRecord(obj.assignedTechnician);
 
   return {
     id: asString(obj.id) ?? '',
@@ -39,53 +48,70 @@ function parseReport(value: unknown): MaintenanceReport {
       asString(obj.performedAt) ??
       asString(obj.completedAt) ??
       asString(obj.createdAt),
-    state: asString(obj.state) ?? asString(obj.status),
+    state: asString(obj.state),
     templateName:
       asString(obj.templateName) ??
       asString(template.title) ??
+      asString(template.name) ??
       asString(obj.title),
     title: asString(obj.title),
     createdAt: asString(obj.createdAt),
     completedAt: asString(obj.completedAt),
     status: asString(obj.status),
+    workOrderId: asString(obj.workOrderId),
+    customerName: asString(customer.name),
+    siteName: asString(site.name),
+    assetName: asString(asset.name),
+    technicianName: asString(assignedTechnician.name),
   };
 }
 
 function formatDate(input?: string) {
   if (!input) return '—';
   const d = new Date(input);
-  return Number.isNaN(d.getTime()) ? input : d.toLocaleString();
+  return Number.isNaN(d.getTime()) ? input : d.toLocaleString('es-ES');
 }
 
-function Badge({
-  children,
-  tone,
-}: {
-  children: React.ReactNode;
-  tone: 'ok' | 'warn' | 'bad' | 'muted';
-}) {
-  const cls =
-    tone === 'ok'
-      ? 'bg-green-600/20 text-green-200 ring-green-600/30'
-      : tone === 'warn'
-        ? 'bg-yellow-600/20 text-yellow-200 ring-yellow-600/30'
-        : tone === 'bad'
-          ? 'bg-red-600/20 text-red-200 ring-red-600/30'
-          : 'bg-slate-600/20 text-slate-200 ring-slate-600/30';
-
-  return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs ring-1 ${cls}`}>
-      {children}
-    </span>
-  );
+function normalizeStatus(status?: string): string {
+  return String(status ?? '').trim().toUpperCase();
 }
 
-function toneFromState(state?: string): 'ok' | 'warn' | 'bad' | 'muted' {
-  switch (state) {
-    case 'COMPLETED':
-    case 'FINAL':
-      return 'ok';
+function statusLabel(status?: string): string {
+  switch (normalizeStatus(status)) {
     case 'DRAFT':
+      return 'Borrador';
+    case 'ASSIGNED':
+      return 'Asignado';
+    case 'IN_PROGRESS':
+      return 'En progreso';
+    case 'SUBMITTED':
+      return 'Enviado por técnico';
+    case 'COMPLETED':
+      return 'Completado';
+    case 'APPROVED':
+      return 'Aprobado';
+    case 'REJECTED':
+      return 'Rechazado';
+    case 'CANCELLED':
+      return 'Cancelado';
+    default:
+      return status || '—';
+  }
+}
+
+function badgeTone(
+  status?: string,
+): 'ok' | 'warn' | 'bad' | 'info' | 'muted' {
+  switch (normalizeStatus(status)) {
+    case 'APPROVED':
+      return 'ok';
+    case 'SUBMITTED':
+    case 'COMPLETED':
+      return 'info';
+    case 'DRAFT':
+    case 'ASSIGNED':
+    case 'IN_PROGRESS':
+    case 'REJECTED':
       return 'warn';
     case 'CANCELLED':
       return 'bad';
@@ -94,11 +120,155 @@ function toneFromState(state?: string): 'ok' | 'warn' | 'bad' | 'muted' {
   }
 }
 
+function Badge({
+  children,
+  tone,
+}: {
+  children: React.ReactNode;
+  tone: 'ok' | 'warn' | 'bad' | 'info' | 'muted';
+}) {
+  const cls =
+    tone === 'ok'
+      ? 'bg-emerald-600/20 text-emerald-200 ring-emerald-600/30'
+      : tone === 'warn'
+        ? 'bg-yellow-600/20 text-yellow-200 ring-yellow-600/30'
+        : tone === 'bad'
+          ? 'bg-rose-600/20 text-rose-200 ring-rose-600/30'
+          : tone === 'info'
+            ? 'bg-sky-600/20 text-sky-200 ring-sky-600/30'
+            : 'bg-slate-600/20 text-slate-200 ring-slate-600/30';
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs ring-1 ${cls}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function MetricCard({
+  label,
+  value,
+  helper,
+}: {
+  label: string;
+  value: number;
+  helper: string;
+}) {
+  return (
+    <div className="rounded-2xl bg-slate-900/60 p-4 ring-1 ring-white/10">
+      <div className="text-sm text-slate-400">{label}</div>
+      <div className="mt-2 text-3xl font-semibold text-white">{value}</div>
+      <div className="mt-2 text-xs text-slate-500">{helper}</div>
+    </div>
+  );
+}
+
+function ReportSection({
+  title,
+  description,
+  items,
+}: {
+  title: string;
+  description: string;
+  items: MaintenanceReport[];
+}) {
+  return (
+    <section className="rounded-2xl bg-slate-900/60 p-5 ring-1 ring-white/10">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-white">{title}</h2>
+          <p className="mt-1 text-sm text-slate-400">{description}</p>
+        </div>
+
+        <Badge tone={items.length > 0 ? 'info' : 'muted'}>
+          {items.length} {items.length === 1 ? 'parte' : 'partes'}
+        </Badge>
+      </div>
+
+      {items.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-white/10 px-4 py-4 text-sm text-slate-500">
+          No hay registros en este bloque.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {items.map((report) => (
+            <div
+              key={report.id}
+              className="rounded-xl border border-white/10 bg-slate-950/40 p-4"
+            >
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-base font-semibold text-white">
+                      {report.templateName || report.title || 'Parte de trabajo'}
+                    </h3>
+
+                    <Badge tone={badgeTone(report.status)}>
+                      {statusLabel(report.status)}
+                    </Badge>
+                  </div>
+
+                  <div className="mt-3 grid gap-2 text-sm text-slate-300 md:grid-cols-2 xl:grid-cols-4">
+                    <div>
+                      <span className="text-slate-500">Cliente:</span>{' '}
+                      {report.customerName || '—'}
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Site:</span>{' '}
+                      {report.siteName || '—'}
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Activo:</span>{' '}
+                      {report.assetName || '—'}
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Técnico:</span>{' '}
+                      {report.technicianName || '—'}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid gap-2 text-xs text-slate-400 md:grid-cols-3">
+                    <div>Creado: {formatDate(report.createdAt)}</div>
+                    <div>Última fecha útil: {formatDate(report.performedAt)}</div>
+                    <div>Completado: {formatDate(report.completedAt)}</div>
+                  </div>
+                </div>
+
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  {report.workOrderId ? (
+                    <Link
+                      href={`/work-orders/${report.workOrderId}`}
+                      className="rounded-xl border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800"
+                    >
+                      Ver orden
+                    </Link>
+                  ) : null}
+
+                  <Link
+                    href={`/maintenance-reports/${report.id}`}
+                    className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-500"
+                  >
+                    Abrir parte
+                  </Link>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function MaintenanceReportsPage() {
   const [session, setSession] = useState<TcSession | null>(null);
   const [mounted, setMounted] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
-  const [state, setState] = useState<LoadState<MaintenanceReport[]>>({ status: 'loading' });
+  const [state, setState] = useState<LoadState<MaintenanceReport[]>>({
+    status: 'loading',
+  });
 
   useEffect(() => {
     setMounted(true);
@@ -107,6 +277,7 @@ export default function MaintenanceReportsPage() {
 
   useEffect(() => {
     if (!mounted) return;
+
     if (!session) {
       setState({ status: 'error', error: 'Sin sesión tenant. Ve a /login.' });
       return;
@@ -124,14 +295,17 @@ export default function MaintenanceReportsPage() {
         if (cancelled) return;
 
         if (r.code === 404) {
-          setState({ status: 'error', error: `Endpoint no existe: ${paths.reports}` });
+          setState({
+            status: 'error',
+            error: `Endpoint no existe: ${paths.reports}`,
+          });
           return;
         }
 
         if (r.code === 401) {
           setState({
             status: 'error',
-            error: '401 Unauthorized. Revisa tu sesión (tc.*) o tu AuthGate.',
+            error: '401 Unauthorized. Revisa tu sesión y vuelve a iniciar.',
           });
           return;
         }
@@ -139,7 +313,15 @@ export default function MaintenanceReportsPage() {
         if (r.code === 403) {
           setState({
             status: 'error',
-            error: '403 Forbidden. No perteneces a la company (UserCompany).',
+            error: '403 Forbidden. El usuario no pertenece a la company.',
+          });
+          return;
+        }
+
+        if (r.code < 200 || r.code >= 300) {
+          setState({
+            status: 'error',
+            error: `HTTP ${r.code} cargando partes de trabajo.`,
           });
           return;
         }
@@ -166,10 +348,61 @@ export default function MaintenanceReportsPage() {
     };
   }, [session, mounted, reloadKey]);
 
+  const grouped = useMemo(() => {
+    if (state.status !== 'ok') {
+      return {
+        pendingTechnician: [] as MaintenanceReport[],
+        pendingReview: [] as MaintenanceReport[],
+        pendingInvoice: [] as MaintenanceReport[],
+        cancelled: [] as MaintenanceReport[],
+      };
+    }
+
+    const pendingTechnician: MaintenanceReport[] = [];
+    const pendingReview: MaintenanceReport[] = [];
+    const pendingInvoice: MaintenanceReport[] = [];
+    const cancelled: MaintenanceReport[] = [];
+
+    for (const item of state.data) {
+      const status = normalizeStatus(item.status);
+
+      if (
+        status === 'DRAFT' ||
+        status === 'ASSIGNED' ||
+        status === 'IN_PROGRESS' ||
+        status === 'REJECTED'
+      ) {
+        pendingTechnician.push(item);
+        continue;
+      }
+
+      if (status === 'SUBMITTED' || status === 'COMPLETED') {
+        pendingReview.push(item);
+        continue;
+      }
+
+      if (status === 'APPROVED') {
+        pendingInvoice.push(item);
+        continue;
+      }
+
+      if (status === 'CANCELLED') {
+        cancelled.push(item);
+      }
+    }
+
+    return {
+      pendingTechnician,
+      pendingReview,
+      pendingInvoice,
+      cancelled,
+    };
+  }, [state]);
+
   if (!mounted) {
     return (
-      <div className="mx-auto max-w-5xl p-6">
-        <div className="rounded-2xl bg-slate-900/60 ring-1 ring-white/10 p-4 text-sm text-slate-400">
+      <div className="mx-auto max-w-7xl p-6">
+        <div className="rounded-2xl bg-slate-900/60 p-4 text-sm text-slate-400 ring-1 ring-white/10">
           Cargando sesión…
         </div>
       </div>
@@ -178,24 +411,26 @@ export default function MaintenanceReportsPage() {
 
   if (!session) {
     return (
-      <div className="mx-auto max-w-5xl p-6">
+      <div className="mx-auto max-w-7xl p-6">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-white">Maintenance Reports</h1>
-            <p className="mt-1 text-sm text-slate-400">Listado de reportes.</p>
+            <h1 className="text-2xl font-semibold text-white">Partes de trabajo</h1>
+            <p className="mt-1 text-sm text-slate-400">
+              Panel administrativo de partes técnicos.
+            </p>
           </div>
           <Link href="/" className="text-sm text-slate-300 hover:text-white">
             ← Dashboard
           </Link>
         </div>
 
-        <div className="mt-6 rounded-2xl bg-slate-900/60 ring-1 ring-white/10 p-4">
+        <div className="mt-6 rounded-2xl bg-slate-900/60 p-4 ring-1 ring-white/10">
           <div className="text-sm text-red-200">
             Sin sesión tenant. Ve a{' '}
             <Link className="text-white underline" href="/login">
               /login
-            </Link>{' '}
-            y configura tu sesión.
+            </Link>
+            .
           </div>
         </div>
       </div>
@@ -203,27 +438,29 @@ export default function MaintenanceReportsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl p-6">
-      <div className="flex items-end justify-between gap-3">
+    <div className="mx-auto max-w-7xl p-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-white">Maintenance Reports</h1>
-          <p className="mt-1 text-sm text-slate-400">Listado de reportes de mantenimiento.</p>
+          <h1 className="text-3xl font-semibold text-white">Partes de trabajo</h1>
+          <p className="mt-1 text-sm text-slate-400">
+            Gestión separada de partes técnicos, revisión y facturación pendiente.
+          </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Link
             href="/maintenance-reports/new"
-            className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-500"
+            className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
           >
-            New Report
+            + Crear parte de trabajo
           </Link>
 
           <button
             type="button"
-            className="rounded-xl bg-slate-900/60 ring-1 ring-white/10 px-3 py-2 text-sm text-white hover:opacity-95"
+            className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-white hover:bg-slate-800"
             onClick={() => setReloadKey((x) => x + 1)}
           >
-            Refresh
+            Actualizar
           </button>
 
           <Link href="/" className="text-sm text-slate-300 hover:text-white">
@@ -232,57 +469,82 @@ export default function MaintenanceReportsPage() {
         </div>
       </div>
 
-      <div className="mt-6 rounded-2xl bg-slate-900/60 ring-1 ring-white/10 p-4">
+      {state.status === 'error' ? (
+        <div className="mt-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+          {state.error}
+        </div>
+      ) : null}
+
+      {state.status === 'ok' ? (
+        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            label="Pendientes técnico"
+            value={grouped.pendingTechnician.length}
+            helper="Partes en borrador, asignados, en progreso o rechazados."
+          />
+          <MetricCard
+            label="Pendientes de revisión"
+            value={grouped.pendingReview.length}
+            helper="Partes ya enviados por técnico y pendientes de revisar."
+          />
+          <MetricCard
+            label="Pendientes de facturar"
+            value={grouped.pendingInvoice.length}
+            helper="Partes aprobados por admin y listos para valoración/factura."
+          />
+          <MetricCard
+            label="Cancelados"
+            value={grouped.cancelled.length}
+            helper="Partes anulados o cerrados sin continuidad."
+          />
+        </div>
+      ) : null}
+
+      <div className="mt-6 space-y-6">
         {state.status === 'loading' ? (
-          <div className="text-sm text-slate-400">Cargando…</div>
-        ) : state.status === 'error' ? (
-          <div className="text-sm text-red-200">{state.error}</div>
-        ) : state.data.length === 0 ? (
-          <div className="space-y-3">
-            <div className="text-sm text-slate-400">No hay reports todavía.</div>
+          <div className="rounded-2xl bg-slate-900/60 p-4 text-sm text-slate-400 ring-1 ring-white/10">
+            Cargando partes de trabajo…
+          </div>
+        ) : state.status === 'ok' && state.data.length === 0 ? (
+          <div className="rounded-2xl bg-slate-900/60 p-5 ring-1 ring-white/10">
+            <div className="text-sm text-slate-400">
+              No hay partes todavía en esta company.
+            </div>
+
             <Link
               href="/maintenance-reports/new"
-              className="inline-flex rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-500"
+              className="mt-4 inline-flex rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
             >
-              Crear primer reporte
+              Crear primer parte
             </Link>
           </div>
-        ) : (
-          <div className="overflow-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-slate-300">
-                <tr className="border-b border-white/10">
-                  <th className="py-2 pr-3">Fecha</th>
-                  <th className="py-2 pr-3">Template</th>
-                  <th className="py-2 pr-3">State</th>
-                  <th className="py-2 pr-3"></th>
-                </tr>
-              </thead>
+        ) : state.status === 'ok' ? (
+          <>
+            <ReportSection
+              title="Pendientes del técnico"
+              description="Partes creados por administración que todavía debe completar o corregir el técnico."
+              items={grouped.pendingTechnician}
+            />
 
-              <tbody className="text-slate-100">
-                {state.data.map((r) => (
-                  <tr key={r.id} className="border-b border-white/5">
-                    <td className="py-2 pr-3">{formatDate(r.performedAt)}</td>
-                    <td className="py-2 pr-3">{r.templateName || r.title || '—'}</td>
-                    <td className="py-2 pr-3">
-                      <Badge tone={toneFromState(r.state)}>
-                        {r.state || '—'}
-                      </Badge>
-                    </td>
-                    <td className="py-2 pr-3">
-                      <Link
-                        className="text-slate-300 hover:text-white"
-                        href={`/maintenance-reports/${r.id}`}
-                      >
-                        Abrir →
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+            <ReportSection
+              title="Enviados por técnico / pendientes de revisión"
+              description="Partes ya entregados por el técnico y listos para revisión administrativa."
+              items={grouped.pendingReview}
+            />
+
+            <ReportSection
+              title="Aprobados / pendientes de facturar"
+              description="Partes validados por administración y pendientes de valoración económica o factura."
+              items={grouped.pendingInvoice}
+            />
+
+            <ReportSection
+              title="Cancelados"
+              description="Partes cerrados sin continuidad operativa."
+              items={grouped.cancelled}
+            />
+          </>
+        ) : null}
       </div>
     </div>
   );

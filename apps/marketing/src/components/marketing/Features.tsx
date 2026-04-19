@@ -1,9 +1,14 @@
 import { Section } from "./Section";
 
+type FeatureItem = {
+  readonly title: string;
+  readonly desc: string;
+};
+
 export function Features({
   items,
 }: {
-  items: { title: string; desc: string }[];
+  items: readonly FeatureItem[];
 }) {
   return (
     <Section

@@ -29,8 +29,14 @@ export function isRecord(x: unknown): x is Record<string, unknown> {
 }
 
 function normalizeBaseUrl(base?: string | null): string {
-  const raw = (base ?? DEFAULT_API_BASE).trim();
+  const raw = String(base ?? DEFAULT_API_BASE).trim();
   return raw.endsWith('/') ? raw.slice(0, -1) : raw;
+}
+
+function normalizeHeaderValue(value?: string | null): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const normalized = value.trim();
+  return normalized ? normalized : undefined;
 }
 
 export function resolveCorePaths(
@@ -63,10 +69,20 @@ function toUrl(base: string, path: string): string {
 async function readBody(res: Response): Promise<unknown> {
   if (res.status === 204) return null;
 
-  const ct = res.headers.get('content-type') ?? '';
-  if (ct.includes('application/json')) return (await res.json()) as unknown;
+  const contentType = res.headers.get('content-type') ?? '';
+  const rawText = await res.text();
 
-  return (await res.text()) as unknown;
+  if (!rawText.trim()) return null;
+
+  if (contentType.includes('application/json')) {
+    try {
+      return JSON.parse(rawText) as unknown;
+    } catch {
+      return rawText;
+    }
+  }
+
+  return rawText;
 }
 
 export type TcFetchOpts = {
@@ -86,11 +102,17 @@ export async function tcFetch<T = unknown>(
     Accept: 'application/json',
   };
 
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
-  if (session?.companyId) headers['x-company-id'] = session.companyId;
-  if (session?.accessToken) {
-    headers.Authorization = `Bearer ${session.accessToken}`;
+  if (body !== undefined) {
+    headers['Content-Type'] = 'application/json';
   }
+
+  const companyId = normalizeHeaderValue(session?.companyId);
+  const userId = normalizeHeaderValue(session?.userId);
+  const accessToken = normalizeHeaderValue(session?.accessToken);
+
+  if (companyId) headers['x-company-id'] = companyId;
+  if (userId) headers['x-user-id'] = userId;
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
   const res = await fetch(toUrl(base, path), {
     method,
@@ -124,6 +146,14 @@ export async function tcPatch<T = unknown>(
   body?: unknown,
 ): Promise<TcApiResponse<T>> {
   return tcFetch<T>(session, { method: 'PATCH', path, body });
+}
+
+export async function tcDelete<T = unknown>(
+  session: TcSession | null,
+  path: string,
+  body?: unknown,
+): Promise<TcApiResponse<T>> {
+  return tcFetch<T>(session, { method: 'DELETE', path, body });
 }
 
 export function normalizeList<T>(x: unknown): { items: T[]; count: number } {
@@ -174,30 +204,50 @@ export async function getCount(
   path: string,
 ): Promise<number> {
   const r = await tcGet<unknown>(session, path);
+
   if (r.code < 200 || r.code >= 300) {
     throw new Error(`HTTP ${r.code} en ${path}`);
   }
+
   return getCountFromUnknown(r.json);
 }
 
-export type CoreNavItem = { key: string; title: string; path: string };
+export type CoreNavItem = {
+  key: string;
+  title: string;
+  path: string;
+};
 
-export function resolveCoreNavItems(session?: Pick<TcSession, 'role'> | null): CoreNavItem[] {
+export function resolveCoreNavItems(
+  session?: Pick<TcSession, 'role'> | null,
+): CoreNavItem[] {
   const resolvedRole =
     session?.role ??
     (typeof window !== 'undefined' ? readTcSession()?.role : undefined);
 
   if (isTechnicianRole(resolvedRole)) {
     return [
-      { key: 'dashboard', title: 'Dashboard', path: '/technician/dashboard' },
-      { key: 'workOrders', title: 'My Work Orders', path: '/technician/dashboard/work-orders' },
+      {
+        key: 'dashboard',
+        title: 'Dashboard',
+        path: '/technician/dashboard',
+      },
+      {
+        key: 'workOrders',
+        title: 'My Work Orders',
+        path: '/technician/dashboard/work-orders',
+      },
     ];
   }
 
   return [
     { key: 'dashboard', title: 'Dashboard', path: '/dashboard' },
     { key: 'customers', title: 'Customers', path: '/customers' },
-    { key: 'reports', title: 'Maintenance Reports', path: '/maintenance-reports' },
+    {
+      key: 'reports',
+      title: 'Maintenance Reports',
+      path: '/maintenance-reports',
+    },
     { key: 'workOrders', title: 'Work Orders', path: '/work-orders' },
   ];
 }

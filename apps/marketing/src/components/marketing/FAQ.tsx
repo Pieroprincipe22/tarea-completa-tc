@@ -1,9 +1,14 @@
 import { Section } from "./Section";
 
+type FAQItem = {
+  readonly q: string;
+  readonly a: string;
+};
+
 export function FAQ({
   items,
 }: {
-  items: { q: string; a: string }[];
+  items: readonly FAQItem[];
 }) {
   return (
     <Section title="FAQ" subtitle="Preguntas comunes antes de empezar.">

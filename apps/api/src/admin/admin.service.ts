@@ -20,12 +20,26 @@ function hashPassword(password: string): string {
 function resolveRole(input?: string): UserRole {
   const value = (input ?? 'ADMIN').trim().toUpperCase();
 
-  if (value === 'ADMIN' || value === 'OWNER') return UserRole.ADMIN;
-  if (value === 'TECHNICIAN' || value === 'TECNICO' || value === 'TÉCNICO') {
+  if (value === 'SUPER_ADMIN' || value === 'SUPERADMIN') {
+    return UserRole.SUPER_ADMIN;
+  }
+
+  if (value === 'OWNER' || value === 'ADMIN') {
+    return UserRole.ADMIN;
+  }
+
+  if (
+    value === 'TECHNICIAN' ||
+    value === 'TECH' ||
+    value === 'TECNICO' ||
+    value === 'TÉCNICO'
+  ) {
     return UserRole.TECHNICIAN;
   }
 
-  throw new BadRequestException('role must be ADMIN or TECHNICIAN');
+  throw new BadRequestException(
+    'role must be SUPER_ADMIN, ADMIN or TECHNICIAN',
+  );
 }
 
 @Injectable()
@@ -33,8 +47,8 @@ export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
 
   async devUser(dto: DevUserDto): Promise<DevUserResponse> {
-    const companyName = (dto.companyName ?? dto.company)?.trim();
-    const email = (dto.email ?? dto.userEmail)?.trim().toLowerCase();
+    const companyName = (dto.companyName ?? dto.company ?? '').trim();
+    const email = (dto.email ?? dto.userEmail ?? '').trim().toLowerCase();
     const name = (dto.name ?? dto.userName ?? 'Dev User').trim();
     const role = resolveRole(dto.role);
     const rawPassword = dto.password?.trim();
@@ -51,21 +65,41 @@ export class AdminService {
       );
     }
 
+    if (!name) {
+      throw new BadRequestException('DevUserDto must include a valid name');
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const existingCompany = await tx.company.findFirst({
-        where: { name: companyName },
-        select: { id: true },
+        where: {
+          name: companyName,
+        },
+        select: {
+          id: true,
+          isActive: true,
+        },
       });
 
-      const company =
-        existingCompany ??
-        (await tx.company.create({
-          data: { name: companyName, isActive: true },
-          select: { id: true },
-        }));
+      const company = existingCompany
+        ? await tx.company.update({
+            where: { id: existingCompany.id },
+            data: { isActive: true },
+            select: { id: true },
+          })
+        : await tx.company.create({
+            data: {
+              name: companyName,
+              isActive: true,
+            },
+            select: {
+              id: true,
+            },
+          });
 
       const createData: Prisma.UserCreateInput = {
-        company: { connect: { id: company.id } },
+        company: {
+          connect: { id: company.id },
+        },
         email,
         name,
         passwordHash: hashPassword(rawPassword || 'dev12345'),
@@ -90,7 +124,9 @@ export class AdminService {
         where: { email },
         create: createData,
         update: updateData,
-        select: { id: true },
+        select: {
+          id: true,
+        },
       });
 
       await tx.userCompany.upsert({
@@ -100,13 +136,13 @@ export class AdminService {
             companyId: company.id,
           },
         },
-        update: {
-          role,
-          active: true,
-        },
         create: {
           userId: user.id,
           companyId: company.id,
+          role,
+          active: true,
+        },
+        update: {
           role,
           active: true,
         },

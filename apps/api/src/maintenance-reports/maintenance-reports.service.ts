@@ -1,10 +1,16 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   MaintenanceItemStatus,
   MaintenanceItemType,
   MaintenanceReportStatus,
   MaintenanceReportState,
   Prisma,
+  UserRole,
   WorkOrderStatus,
 } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
@@ -111,6 +117,23 @@ type ReportWithRelations = Prisma.MaintenanceReportGetPayload<{
 
 type ReportItemEntity = ReportWithRelations['items'][number];
 
+type CompanyUserActor = {
+  id: string;
+  companyId: string | null;
+  role: UserRole | null;
+  memberships: Array<{
+    role: UserRole;
+  }>;
+};
+
+function isAdminRole(role?: UserRole | null): boolean {
+  return role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN;
+}
+
+function isTechnicianRole(role?: UserRole | null): boolean {
+  return role === UserRole.TECHNICIAN;
+}
+
 function hasOwn<T extends object>(obj: T, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(obj, key);
 }
@@ -161,8 +184,18 @@ function serializeReportItem(item: ReportItemEntity) {
     id: item.id,
     reportId: item.reportId,
     templateItemId: item.templateItemId,
-    label: item.label ?? item.templateItem?.label ?? item.title ?? item.templateItem?.title ?? null,
-    title: item.title ?? item.templateItem?.title ?? item.label ?? item.templateItem?.label ?? null,
+    label:
+      item.label ??
+      item.templateItem?.label ??
+      item.title ??
+      item.templateItem?.title ??
+      null,
+    title:
+      item.title ??
+      item.templateItem?.title ??
+      item.label ??
+      item.templateItem?.label ??
+      null,
     description: item.description ?? item.templateItem?.description ?? null,
     type: resolvedType,
     valueType: resolvedValueType,
@@ -226,6 +259,7 @@ function serializeReport(report: ReportWithRelations) {
     technicianNotes: report.technicianNotes,
     reviewNotes: report.reviewNotes,
     laborHours: report.laborHours,
+    laborDays: report.laborDays ?? null,
 
     status: report.status,
     state: report.state,
@@ -238,7 +272,11 @@ function serializeReport(report: ReportWithRelations) {
     createdAt: report.createdAt,
     updatedAt: report.updatedAt,
 
-    performedAt: report.completedAt ?? report.submittedAt ?? report.startedAt ?? report.createdAt,
+    performedAt:
+      report.completedAt ??
+      report.submittedAt ??
+      report.startedAt ??
+      report.createdAt,
     templateName: report.template?.title ?? report.template?.name ?? report.title ?? null,
     templateDesc: report.template?.description ?? report.description ?? null,
 
@@ -263,7 +301,10 @@ function serializeReport(report: ReportWithRelations) {
 export class MaintenanceReportsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async ensureActiveUserInCompany(companyId: string, userId: string) {
+  private async ensureActiveUserInCompany(
+    companyId: string,
+    userId: string,
+  ): Promise<CompanyUserActor> {
     const user = await this.prisma.user.findFirst({
       where: {
         id: userId,
@@ -280,14 +321,69 @@ export class MaintenanceReportsService {
           },
         ],
       },
-      select: { id: true, role: true },
+      select: {
+        id: true,
+        companyId: true,
+        role: true,
+        memberships: {
+          where: {
+            companyId,
+            active: true,
+          },
+          select: {
+            role: true,
+          },
+          take: 1,
+        },
+      },
     });
 
     if (!user) {
-      throw new BadRequestException('El usuario del header no pertenece a esta company.');
+      throw new BadRequestException(
+        'El usuario del header no pertenece a esta company.',
+      );
     }
 
     return user;
+  }
+
+  private resolveUserRoleInCompany(
+    companyId: string,
+    actor: CompanyUserActor,
+  ): UserRole | null {
+    if (actor.companyId === companyId && actor.role) {
+      return actor.role;
+    }
+
+    return actor.memberships[0]?.role ?? null;
+  }
+
+  private async ensureAdminUserInCompany(companyId: string, userId: string) {
+    const actor = await this.ensureActiveUserInCompany(companyId, userId);
+    const role = this.resolveUserRoleInCompany(companyId, actor);
+
+    if (!isAdminRole(role)) {
+      throw new ForbiddenException(
+        'Solo administración puede crear, revisar o aprobar partes de trabajo.',
+      );
+    }
+
+    return actor;
+  }
+
+  private ensureAssignedTechnicianOrAdmin(
+    companyId: string,
+    actor: CompanyUserActor,
+    assignedTechnicianId?: string | null,
+  ) {
+    const role = this.resolveUserRoleInCompany(companyId, actor);
+
+    if (isAdminRole(role)) return;
+    if (isTechnicianRole(role) && assignedTechnicianId === actor.id) return;
+
+    throw new ForbiddenException(
+      'Solo el técnico asignado o un administrador pueden modificar este parte.',
+    );
   }
 
   async list(companyId: string) {
@@ -347,7 +443,7 @@ export class MaintenanceReportsService {
     }
 
     const normalizedUserId = userId.trim();
-    await this.ensureActiveUserInCompany(normalizedCompanyId, normalizedUserId);
+    await this.ensureAdminUserInCompany(normalizedCompanyId, normalizedUserId);
 
     const template = await this.prisma.maintenanceTemplate.findFirst({
       where: {
@@ -363,40 +459,57 @@ export class MaintenanceReportsService {
     });
 
     if (!template) {
-      throw new NotFoundException('MaintenanceTemplate no encontrado para esta company.');
+      throw new NotFoundException(
+        'MaintenanceTemplate no encontrado para esta company.',
+      );
     }
 
     if (!template.items.length) {
       throw new BadRequestException('El template no tiene items.');
     }
 
-    const linkedWorkOrder = dto.workOrderId
-      ? await this.prisma.workOrder.findFirst({
-          where: {
-            id: dto.workOrderId,
-            companyId: normalizedCompanyId,
-          },
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            customerId: true,
-            siteId: true,
-            assetId: true,
-            assignedTechnicianId: true,
-            assignedToUserId: true,
-            status: true,
-          },
-        })
-      : null;
+    const normalizedWorkOrderId = dto.workOrderId?.trim();
 
-    if (dto.workOrderId && !linkedWorkOrder) {
+    if (!normalizedWorkOrderId) {
+      throw new BadRequestException(
+        'workOrderId es obligatorio. El admin debe crear el parte desde una work order.',
+      );
+    }
+
+    const linkedWorkOrder = await this.prisma.workOrder.findFirst({
+      where: {
+        id: normalizedWorkOrderId,
+        companyId: normalizedCompanyId,
+      },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        customerId: true,
+        siteId: true,
+        assetId: true,
+        assignedTechnicianId: true,
+        assignedToUserId: true,
+        status: true,
+      },
+    });
+
+    if (!linkedWorkOrder) {
       throw new NotFoundException('WorkOrder no encontrada para esta company.');
     }
 
-    const resolvedCustomerId = dto.customerId ?? linkedWorkOrder?.customerId ?? null;
-    const resolvedSiteId = dto.siteId ?? linkedWorkOrder?.siteId ?? null;
-    const resolvedAssetId = dto.assetId ?? linkedWorkOrder?.assetId ?? null;
+    if (
+      linkedWorkOrder.status === WorkOrderStatus.CANCELLED ||
+      linkedWorkOrder.status === WorkOrderStatus.DONE
+    ) {
+      throw new BadRequestException(
+        'No se puede crear un parte para una work order cerrada.',
+      );
+    }
+
+    const resolvedCustomerId = dto.customerId ?? linkedWorkOrder.customerId ?? null;
+    const resolvedSiteId = dto.siteId ?? linkedWorkOrder.siteId ?? null;
+    const resolvedAssetId = dto.assetId ?? linkedWorkOrder.assetId ?? null;
 
     if (!resolvedCustomerId) {
       throw new BadRequestException('customerId es obligatorio.');
@@ -459,36 +572,42 @@ export class MaintenanceReportsService {
       }
     }
 
-    if (linkedWorkOrder) {
-      const existingLinkedReport = await this.prisma.maintenanceReport.findFirst({
-        where: {
-          companyId: normalizedCompanyId,
-          workOrderId: linkedWorkOrder.id,
-          status: {
-            not: MaintenanceReportStatus.CANCELLED,
-          },
+    const existingLinkedReport = await this.prisma.maintenanceReport.findFirst({
+      where: {
+        companyId: normalizedCompanyId,
+        workOrderId: linkedWorkOrder.id,
+        status: {
+          not: MaintenanceReportStatus.CANCELLED,
         },
-        select: {
-          id: true,
-          status: true,
-        },
-      });
+      },
+      select: {
+        id: true,
+        status: true,
+      },
+    });
 
-      if (existingLinkedReport) {
-        throw new BadRequestException(
-          `Ya existe un parte vinculado a esta work order (${existingLinkedReport.id}).`,
-        );
-      }
+    if (existingLinkedReport) {
+      throw new BadRequestException(
+        `Ya existe un parte vinculado a esta work order (${existingLinkedReport.id}).`,
+      );
     }
 
     const assignedTechnicianId =
-      linkedWorkOrder?.assignedTechnicianId ?? linkedWorkOrder?.assignedToUserId ?? null;
+      linkedWorkOrder.assignedTechnicianId ??
+      linkedWorkOrder.assignedToUserId ??
+      null;
+
+    if (!assignedTechnicianId) {
+      throw new BadRequestException(
+        'La work order debe tener un técnico asignado antes de crear el parte.',
+      );
+    }
 
     return this.prisma.$transaction(async (tx) => {
       const report = await tx.maintenanceReport.create({
         data: {
           companyId: normalizedCompanyId,
-          workOrderId: linkedWorkOrder?.id ?? null,
+          workOrderId: linkedWorkOrder.id,
           templateId: template.id,
           customerId: customer.id,
           siteId: site.id,
@@ -502,16 +621,14 @@ export class MaintenanceReportsService {
             dto.title?.trim() ||
             template.title ||
             template.name ||
-            linkedWorkOrder?.title ||
+            linkedWorkOrder.title ||
             'Parte de mantenimiento',
-          description: template.description ?? linkedWorkOrder?.description ?? null,
+          description: template.description ?? linkedWorkOrder.description ?? null,
           notes: dto.notes ?? null,
 
-          status: assignedTechnicianId
-            ? MaintenanceReportStatus.ASSIGNED
-            : MaintenanceReportStatus.DRAFT,
+          status: MaintenanceReportStatus.ASSIGNED,
           state: MaintenanceReportState.DRAFT,
-          assignedAt: assignedTechnicianId ? new Date() : null,
+          assignedAt: new Date(),
         },
       });
 
@@ -582,7 +699,10 @@ export class MaintenanceReportsService {
     }
 
     const normalizedUserId = userId.trim();
-    await this.ensureActiveUserInCompany(normalizedCompanyId, normalizedUserId);
+    const actor = await this.ensureActiveUserInCompany(
+      normalizedCompanyId,
+      normalizedUserId,
+    );
 
     const report = await this.prisma.maintenanceReport.findFirst({
       where: { id, companyId: normalizedCompanyId },
@@ -601,6 +721,12 @@ export class MaintenanceReportsService {
       throw new NotFoundException('Reporte no encontrado.');
     }
 
+    this.ensureAssignedTechnicianOrAdmin(
+      normalizedCompanyId,
+      actor,
+      report.assignedTechnicianId,
+    );
+
     if (
       report.status === MaintenanceReportStatus.APPROVED ||
       report.status === MaintenanceReportStatus.CANCELLED
@@ -612,10 +738,14 @@ export class MaintenanceReportsService {
       report.state === MaintenanceReportState.FINAL &&
       report.status !== MaintenanceReportStatus.REJECTED
     ) {
-      throw new BadRequestException('El parte ya fue enviado y no admite cambios directos.');
+      throw new BadRequestException(
+        'El parte ya fue enviado y no admite cambios directos.',
+      );
     }
 
-    const startedAt = hasOwn(dto, 'startedAt') ? toDateOrNull(dto.startedAt ?? null) : undefined;
+    const startedAt = hasOwn(dto, 'startedAt')
+      ? toDateOrNull(dto.startedAt ?? null)
+      : undefined;
     const completedAt = hasOwn(dto, 'completedAt')
       ? toDateOrNull(dto.completedAt ?? null)
       : undefined;
@@ -633,42 +763,61 @@ export class MaintenanceReportsService {
         ? undefined
         : new Prisma.Decimal(dto.laborHours);
 
+    const updateData: Prisma.MaintenanceReportUpdateInput = {
+      ...(dto.title !== undefined ? { title: dto.title ?? null } : {}),
+      ...(dto.description !== undefined ? { description: dto.description ?? null } : {}),
+      ...(dto.notes !== undefined ? { notes: dto.notes ?? null } : {}),
+      ...(dto.summary !== undefined ? { summary: dto.summary ?? null } : {}),
+      ...(dto.diagnosis !== undefined ? { diagnosis: dto.diagnosis ?? null } : {}),
+      ...(dto.workPerformed !== undefined
+        ? { workPerformed: dto.workPerformed ?? null }
+        : {}),
+      ...(dto.recommendations !== undefined
+        ? { recommendations: dto.recommendations ?? null }
+        : {}),
+      ...(dto.observations !== undefined
+        ? { observations: dto.observations ?? null }
+        : {}),
+      ...(dto.technicianNotes !== undefined
+        ? { technicianNotes: dto.technicianNotes ?? null }
+        : {}),
+      ...(laborHours !== undefined ? { laborHours } : {}),
+      ...(startedAt !== undefined ? { startedAt } : {}),
+      ...(completedAt !== undefined ? { completedAt } : {}),
+      ...(dto.materials !== undefined
+        ? {
+            materials: {
+              deleteMany: {},
+              create: dto.materials.map((item, idx) => ({
+                name: item.name,
+                description: item.description ?? null,
+                quantity: item.quantity,
+                unit: item.unit ?? null,
+                sortOrder: item.sortOrder ?? idx + 1,
+                notes: item.notes ?? null,
+              })),
+            },
+          }
+        : {}),
+    };
+
+    const dtoWithLaborDays = dto as UpdateMaintenanceReportDto & {
+      laborDays?: number | string | null;
+    };
+
+    if (
+      dtoWithLaborDays.laborDays !== undefined &&
+      dtoWithLaborDays.laborDays !== null
+    ) {
+      updateData.laborDays = new Prisma.Decimal(dtoWithLaborDays.laborDays);
+    } else if (dtoWithLaborDays.laborDays === null) {
+      updateData.laborDays = null;
+    }
+
     const updated = await this.prisma.$transaction(async (tx) => {
       const next = await tx.maintenanceReport.update({
         where: { id },
-        data: {
-          ...(dto.title !== undefined ? { title: dto.title ?? null } : {}),
-          ...(dto.description !== undefined ? { description: dto.description ?? null } : {}),
-          ...(dto.notes !== undefined ? { notes: dto.notes ?? null } : {}),
-          ...(dto.summary !== undefined ? { summary: dto.summary ?? null } : {}),
-          ...(dto.diagnosis !== undefined ? { diagnosis: dto.diagnosis ?? null } : {}),
-          ...(dto.workPerformed !== undefined ? { workPerformed: dto.workPerformed ?? null } : {}),
-          ...(dto.recommendations !== undefined
-            ? { recommendations: dto.recommendations ?? null }
-            : {}),
-          ...(dto.observations !== undefined ? { observations: dto.observations ?? null } : {}),
-          ...(dto.technicianNotes !== undefined
-            ? { technicianNotes: dto.technicianNotes ?? null }
-            : {}),
-          ...(laborHours !== undefined ? { laborHours } : {}),
-          ...(startedAt !== undefined ? { startedAt } : {}),
-          ...(completedAt !== undefined ? { completedAt } : {}),
-          ...(dto.materials !== undefined
-            ? {
-                materials: {
-                  deleteMany: {},
-                  create: dto.materials.map((item, idx) => ({
-                    name: item.name,
-                    description: item.description ?? null,
-                    quantity: item.quantity,
-                    unit: item.unit ?? null,
-                    sortOrder: item.sortOrder ?? idx + 1,
-                    notes: item.notes ?? null,
-                  })),
-                },
-              }
-            : {}),
-        },
+        data: updateData,
         include: reportInclude,
       });
 
@@ -722,7 +871,9 @@ export class MaintenanceReportsService {
       report.status === MaintenanceReportStatus.APPROVED ||
       report.status === MaintenanceReportStatus.CANCELLED
     ) {
-      throw new BadRequestException('No se pueden editar items de un reporte cerrado.');
+      throw new BadRequestException(
+        'No se pueden editar items de un reporte cerrado.',
+      );
     }
 
     const item = await this.prisma.maintenanceReportItem.findFirst({
@@ -848,9 +999,9 @@ export class MaintenanceReportsService {
     const normalizedCompanyId = normalizeCompanyId(companyId);
     const normalizedUserId = userId?.trim();
 
-    if (normalizedUserId) {
-      await this.ensureActiveUserInCompany(normalizedCompanyId, normalizedUserId);
-    }
+    const actor = normalizedUserId
+      ? await this.ensureActiveUserInCompany(normalizedCompanyId, normalizedUserId)
+      : null;
 
     const report = await this.prisma.maintenanceReport.findFirst({
       where: { id, companyId: normalizedCompanyId },
@@ -870,6 +1021,14 @@ export class MaintenanceReportsService {
       throw new NotFoundException('Reporte no encontrado.');
     }
 
+    if (actor) {
+      this.ensureAssignedTechnicianOrAdmin(
+        normalizedCompanyId,
+        actor,
+        report.assignedTechnicianId,
+      );
+    }
+
     if (
       report.status === MaintenanceReportStatus.SUBMITTED ||
       report.status === MaintenanceReportStatus.APPROVED
@@ -885,7 +1044,9 @@ export class MaintenanceReportsService {
       throw new BadRequestException('El reporte no tiene items.');
     }
 
-    const pendingItems = report.items.filter((item) => item.status === MaintenanceItemStatus.PENDING);
+    const pendingItems = report.items.filter(
+      (item) => item.status === MaintenanceItemStatus.PENDING,
+    );
 
     if (pendingItems.length > 0) {
       throw new BadRequestException(
@@ -940,7 +1101,7 @@ export class MaintenanceReportsService {
     }
 
     const normalizedUserId = userId.trim();
-    await this.ensureActiveUserInCompany(normalizedCompanyId, normalizedUserId);
+    await this.ensureAdminUserInCompany(normalizedCompanyId, normalizedUserId);
 
     const report = await this.prisma.maintenanceReport.findFirst({
       where: { id, companyId: normalizedCompanyId },
@@ -960,7 +1121,9 @@ export class MaintenanceReportsService {
     }
 
     if (report.status !== MaintenanceReportStatus.SUBMITTED) {
-      throw new BadRequestException('Solo se puede revisar un parte en estado SUBMITTED.');
+      throw new BadRequestException(
+        'Solo se puede revisar un parte en estado SUBMITTED.',
+      );
     }
 
     const now = new Date();
@@ -1001,9 +1164,6 @@ export class MaintenanceReportsService {
                 completedAt: null,
               },
         });
-
-        // Aquí va el hook de facturación real en la siguiente fase.
-        // approve => generar factura / enviar email / crear documento PDF
       }
 
       return nextReport;

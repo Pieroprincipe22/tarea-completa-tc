@@ -44,6 +44,51 @@ async function ensureUserMembership(
   });
 }
 
+async function ensureContact(params: {
+  companyId: string;
+  siteId: string;
+  email: string;
+  name: string;
+  phone: string;
+  role: string;
+  isMain: boolean;
+  notes?: string;
+}) {
+  const existing = await prisma.contact.findFirst({
+    where: {
+      companyId: params.companyId,
+      siteId: params.siteId,
+      email: params.email,
+    },
+  });
+
+  if (existing) {
+    return prisma.contact.update({
+      where: { id: existing.id },
+      data: {
+        name: params.name,
+        phone: params.phone,
+        role: params.role,
+        isMain: params.isMain,
+        notes: params.notes,
+      },
+    });
+  }
+
+  return prisma.contact.create({
+    data: {
+      companyId: params.companyId,
+      siteId: params.siteId,
+      name: params.name,
+      email: params.email,
+      phone: params.phone,
+      role: params.role,
+      isMain: params.isMain,
+      notes: params.notes,
+    },
+  });
+}
+
 async function main() {
   console.log('🌱 Iniciando seed fase 3.2...');
 
@@ -192,88 +237,26 @@ async function main() {
       },
     }));
 
-  await prisma.contact.upsert({
-    where: {
-      id:
-        (
-          await prisma.contact.findFirst({
-            where: {
-              companyId: company.id,
-              siteId: site1.id,
-              email: 'mantenimiento.cliente1@demo.local',
-            },
-            select: { id: true },
-          })
-        )?.id ?? 'missing-contact-1',
-    },
-    update: {
-      name: 'Encargado Cliente 1',
-      phone: '600111111',
-      isMain: true,
-      notes: 'Contacto principal cliente 1',
-    },
-    create: {
-      companyId: company.id,
-      siteId: site1.id,
-      name: 'Encargado Cliente 1',
-      email: 'mantenimiento.cliente1@demo.local',
-      phone: '600111111',
-      role: 'Responsable de mantenimiento',
-      isMain: true,
-      notes: 'Contacto principal cliente 1',
-    },
-  }).catch(async () => {
-    const existing = await prisma.contact.findFirst({
-      where: {
-        companyId: company.id,
-        siteId: site1.id,
-        email: 'mantenimiento.cliente1@demo.local',
-      },
-    });
-
-    if (!existing) throw new Error('No se pudo asegurar el contacto 1');
+  await ensureContact({
+    companyId: company.id,
+    siteId: site1.id,
+    email: 'mantenimiento.cliente1@demo.local',
+    name: 'Encargado Cliente 1',
+    phone: '600111111',
+    role: 'Responsable de mantenimiento',
+    isMain: true,
+    notes: 'Contacto principal cliente 1',
   });
 
-  await prisma.contact.upsert({
-    where: {
-      id:
-        (
-          await prisma.contact.findFirst({
-            where: {
-              companyId: company.id,
-              siteId: site2.id,
-              email: 'mantenimiento.cliente2@demo.local',
-            },
-            select: { id: true },
-          })
-        )?.id ?? 'missing-contact-2',
-    },
-    update: {
-      name: 'Encargado Cliente 2',
-      phone: '600222222',
-      isMain: true,
-      notes: 'Contacto principal cliente 2',
-    },
-    create: {
-      companyId: company.id,
-      siteId: site2.id,
-      name: 'Encargado Cliente 2',
-      email: 'mantenimiento.cliente2@demo.local',
-      phone: '600222222',
-      role: 'Responsable de mantenimiento',
-      isMain: true,
-      notes: 'Contacto principal cliente 2',
-    },
-  }).catch(async () => {
-    const existing = await prisma.contact.findFirst({
-      where: {
-        companyId: company.id,
-        siteId: site2.id,
-        email: 'mantenimiento.cliente2@demo.local',
-      },
-    });
-
-    if (!existing) throw new Error('No se pudo asegurar el contacto 2');
+  await ensureContact({
+    companyId: company.id,
+    siteId: site2.id,
+    email: 'mantenimiento.cliente2@demo.local',
+    name: 'Encargado Cliente 2',
+    phone: '600222222',
+    role: 'Responsable de mantenimiento',
+    isMain: true,
+    notes: 'Contacto principal cliente 2',
   });
 
   const asset1 =
@@ -394,15 +377,13 @@ async function main() {
     });
   }
 
-  const workOrder1Existing = await prisma.workOrder.findFirst({
-    where: {
-      companyId: company.id,
-      code: 'WO-1001',
-    },
-  });
-
   const workOrder1 =
-    workOrder1Existing ??
+    (await prisma.workOrder.findFirst({
+      where: {
+        companyId: company.id,
+        code: 'WO-1001',
+      },
+    })) ??
     (await prisma.workOrder.create({
       data: {
         companyId: company.id,
@@ -421,15 +402,13 @@ async function main() {
       },
     }));
 
-  const workOrder2Existing = await prisma.workOrder.findFirst({
-    where: {
-      companyId: company.id,
-      code: 'WO-1002',
-    },
-  });
-
   const workOrder2 =
-    workOrder2Existing ??
+    (await prisma.workOrder.findFirst({
+      where: {
+        companyId: company.id,
+        code: 'WO-1002',
+      },
+    })) ??
     (await prisma.workOrder.create({
       data: {
         companyId: company.id,
@@ -449,15 +428,13 @@ async function main() {
       },
     }));
 
-  const workOrder3Existing = await prisma.workOrder.findFirst({
-    where: {
-      companyId: company.id,
-      code: 'WO-1003',
-    },
-  });
-
   const workOrder3 =
-    workOrder3Existing ??
+    (await prisma.workOrder.findFirst({
+      where: {
+        companyId: company.id,
+        code: 'WO-1003',
+      },
+    })) ??
     (await prisma.workOrder.create({
       data: {
         companyId: company.id,
@@ -478,22 +455,20 @@ async function main() {
       },
     }));
 
-  const reportForWorkOrder2 = await prisma.maintenanceReport.findUnique({
-    where: {
-      workOrderId: workOrder2.id,
-    },
-    include: {
-      items: {
-        orderBy: { sortOrder: 'asc' },
-      },
-      materials: {
-        orderBy: { sortOrder: 'asc' },
-      },
-    },
-  });
-
   const report2 =
-    reportForWorkOrder2 ??
+    (await prisma.maintenanceReport.findUnique({
+      where: {
+        workOrderId: workOrder2.id,
+      },
+      include: {
+        items: {
+          orderBy: { sortOrder: 'asc' },
+        },
+        materials: {
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+    })) ??
     (await prisma.maintenanceReport.create({
       data: {
         companyId: company.id,
@@ -604,22 +579,20 @@ async function main() {
       },
     }));
 
-  const reportForWorkOrder3 = await prisma.maintenanceReport.findUnique({
-    where: {
-      workOrderId: workOrder3.id,
-    },
-    include: {
-      items: {
-        orderBy: { sortOrder: 'asc' },
-      },
-      materials: {
-        orderBy: { sortOrder: 'asc' },
-      },
-    },
-  });
-
   const report3 =
-    reportForWorkOrder3 ??
+    (await prisma.maintenanceReport.findUnique({
+      where: {
+        workOrderId: workOrder3.id,
+      },
+      include: {
+        items: {
+          orderBy: { sortOrder: 'asc' },
+        },
+        materials: {
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+    })) ??
     (await prisma.maintenanceReport.create({
       data: {
         companyId: company.id,

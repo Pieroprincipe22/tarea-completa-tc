@@ -38,6 +38,15 @@ type ItemType =
   | 'SIGNATURE'
   | string;
 
+type MaterialRow = {
+  id?: string;
+  name: string;
+  quantity: string;
+  unit: string;
+  description: string;
+  notes: string;
+};
+
 type ReportItem = {
   id: string;
   sortOrder: number;
@@ -67,7 +76,17 @@ type ReportDetail = {
   templateDesc?: string | null;
   summary?: string | null;
   notes?: string | null;
+  workPerformed?: string | null;
+  observations?: string | null;
+  technicianNotes?: string | null;
+  laborHours?: string | null;
+  customerName?: string | null;
+  siteName?: string | null;
+  siteAddress?: string | null;
+  assetName?: string | null;
+  technicianName?: string | null;
   items: ReportItem[];
+  materials: MaterialRow[];
 };
 
 function formatDate(input?: string | null) {
@@ -184,6 +203,13 @@ function resolveReportVisual(detail: ReportDetail) {
     };
   }
 
+  if (status === 'CANCELLED') {
+    return {
+      label: 'Cancelado',
+      className: 'border-rose-500/40 bg-rose-500/10 text-rose-300',
+    };
+  }
+
   if (state === 'FINAL') {
     return {
       label: 'Final',
@@ -259,14 +285,42 @@ function parseItem(value: unknown): ReportItem | null {
   };
 }
 
+function parseMaterial(value: unknown): MaterialRow | null {
+  if (!isRecord(value)) return null;
+
+  return {
+    id: asStr(value.id),
+    name: asStr(value.name),
+    quantity:
+      value.quantity === null || value.quantity === undefined
+        ? ''
+        : String(value.quantity),
+    unit: asStr(value.unit),
+    description: asStr(value.description),
+    notes: asStr(value.notes),
+  };
+}
+
 function parseDetail(value: unknown, fallbackId: string): ReportDetail | null {
   if (!isRecord(value)) return null;
 
   const itemsRaw = Array.isArray(value.items) ? value.items : [];
+  const materialsRaw = Array.isArray(value.materials) ? value.materials : [];
+  const customer = isRecord(value.customer) ? value.customer : null;
+  const site = isRecord(value.site) ? value.site : null;
+  const asset = isRecord(value.asset) ? value.asset : null;
+  const assignedTechnician = isRecord(value.assignedTechnician)
+    ? value.assignedTechnician
+    : null;
+
   const items = itemsRaw
     .map(parseItem)
     .filter((item): item is ReportItem => !!item)
     .sort((a, b) => a.sortOrder - b.sortOrder);
+
+  const materials = materialsRaw
+    .map(parseMaterial)
+    .filter((item): item is MaterialRow => !!item);
 
   return {
     id: asStr(value.id, fallbackId),
@@ -281,7 +335,20 @@ function parseDetail(value: unknown, fallbackId: string): ReportDetail | null {
       asNullableStr(value.templateDesc) ?? asNullableStr(value.description),
     summary: asNullableStr(value.summary),
     notes: asNullableStr(value.notes),
+    workPerformed: asNullableStr(value.workPerformed),
+    observations: asNullableStr(value.observations),
+    technicianNotes: asNullableStr(value.technicianNotes),
+    laborHours:
+      value.laborHours === null || value.laborHours === undefined
+        ? ''
+        : String(value.laborHours),
+    customerName: asNullableStr(customer?.name),
+    siteName: asNullableStr(site?.name),
+    siteAddress: asNullableStr(site?.address),
+    assetName: asNullableStr(asset?.name),
+    technicianName: asNullableStr(assignedTechnician?.name),
     items,
+    materials,
   };
 }
 
@@ -335,6 +402,16 @@ function buildItemPayload(item: ReportItem) {
   }
 }
 
+function emptyMaterial(): MaterialRow {
+  return {
+    name: '',
+    quantity: '1',
+    unit: '',
+    description: '',
+    notes: '',
+  };
+}
+
 export default function MaintenanceReportDetailPage() {
   const params = useParams();
   const idRaw = (params as { id?: string | string[] })?.id;
@@ -349,6 +426,7 @@ export default function MaintenanceReportDetailPage() {
     status: 'idle',
   });
   const [savingItemId, setSavingItemId] = useState<string | null>(null);
+  const [savingReport, setSavingReport] = useState(false);
 
   const paths = useMemo(() => resolveCorePaths(session), [session]);
 
@@ -438,6 +516,45 @@ export default function MaintenanceReportDetailPage() {
       String(state.data.status ?? '').toUpperCase(),
     );
 
+  const visualItems = useMemo(() => {
+    if (state.status !== 'ok') return [];
+    return state.data.items.filter(
+      (item) => item.type === 'PHOTO' || item.type === 'SIGNATURE',
+    );
+  }, [state]);
+
+  const checklistItems = useMemo(() => {
+    if (state.status !== 'ok') return [];
+    return state.data.items.filter(
+      (item) => item.type !== 'PHOTO' && item.type !== 'SIGNATURE',
+    );
+  }, [state]);
+
+  function updateDetail(
+    patch: Partial<
+      Pick<
+        ReportDetail,
+        | 'summary'
+        | 'workPerformed'
+        | 'observations'
+        | 'technicianNotes'
+        | 'laborHours'
+        | 'materials'
+      >
+    >,
+  ) {
+    setState((prev) => {
+      if (prev.status !== 'ok') return prev;
+      return {
+        status: 'ok',
+        data: {
+          ...prev.data,
+          ...patch,
+        },
+      };
+    });
+  }
+
   function updateLocalItem(
     itemId: string,
     patch: Partial<
@@ -466,6 +583,135 @@ export default function MaintenanceReportDetailPage() {
         },
       };
     });
+  }
+
+  function updateMaterial(
+    index: number,
+    patch: Partial<MaterialRow>,
+  ) {
+    setState((prev) => {
+      if (prev.status !== 'ok') return prev;
+
+      const nextMaterials = [...prev.data.materials];
+      nextMaterials[index] = {
+        ...nextMaterials[index],
+        ...patch,
+      };
+
+      return {
+        status: 'ok',
+        data: {
+          ...prev.data,
+          materials: nextMaterials,
+        },
+      };
+    });
+  }
+
+  function addMaterialRow() {
+    setState((prev) => {
+      if (prev.status !== 'ok') return prev;
+
+      return {
+        status: 'ok',
+        data: {
+          ...prev.data,
+          materials: [...prev.data.materials, emptyMaterial()],
+        },
+      };
+    });
+  }
+
+  function removeMaterialRow(index: number) {
+    setState((prev) => {
+      if (prev.status !== 'ok') return prev;
+
+      const nextMaterials = prev.data.materials.filter((_, i) => i !== index);
+
+      return {
+        status: 'ok',
+        data: {
+          ...prev.data,
+          materials: nextMaterials,
+        },
+      };
+    });
+  }
+
+  async function saveReportData(showSuccess = true): Promise<boolean> {
+    if (!session || !id) return false;
+    if (state.status !== 'ok') return false;
+
+    try {
+      setSavingReport(true);
+      setActionState({
+        status: 'saving',
+        message: 'Guardando datos del parte...',
+      });
+
+      const payload = {
+        summary: state.data.summary?.trim() || null,
+        workPerformed: state.data.workPerformed?.trim() || null,
+        observations: state.data.observations?.trim() || null,
+        technicianNotes: state.data.technicianNotes?.trim() || null,
+        laborHours:
+          state.data.laborHours && state.data.laborHours.trim() !== ''
+            ? Number(state.data.laborHours)
+            : null,
+        materials: state.data.materials
+          .map((material, index) => ({
+            name: material.name.trim(),
+            quantity:
+              material.quantity.trim() === ''
+                ? 1
+                : Number(material.quantity),
+            unit: material.unit.trim() || null,
+            description: material.description.trim() || null,
+            notes: material.notes.trim() || null,
+            sortOrder: index + 1,
+          }))
+          .filter((material) => material.name),
+      };
+
+      const r = await tcPatch(session, `${paths.reports}/${id}`, payload);
+
+      if (r.code < 200 || r.code >= 300) {
+        setActionState({
+          status: 'error',
+          message: getApiError(r.json, r.code),
+        });
+        return false;
+      }
+
+      const parsed = parseDetail(r.json, id);
+      if (parsed) {
+        setState({
+          status: 'ok',
+          data: {
+            ...parsed,
+            items:
+              state.status === 'ok' ? state.data.items : parsed.items,
+          },
+        });
+      }
+
+      if (showSuccess) {
+        setActionState({
+          status: 'success',
+          message: 'Parte guardado correctamente.',
+        });
+      }
+
+      return true;
+    } catch (e) {
+      setActionState({
+        status: 'error',
+        message: errMsg(e),
+      });
+      return false;
+    } finally {
+      setSavingReport(false);
+    }
   }
 
   async function saveItem(item: ReportItem) {
@@ -532,8 +778,14 @@ export default function MaintenanceReportDetailPage() {
       return;
     }
 
+    const saved = await saveReportData(false);
+    if (!saved) return;
+
     try {
-      setActionState({ status: 'saving', message: 'Finalizando parte...' });
+      setActionState({
+        status: 'saving',
+        message: 'Enviando parte realizado por técnico...',
+      });
 
       const r = await tcPost(session, `${paths.reports}/${id}/finalize`);
 
@@ -557,7 +809,7 @@ export default function MaintenanceReportDetailPage() {
 
       setActionState({
         status: 'success',
-        message: 'Parte finalizado correctamente.',
+        message: 'Parte realizado por técnico y enviado correctamente.',
       });
     } catch (e) {
       setActionState({
@@ -618,7 +870,7 @@ export default function MaintenanceReportDetailPage() {
       case 'CHECKLIST':
         return (
           <textarea
-            className="min-h-[120px] w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
+            className="min-h-[110px] w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
             value={item.valueChecklistText}
             onChange={(e) =>
               updateLocalItem(item.id, {
@@ -632,46 +884,100 @@ export default function MaintenanceReportDetailPage() {
 
       case 'LONG_TEXT':
       case 'TEXTAREA':
-      case 'PHOTO':
-      case 'SIGNATURE':
-        return (
-          <textarea
-            className="min-h-[120px] w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
-            value={item.valueText}
-            onChange={(e) =>
-              updateLocalItem(item.id, { valueText: e.target.value })
-            }
-            placeholder={
-              item.placeholder ??
-              (item.type === 'PHOTO'
-                ? 'Referencia de evidencia/foto'
-                : item.type === 'SIGNATURE'
-                  ? 'Firma pendiente / referencia'
-                  : 'Escribe el resultado')
-            }
-            disabled={disabled}
-          />
-        );
-
       default:
         return (
-          <input
-            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
+          <textarea
+            className="min-h-[110px] w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
             value={item.valueText}
             onChange={(e) =>
               updateLocalItem(item.id, { valueText: e.target.value })
             }
-            placeholder={item.placeholder ?? 'Valor / resultado'}
+            placeholder={item.placeholder ?? 'Escribe el resultado'}
             disabled={disabled}
           />
         );
     }
   }
 
+  function renderEvidenceField(item: ReportItem, disabled: boolean) {
+    const label =
+      item.type === 'SIGNATURE'
+        ? 'Firma / confirmación del cliente'
+        : 'Referencia de foto o evidencia visual';
+
+    return (
+      <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="text-base font-semibold text-white">{item.title}</div>
+            {item.description ? (
+              <div className="mt-1 text-sm text-slate-400">{item.description}</div>
+            ) : null}
+          </div>
+
+          <select
+            className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
+            value={item.status}
+            onChange={(e) =>
+              updateLocalItem(item.id, {
+                status: e.target.value as ReportItemStatusValue,
+              })
+            }
+            disabled={disabled}
+          >
+            <option value="PENDING">PENDING</option>
+            <option value="OK">OK</option>
+            <option value="FAIL">FAIL</option>
+            <option value="NA">NA</option>
+          </select>
+        </div>
+
+        <label className="mb-2 block text-sm text-slate-300">{label}</label>
+        <textarea
+          className="min-h-[110px] w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
+          value={item.valueText}
+          onChange={(e) =>
+            updateLocalItem(item.id, { valueText: e.target.value })
+          }
+          placeholder={
+            item.type === 'SIGNATURE'
+              ? 'Ej: Firma recogida en tablet / cliente conforme'
+              : 'Ej: Foto antes, foto después, referencia de archivo o evidencia'
+          }
+          disabled={disabled}
+        />
+
+        <label className="mb-2 mt-4 block text-sm text-slate-300">Notas</label>
+        <textarea
+          className="min-h-[90px] w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
+          value={item.notes}
+          onChange={(e) =>
+            updateLocalItem(item.id, { notes: e.target.value })
+          }
+          placeholder="Notas de evidencia"
+          disabled={disabled}
+        />
+
+        {isEditable ? (
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => saveItem(item)}
+              disabled={savingItemId === item.id}
+              className="rounded-xl border border-slate-700 px-4 py-2 text-sm hover:bg-slate-800 disabled:opacity-60"
+            >
+              {savingItemId === item.id ? 'Guardando…' : 'Guardar evidencia'}
+            </button>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   if (!mounted) {
     return (
-      <div className="mx-auto max-w-6xl p-6">
-        <div className="rounded-2xl bg-slate-900/60 ring-1 ring-white/10 p-4 text-sm text-slate-400">
+      <div className="mx-auto max-w-7xl p-6">
+        <div className="rounded-2xl bg-slate-900/60 p-4 text-sm text-slate-400 ring-1 ring-white/10">
           Cargando sesión…
         </div>
       </div>
@@ -680,7 +986,7 @@ export default function MaintenanceReportDetailPage() {
 
   if (!session) {
     return (
-      <div className="mx-auto max-w-6xl p-6">
+      <div className="mx-auto max-w-7xl p-6">
         <div className="text-sm text-red-200">
           Sin sesión tenant. Ve a{' '}
           <Link className="text-white underline" href="/login">
@@ -693,238 +999,558 @@ export default function MaintenanceReportDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl p-6">
-      <div className="flex items-end justify-between gap-3">
+    <div className="mx-auto max-w-7xl p-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-white">Parte de trabajo</h1>
+          <h1 className="text-3xl font-semibold text-white">Detalle del trabajo</h1>
           <p className="mt-1 text-sm text-slate-400">
-            Checklist técnico renderizado por tipo real de item.
+            Parte técnico operativo para rellenar, guardar y finalizar.
           </p>
         </div>
 
-        <Link href={backHref} className="text-sm text-slate-300 hover:text-white">
-          ← Volver
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href={backHref}
+            className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800"
+          >
+            ← Volver
+          </Link>
+        </div>
       </div>
 
-      <div className="mt-6 rounded-2xl bg-slate-900/60 ring-1 ring-white/10 p-5">
+      <div className="mt-6 rounded-3xl bg-slate-900/60 p-6 ring-1 ring-white/10">
         {state.status === 'loading' ? (
           <div className="text-sm text-slate-400">Cargando…</div>
         ) : state.status === 'error' ? (
           <div className="text-sm text-red-200">{state.error}</div>
         ) : (
           <>
-            <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
               <div>
-                <div className="text-lg font-semibold text-white">
-                  {state.data.templateName ?? 'Maintenance Report'}
+                <div className="text-2xl font-semibold text-white">
+                  {state.data.templateName ?? 'Parte de trabajo'}
                 </div>
-
-                <div className="mt-1 text-xs text-slate-400">
-                  Fecha:{' '}
-                  <span className="text-slate-200">
-                    {formatDate(state.data.performedAt)}
-                  </span>{' '}
-                  · ID: <span className="text-slate-200">{state.data.id}</span>
+                <div className="mt-2 text-sm text-slate-400">
+                  ID: <span className="text-slate-200">{state.data.id}</span>
                 </div>
-
-                {state.data.templateDesc ? (
-                  <div className="mt-2 text-sm text-slate-300">
-                    {state.data.templateDesc}
-                  </div>
-                ) : null}
-
-                {state.data.notes ? (
-                  <div className="mt-2 text-sm text-slate-300">
-                    Notas: {state.data.notes}
-                  </div>
-                ) : null}
-
-                {state.data.workOrderId ? (
-                  <div className="mt-2 text-sm text-slate-300">
-                    Work order vinculada:{' '}
-                    <Link
-                      className="underline"
-                      href={`/work-orders/${state.data.workOrderId}`}
-                    >
-                      {state.data.workOrderId}
-                    </Link>
-                  </div>
-                ) : null}
               </div>
 
-              <div>
-                <span
-                  className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${visual?.className ?? 'border-slate-700 bg-slate-800 text-slate-200'}`}
-                >
-                  {visual?.label ?? '—'}
-                </span>
-              </div>
+              <span
+                className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${visual?.className ?? 'border-slate-700 bg-slate-800 text-slate-200'}`}
+              >
+                {visual?.label ?? '—'}
+              </span>
             </div>
 
-            <div className="mt-6">
-              <h2 className="text-sm font-semibold text-white">Items</h2>
+            <div className="space-y-6">
+              <section className="rounded-2xl border border-white/10 bg-slate-950/40 p-5">
+                <h2 className="text-lg font-semibold text-white">Datos generales</h2>
 
-              {state.data.items.length === 0 ? (
-                <div className="mt-3 text-sm text-slate-400">
-                  Este reporte no tiene ítems.
+                <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <div>
+                    <div className="text-xs uppercase tracking-wide text-slate-500">
+                      Cliente
+                    </div>
+                    <div className="mt-1 text-sm text-slate-100">
+                      {state.data.customerName || '—'}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-xs uppercase tracking-wide text-slate-500">
+                      Site
+                    </div>
+                    <div className="mt-1 text-sm text-slate-100">
+                      {state.data.siteName || '—'}
+                    </div>
+                    {state.data.siteAddress ? (
+                      <div className="mt-1 text-xs text-slate-400">
+                        {state.data.siteAddress}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div>
+                    <div className="text-xs uppercase tracking-wide text-slate-500">
+                      Activo
+                    </div>
+                    <div className="mt-1 text-sm text-slate-100">
+                      {state.data.assetName || '—'}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-xs uppercase tracking-wide text-slate-500">
+                      Técnico asignado
+                    </div>
+                    <div className="mt-1 text-sm text-slate-100">
+                      {state.data.technicianName || '—'}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-xs uppercase tracking-wide text-slate-500">
+                      Fecha útil
+                    </div>
+                    <div className="mt-1 text-sm text-slate-100">
+                      {formatDate(state.data.performedAt)}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-xs uppercase tracking-wide text-slate-500">
+                      Work order
+                    </div>
+                    <div className="mt-1 text-sm text-slate-100">
+                      {state.data.workOrderId ? (
+                        <Link
+                          href={`/work-orders/${state.data.workOrderId}`}
+                          className="underline"
+                        >
+                          {state.data.workOrderId}
+                        </Link>
+                      ) : (
+                        '—'
+                      )}
+                    </div>
+                  </div>
                 </div>
-              ) : (
-                <div className="mt-4 space-y-4">
-                  {state.data.items.map((item) => {
-                    const isSaving = savingItemId === item.id;
+              </section>
 
-                    return (
+              <section className="rounded-2xl border border-white/10 bg-slate-950/40 p-5">
+                <h2 className="text-lg font-semibold text-white">
+                  Detalles de asistencia
+                </h2>
+
+                <div className="mt-4 grid gap-4">
+                  <div>
+                    <label className="mb-2 block text-sm text-slate-300">
+                      Resumen del trabajo
+                    </label>
+                    <input
+                      className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
+                      value={state.data.summary ?? ''}
+                      onChange={(e) =>
+                        updateDetail({ summary: e.target.value })
+                      }
+                      placeholder="Ej: Cambio de pieza / limpieza / ajuste / reparación"
+                      disabled={!isEditable || savingReport}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm text-slate-300">
+                      Descripción de cómo quedó el trabajo
+                    </label>
+                    <textarea
+                      className="min-h-[130px] w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
+                      value={state.data.workPerformed ?? ''}
+                      onChange={(e) =>
+                        updateDetail({ workPerformed: e.target.value })
+                      }
+                      placeholder="Describe el trabajo realizado, resultado final y situación en la que quedó la instalación o máquina."
+                      disabled={!isEditable || savingReport}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm text-slate-300">
+                      Observaciones del trabajo
+                    </label>
+                    <textarea
+                      className="min-h-[110px] w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
+                      value={state.data.observations ?? ''}
+                      onChange={(e) =>
+                        updateDetail({ observations: e.target.value })
+                      }
+                      placeholder="Observaciones adicionales, incidencias detectadas o recomendaciones."
+                      disabled={!isEditable || savingReport}
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-white/10 bg-slate-950/40 p-5">
+                <h2 className="text-lg font-semibold text-white">
+                  Recursos y tiempos
+                </h2>
+
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm text-slate-300">
+                      Técnico asignado
+                    </label>
+                    <input
+                      className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-300 outline-none"
+                      value={state.data.technicianName ?? ''}
+                      readOnly
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm text-slate-300">
+                      Horas de mano de obra
+                    </label>
+                    <input
+                      className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
+                      type="number"
+                      step="0.25"
+                      min="0"
+                      value={state.data.laborHours ?? ''}
+                      onChange={(e) =>
+                        updateDetail({ laborHours: e.target.value })
+                      }
+                      placeholder="Ej: 3.5"
+                      disabled={!isEditable || savingReport}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="mb-2 block text-sm text-slate-300">
+                      Notas técnicas del técnico
+                    </label>
+                    <textarea
+                      className="min-h-[110px] w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
+                      value={state.data.technicianNotes ?? ''}
+                      onChange={(e) =>
+                        updateDetail({ technicianNotes: e.target.value })
+                      }
+                      placeholder="Detalle técnico interno del trabajo realizado."
+                      disabled={!isEditable || savingReport}
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-white/10 bg-slate-950/40 p-5">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <h2 className="text-lg font-semibold text-white">
+                    Materiales usados
+                  </h2>
+
+                  {isEditable ? (
+                    <button
+                      type="button"
+                      onClick={addMaterialRow}
+                      className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800"
+                    >
+                      + Añadir material
+                    </button>
+                  ) : null}
+                </div>
+
+                {state.data.materials.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-white/10 px-4 py-4 text-sm text-slate-500">
+                    No hay materiales añadidos todavía.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {state.data.materials.map((material, index) => (
                       <div
-                        key={item.id}
-                        className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4"
+                        key={material.id ?? `material-${index}`}
+                        className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4"
                       >
-                        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-                          <div>
-                            <div className="text-sm text-slate-400">
-                              Item #{item.sortOrder}
-                            </div>
-                            <div className="mt-1 flex flex-wrap items-center gap-2">
-                              <div className="text-base font-semibold text-white">
-                                {item.title}
-                              </div>
-                              <span className="rounded-full border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300">
-                                {item.type}
-                              </span>
-                              {item.required ? (
-                                <span className="rounded-full border border-amber-500/30 px-2 py-0.5 text-[11px] text-amber-300">
-                                  requerido
-                                </span>
-                              ) : null}
-                              {item.unit ? (
-                                <span className="rounded-full border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300">
-                                  {item.unit}
-                                </span>
-                              ) : null}
-                            </div>
-                            {item.description ? (
-                              <div className="mt-1 text-sm text-slate-400">
-                                {item.description}
-                              </div>
-                            ) : null}
-                            {item.helpText ? (
-                              <div className="mt-1 text-xs text-slate-500">
-                                {item.helpText}
-                              </div>
-                            ) : null}
+                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                          <div className="xl:col-span-2">
+                            <label className="mb-2 block text-sm text-slate-300">
+                              Material / repuesto
+                            </label>
+                            <input
+                              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
+                              value={material.name}
+                              onChange={(e) =>
+                                updateMaterial(index, { name: e.target.value })
+                              }
+                              placeholder="Ej: Compresor AC / filtro / válvula / cable"
+                              disabled={!isEditable || savingReport}
+                            />
                           </div>
-                        </div>
 
-                        <div className="grid gap-4 md:grid-cols-[180px_1fr]">
                           <div>
                             <label className="mb-2 block text-sm text-slate-300">
-                              Estado
+                              Cantidad
                             </label>
-                            <select
+                            <input
                               className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
-                              value={item.status}
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={material.quantity}
                               onChange={(e) =>
-                                updateLocalItem(item.id, {
-                                  status: e.target.value as ReportItemStatusValue,
+                                updateMaterial(index, {
+                                  quantity: e.target.value,
                                 })
                               }
-                              disabled={!isEditable || isSaving}
-                            >
-                              <option value="PENDING">PENDING</option>
-                              <option value="OK">OK</option>
-                              <option value="FAIL">FAIL</option>
-                              <option value="NA">NA</option>
-                            </select>
+                              disabled={!isEditable || savingReport}
+                            />
                           </div>
 
                           <div>
                             <label className="mb-2 block text-sm text-slate-300">
-                              Valor / resultado
+                              Unidad
                             </label>
-                            {renderValueField(item, !isEditable || isSaving)}
+                            <input
+                              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
+                              value={material.unit}
+                              onChange={(e) =>
+                                updateMaterial(index, { unit: e.target.value })
+                              }
+                              placeholder="Ud / m / kg"
+                              disabled={!isEditable || savingReport}
+                            />
                           </div>
 
-                          <div className="md:col-span-2">
+                          <div className="flex items-end">
+                            {isEditable ? (
+                              <button
+                                type="button"
+                                onClick={() => removeMaterialRow(index)}
+                                className="w-full rounded-xl border border-rose-700 px-4 py-2 text-sm text-rose-200 hover:bg-rose-900/20"
+                              >
+                                Quitar
+                              </button>
+                            ) : null}
+                          </div>
+
+                          <div className="md:col-span-2 xl:col-span-3">
+                            <label className="mb-2 block text-sm text-slate-300">
+                              Descripción
+                            </label>
+                            <input
+                              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
+                              value={material.description}
+                              onChange={(e) =>
+                                updateMaterial(index, {
+                                  description: e.target.value,
+                                })
+                              }
+                              placeholder="Descripción breve del material"
+                              disabled={!isEditable || savingReport}
+                            />
+                          </div>
+
+                          <div className="md:col-span-2 xl:col-span-2">
                             <label className="mb-2 block text-sm text-slate-300">
                               Notas
                             </label>
-                            <textarea
-                              className="min-h-[110px] w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
-                              value={item.notes}
+                            <input
+                              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
+                              value={material.notes}
                               onChange={(e) =>
-                                updateLocalItem(item.id, {
-                                  notes: e.target.value,
-                                })
+                                updateMaterial(index, { notes: e.target.value })
                               }
-                              placeholder="Detalle técnico del trabajo realizado"
-                              disabled={!isEditable || isSaving}
+                              placeholder="Observaciones"
+                              disabled={!isEditable || savingReport}
                             />
                           </div>
                         </div>
-
-                        {isEditable ? (
-                          <div className="mt-4">
-                            <button
-                              type="button"
-                              onClick={() => saveItem(item)}
-                              disabled={isSaving}
-                              className="rounded-xl border border-slate-700 px-4 py-2 text-sm hover:bg-slate-800 disabled:opacity-60"
-                            >
-                              {isSaving ? 'Guardando…' : 'Guardar item'}
-                            </button>
-                          </div>
-                        ) : null}
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <section className="rounded-2xl border border-white/10 bg-slate-950/40 p-5">
+                <h2 className="text-lg font-semibold text-white">
+                  Evidencia visual
+                </h2>
+
+                <div className="mt-4">
+                  {visualItems.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-white/10 px-4 py-4 text-sm text-slate-500">
+                      Este parte no trae items de foto o firma en la plantilla actual.
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      {visualItems.map((item) =>
+                        renderEvidenceField(item, !isEditable || savingReport),
+                      )}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </section>
 
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              {isEditable ? (
-                <button
-                  type="button"
-                  onClick={finalizeReport}
-                  disabled={
-                    actionState.status === 'saving' || state.data.items.length === 0
-                  }
-                  className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-60"
+              <section className="rounded-2xl border border-white/10 bg-slate-950/40 p-5">
+                <h2 className="text-lg font-semibold text-white">
+                  Checklist técnico
+                </h2>
+
+                {checklistItems.length === 0 ? (
+                  <div className="mt-4 rounded-xl border border-dashed border-white/10 px-4 py-4 text-sm text-slate-500">
+                    No hay items de checklist en este parte.
+                  </div>
+                ) : (
+                  <div className="mt-4 space-y-4">
+                    {checklistItems.map((item) => {
+                      const isSaving = savingItemId === item.id;
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4"
+                        >
+                          <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <div className="text-base font-semibold text-white">
+                                  {item.title}
+                                </div>
+
+                                <span className="rounded-full border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300">
+                                  {item.type}
+                                </span>
+
+                                {item.required ? (
+                                  <span className="rounded-full border border-amber-500/30 px-2 py-0.5 text-[11px] text-amber-300">
+                                    requerido
+                                  </span>
+                                ) : null}
+
+                                {item.unit ? (
+                                  <span className="rounded-full border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300">
+                                    {item.unit}
+                                  </span>
+                                ) : null}
+                              </div>
+
+                              {item.description ? (
+                                <div className="mt-1 text-sm text-slate-400">
+                                  {item.description}
+                                </div>
+                              ) : null}
+
+                              {item.helpText ? (
+                                <div className="mt-1 text-xs text-slate-500">
+                                  {item.helpText}
+                                </div>
+                              ) : null}
+                            </div>
+
+                            <div className="w-full md:w-[180px]">
+                              <label className="mb-2 block text-sm text-slate-300">
+                                Estado
+                              </label>
+                              <select
+                                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
+                                value={item.status}
+                                onChange={(e) =>
+                                  updateLocalItem(item.id, {
+                                    status: e.target.value as ReportItemStatusValue,
+                                  })
+                                }
+                                disabled={!isEditable || isSaving}
+                              >
+                                <option value="PENDING">PENDING</option>
+                                <option value="OK">OK</option>
+                                <option value="FAIL">FAIL</option>
+                                <option value="NA">NA</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="grid gap-4">
+                            <div>
+                              <label className="mb-2 block text-sm text-slate-300">
+                                Valor / resultado
+                              </label>
+                              {renderValueField(item, !isEditable || isSaving)}
+                            </div>
+
+                            <div>
+                              <label className="mb-2 block text-sm text-slate-300">
+                                Notas
+                              </label>
+                              <textarea
+                                className="min-h-[100px] w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
+                                value={item.notes}
+                                onChange={(e) =>
+                                  updateLocalItem(item.id, {
+                                    notes: e.target.value,
+                                  })
+                                }
+                                placeholder="Detalle técnico del resultado"
+                                disabled={!isEditable || isSaving}
+                              />
+                            </div>
+                          </div>
+
+                          {isEditable ? (
+                            <div className="mt-4">
+                              <button
+                                type="button"
+                                onClick={() => saveItem(item)}
+                                disabled={isSaving}
+                                className="rounded-xl border border-slate-700 px-4 py-2 text-sm hover:bg-slate-800 disabled:opacity-60"
+                              >
+                                {isSaving ? 'Guardando…' : 'Guardar item'}
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+
+              <div className="flex flex-wrap items-center gap-3">
+                {isEditable ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => void saveReportData(true)}
+                      disabled={savingReport || actionState.status === 'saving'}
+                      className="rounded-xl border border-slate-700 px-5 py-3 text-sm font-medium text-slate-100 hover:bg-slate-800 disabled:opacity-60"
+                    >
+                      {savingReport ? 'Guardando…' : 'Guardar parte'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={finalizeReport}
+                      disabled={
+                        savingReport ||
+                        actionState.status === 'saving' ||
+                        state.data.items.length === 0
+                      }
+                      className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-60"
+                    >
+                      Parte realizada por técnico
+                    </button>
+                  </>
+                ) : null}
+
+                <Link
+                  href={backHref}
+                  className="rounded-xl border border-slate-700 px-5 py-3 text-sm text-slate-200 hover:bg-slate-800"
                 >
-                  Finalizar parte
-                </button>
-              ) : null}
+                  Volver
+                </Link>
+              </div>
 
-              <Link
-                href={backHref}
-                className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800"
-              >
-                Volver
-              </Link>
-            </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+                <h3 className="text-sm font-semibold text-white">
+                  Estado de operación
+                </h3>
 
-            <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
-              <h3 className="text-sm font-semibold text-white">
-                Estado de operación
-              </h3>
-
-              {actionState.status === 'idle' ? (
-                <p className="mt-2 text-sm text-slate-400">
-                  Sin acciones pendientes.
-                </p>
-              ) : actionState.status === 'saving' ? (
-                <p className="mt-2 text-sm text-amber-300">
-                  {actionState.message}
-                </p>
-              ) : actionState.status === 'success' ? (
-                <p className="mt-2 text-sm text-emerald-300">
-                  {actionState.message}
-                </p>
-              ) : (
-                <p className="mt-2 text-sm text-rose-300">
-                  {actionState.message}
-                </p>
-              )}
+                {actionState.status === 'idle' ? (
+                  <p className="mt-2 text-sm text-slate-400">
+                    Sin acciones pendientes.
+                  </p>
+                ) : actionState.status === 'saving' ? (
+                  <p className="mt-2 text-sm text-amber-300">
+                    {actionState.message}
+                  </p>
+                ) : actionState.status === 'success' ? (
+                  <p className="mt-2 text-sm text-emerald-300">
+                    {actionState.message}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-sm text-rose-300">
+                    {actionState.message}
+                  </p>
+                )}
+              </div>
             </div>
           </>
         )}

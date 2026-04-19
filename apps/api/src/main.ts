@@ -3,13 +3,36 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { TenantGuard } from './common/tenant.guard';
 
+function getAllowedOrigins(): string[] {
+  const raw =
+    process.env.CORS_ORIGINS ||
+    'http://localhost:3000,http://localhost:3001,http://localhost:3003';
+
+  return raw
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true,
   });
 
-    app.enableCors({
-    origin: ['http://localhost:3001', 'http://localhost:3003'],
+  const allowedOrigins = getAllowedOrigins();
+
+  app.enableCors({
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
     credentials: true,
     allowedHeaders: [
       'content-type',
@@ -35,6 +58,7 @@ async function bootstrap() {
   await app.listen(port);
 
   Logger.log(`API running on http://localhost:${port}`, 'Bootstrap');
+  Logger.log(`CORS origins: ${allowedOrigins.join(', ')}`, 'Bootstrap');
 }
 
 bootstrap().catch((error) => {

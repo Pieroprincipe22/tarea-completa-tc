@@ -4,7 +4,13 @@ import { UserRole } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { scryptSync, timingSafeEqual } from 'node:crypto';
 
-function verifyPassword(password: string, stored: string): boolean {
+function verifyPassword(
+  password: string,
+  stored: string | null | undefined,
+): boolean {
+  if (!stored) return false;
+
+  // Compatibilidad temporal con seeds viejas en texto plano.
   if (!stored.startsWith('scrypt:')) {
     return stored === password;
   }
@@ -16,6 +22,7 @@ function verifyPassword(password: string, stored: string): boolean {
   const storedKey = Buffer.from(storedKeyHex, 'hex');
 
   if (derivedKey.length !== storedKey.length) return false;
+
   return timingSafeEqual(derivedKey, storedKey);
 }
 
@@ -25,6 +32,33 @@ type LoginCompany = {
   role: UserRole;
 };
 
+type ActiveMembership = {
+  companyId: string;
+  role: UserRole;
+  active: boolean;
+  company: {
+    id: string;
+    name: string;
+    isActive: boolean;
+  };
+};
+
+type UserForLogin = {
+  id: string;
+  email: string;
+  name: string;
+  passwordHash: string;
+  isActive: boolean;
+  companyId: string | null;
+  role: UserRole | null;
+  company: {
+    id: string;
+    name: string;
+    isActive: boolean;
+  } | null;
+  memberships: ActiveMembership[];
+};
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -32,22 +66,21 @@ export class AuthService {
     private readonly jwt: JwtService,
   ) {}
 
-  private async ensureMemberships(user: {
-    id: string;
-    companyId: string | null;
-    role: UserRole | null;
-    company: { id: string; name: string } | null;
-    memberships: Array<{
-      companyId: string;
-      role: UserRole;
-      company: { id: string; name: string };
-    }>;
-  }) {
-    if (user.memberships.length > 0) {
-      return user.memberships;
+  private async resolveActiveMemberships(
+    user: UserForLogin,
+  ): Promise<ActiveMembership[]> {
+    const activeMemberships = user.memberships.filter(
+      (membership) => membership.active && membership.company.isActive,
+    );
+
+    if (activeMemberships.length > 0) {
+      return activeMemberships;
     }
 
-    if (!user.companyId || !user.role || !user.company) {
+    // Puente temporal:
+    // si el usuario aún tiene companyId/role legacy pero no tiene UserCompany,
+    // la creamos automáticamente una sola vez para no romper el login.
+    if (!user.companyId || !user.role || !user.company?.isActive) {
       return [];
     }
 
@@ -74,12 +107,19 @@ export class AuthService {
       where: {
         userId: user.id,
         active: true,
+        company: {
+          isActive: true,
+        },
       },
-      include: {
+      select: {
+        companyId: true,
+        role: true,
+        active: true,
         company: {
           select: {
             id: true,
             name: true,
+            isActive: true,
           },
         },
       },
@@ -90,22 +130,37 @@ export class AuthService {
   }
 
   async login(email: string, password: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
-      include: {
+    const normalizedEmail = email.trim().toLowerCase();
+    const rawPassword = password ?? '';
+
+    const user: UserForLogin | null = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        passwordHash: true,
+        isActive: true,
+        companyId: true,
+        role: true,
         company: {
           select: {
             id: true,
             name: true,
+            isActive: true,
           },
         },
         memberships: {
           where: { active: true },
-          include: {
+          select: {
+            companyId: true,
+            role: true,
+            active: true,
             company: {
               select: {
                 id: true,
                 name: true,
+                isActive: true,
               },
             },
           },
@@ -114,11 +169,15 @@ export class AuthService {
       },
     });
 
-    if (!user || !user.isActive || !verifyPassword(password, user.passwordHash)) {
+    if (
+      !user ||
+      !user.isActive ||
+      !verifyPassword(rawPassword, user.passwordHash)
+    ) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const memberships = await this.ensureMemberships(user);
+    const memberships = await this.resolveActiveMemberships(user);
 
     const companies: LoginCompany[] = memberships.map((membership) => ({
       companyId: membership.company.id,

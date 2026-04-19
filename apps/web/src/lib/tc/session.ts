@@ -22,8 +22,17 @@ export const TC_STORAGE_KEYS = {
 
 export const TC_LS_KEYS = TC_STORAGE_KEYS;
 
+function asString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
 function normalizeRole(role?: string | null): string {
   return String(role ?? '').trim().toUpperCase();
+}
+
+function sanitizeApiBase(value?: string | null): string {
+  const raw = String(value ?? '').trim();
+  return raw || DEFAULT_API_BASE;
 }
 
 function isValidSession(value: unknown): value is TcSession {
@@ -41,6 +50,19 @@ function isValidSession(value: unknown): value is TcSession {
     typeof row.accessToken === 'string' &&
     row.accessToken.trim().length > 0
   );
+}
+
+function normalizeSession(session: TcSession): TcSession {
+  return {
+    apiBase: sanitizeApiBase(session.apiBase),
+    companyId: session.companyId.trim(),
+    companyName: session.companyName?.trim() || undefined,
+    userId: session.userId.trim(),
+    accessToken: session.accessToken.trim(),
+    email: session.email?.trim().toLowerCase() || undefined,
+    name: session.name?.trim() || undefined,
+    role: normalizeRole(session.role) || undefined,
+  };
 }
 
 function getSessionStorage(): Storage | null {
@@ -63,88 +85,107 @@ function getLocalStorage(): Storage | null {
   }
 }
 
-export function writeTcSession(session: TcSession) {
-  const ss = getSessionStorage();
-  const ls = getLocalStorage();
+function readFromStructuredStorage(storage: Storage | null): TcSession | null {
+  if (!storage) return null;
 
-  const safe: TcSession = {
-    apiBase: session.apiBase.trim(),
-    companyId: session.companyId.trim(),
-    companyName: session.companyName?.trim() || undefined,
-    userId: session.userId.trim(),
-    accessToken: session.accessToken.trim(),
-    email: session.email?.trim() || undefined,
-    name: session.name?.trim() || undefined,
-    role: normalizeRole(session.role) || undefined,
-  };
-
-  if (ss) {
-    ss.setItem(TC_STORAGE_KEYS.session, JSON.stringify(safe));
-    ss.setItem(TC_STORAGE_KEYS.apiBase, safe.apiBase);
-    ss.setItem(TC_STORAGE_KEYS.companyId, safe.companyId);
-    ss.setItem(TC_STORAGE_KEYS.userId, safe.userId);
-    ss.setItem(TC_STORAGE_KEYS.accessToken, safe.accessToken);
-  }
-
-  if (ls) {
-    ls.removeItem(TC_STORAGE_KEYS.session);
-    ls.removeItem(TC_STORAGE_KEYS.apiBase);
-    ls.removeItem(TC_STORAGE_KEYS.companyId);
-    ls.removeItem(TC_STORAGE_KEYS.userId);
-    ls.removeItem(TC_STORAGE_KEYS.accessToken);
-  }
-}
-
-export function readTcSession(): TcSession | null {
-  const ss = getSessionStorage();
-  if (!ss) return null;
-
-  const raw = ss.getItem(TC_STORAGE_KEYS.session);
+  const raw = storage.getItem(TC_STORAGE_KEYS.session);
   if (!raw) return null;
 
   try {
     const parsed = JSON.parse(raw) as unknown;
 
     if (!isValidSession(parsed)) {
-      clearTcSession();
       return null;
     }
 
-    const typed = parsed as TcSession;
-
-    return {
-      ...typed,
-      apiBase: typed.apiBase.trim(),
-      companyId: typed.companyId.trim(),
-      userId: typed.userId.trim(),
-      accessToken: typed.accessToken.trim(),
-      role: normalizeRole(typed.role),
-    };
+    return normalizeSession(parsed);
   } catch {
-    clearTcSession();
     return null;
   }
 }
 
-export function clearTcSession() {
+function readFromLegacyKeys(storage: Storage | null): TcSession | null {
+  if (!storage) return null;
+
+  const apiBase = sanitizeApiBase(storage.getItem(TC_STORAGE_KEYS.apiBase));
+  const companyId = asString(storage.getItem(TC_STORAGE_KEYS.companyId));
+  const userId = asString(storage.getItem(TC_STORAGE_KEYS.userId));
+  const accessToken = asString(storage.getItem(TC_STORAGE_KEYS.accessToken));
+
+  if (!companyId || !userId || !accessToken) {
+    return null;
+  }
+
+  return {
+    apiBase,
+    companyId,
+    userId,
+    accessToken,
+  };
+}
+
+function persistToStorage(storage: Storage | null, session: TcSession) {
+  if (!storage) return;
+
+  storage.setItem(TC_STORAGE_KEYS.session, JSON.stringify(session));
+  storage.setItem(TC_STORAGE_KEYS.apiBase, session.apiBase);
+  storage.setItem(TC_STORAGE_KEYS.companyId, session.companyId);
+  storage.setItem(TC_STORAGE_KEYS.userId, session.userId);
+  storage.setItem(TC_STORAGE_KEYS.accessToken, session.accessToken);
+}
+
+function clearStorage(storage: Storage | null) {
+  if (!storage) return;
+
+  storage.removeItem(TC_STORAGE_KEYS.session);
+  storage.removeItem(TC_STORAGE_KEYS.apiBase);
+  storage.removeItem(TC_STORAGE_KEYS.companyId);
+  storage.removeItem(TC_STORAGE_KEYS.userId);
+  storage.removeItem(TC_STORAGE_KEYS.accessToken);
+}
+
+export function writeTcSession(session: TcSession) {
+  const safe = normalizeSession(session);
   const ss = getSessionStorage();
   const ls = getLocalStorage();
 
-  if (ss) {
-    ss.removeItem(TC_STORAGE_KEYS.session);
-    ss.removeItem(TC_STORAGE_KEYS.apiBase);
-    ss.removeItem(TC_STORAGE_KEYS.companyId);
-    ss.removeItem(TC_STORAGE_KEYS.userId);
-    ss.removeItem(TC_STORAGE_KEYS.accessToken);
+  persistToStorage(ss, safe);
+
+  // La sesión activa vive en sessionStorage.
+  // Limpiamos localStorage por compatibilidad con estados viejos.
+  clearStorage(ls);
+}
+
+export function readTcSession(): TcSession | null {
+  const ss = getSessionStorage();
+  const ls = getLocalStorage();
+
+  const fromSession =
+    readFromStructuredStorage(ss) || readFromLegacyKeys(ss);
+
+  if (fromSession) {
+    // Reescribe en formato normalizado por si venía de claves legacy.
+    persistToStorage(ss, fromSession);
+    clearStorage(ls);
+    return fromSession;
   }
 
-  if (ls) {
-    ls.removeItem(TC_STORAGE_KEYS.session);
-    ls.removeItem(TC_STORAGE_KEYS.apiBase);
-    ls.removeItem(TC_STORAGE_KEYS.companyId);
-    ls.removeItem(TC_STORAGE_KEYS.userId);
-    ls.removeItem(TC_STORAGE_KEYS.accessToken);
+  // Fallback legacy desde localStorage, migrando a sessionStorage.
+  const fromLocal =
+    readFromStructuredStorage(ls) || readFromLegacyKeys(ls);
+
+  if (fromLocal) {
+    persistToStorage(ss, fromLocal);
+    clearStorage(ls);
+    return fromLocal;
   }
+
+  return null;
+}
+
+export function clearTcSession() {
+  clearStorage(getSessionStorage());
+  clearStorage(getLocalStorage());
 }
 
 export function isTechnicianRole(role?: string | null) {

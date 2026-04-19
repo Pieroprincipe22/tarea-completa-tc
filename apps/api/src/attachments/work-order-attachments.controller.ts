@@ -1,4 +1,4 @@
-import { Controller, Get, Headers, Param, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Param, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AttachmentsService } from './attachments.service';
 import { Tenant, TenantContext } from '../common/tenant.decorator';
@@ -19,7 +19,6 @@ export class WorkOrderAttachmentsController {
     @Param('workOrderId') workOrderId: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    // Nota: multipart no pasa por whitelist DTO, pero sí debes enviar campo "file"
     return this.service.uploadWorkOrderAttachment(t.companyId, t.userId, workOrderId, file);
   }
 }

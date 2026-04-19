@@ -25,3 +25,10 @@ Thumbs.db
 
 # prisma
 # (NO ignores migrations, porque sí quieres subirlas)
+
+.turbo/
+.next/
+node_modules/
+dist/
+coverage/
+*.log

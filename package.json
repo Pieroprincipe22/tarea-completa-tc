@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@10.0.0",
   "scripts": {
-    "dev": "turbo run dev --parallel",
+    "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "pnpm --filter api exec tsc --noEmit && pnpm --filter web exec tsc --noEmit && pnpm --filter @tc/marketing exec tsc --noEmit",
@@ -12,5 +12,21 @@
     "db:generate": "pnpm --filter api db:generate",
     "db:migrate": "pnpm --filter api db:migrate",
     "db:seed": "pnpm --filter api db:seed"
-  }
+  },
+  "devDependencies": {
+    "turbo": "^2.9.3"
+  },
+
+  "pnpm": {
+  "onlyBuiltDependencies": [
+    "@nestjs/core",
+    "@prisma/client",
+    "@prisma/engines",
+    "esbuild",
+    "prisma",
+    "sharp",
+    "unrs-resolver"
+  ]
+}
+
 }

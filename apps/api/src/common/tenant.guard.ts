@@ -18,6 +18,27 @@ type AccessTokenPayload = {
   exp?: number;
 };
 
+type RequestWithTenant = {
+  headers: Record<string, unknown>;
+  tenant?: {
+    companyId: string;
+    companyName: string;
+    userId: string;
+    role: string;
+    email: string | null;
+    name: string | null;
+  };
+};
+
+function readHeader(value: unknown): string {
+  if (Array.isArray(value)) {
+    const first = value[0];
+    return typeof first === 'string' ? first.trim() : '';
+  }
+
+  return typeof value === 'string' ? value.trim() : '';
+}
+
 @Injectable()
 export class TenantGuard implements CanActivate {
   constructor(
@@ -32,38 +53,36 @@ export class TenantGuard implements CanActivate {
       context.getClass(),
     ]);
 
-    if (isPublic) return true;
+    if (isPublic) {
+      return true;
+    }
 
-    const req = context.switchToHttp().getRequest();
+    const req = context.switchToHttp().getRequest<RequestWithTenant>();
 
-    const rawCompanyId = req.headers['x-company-id'];
-    const authHeader = Array.isArray(req.headers.authorization)
-      ? req.headers.authorization[0]
-      : req.headers.authorization;
-
-    const companyId =
-      typeof rawCompanyId === 'string' ? rawCompanyId.trim() : '';
-
+    const companyId = readHeader(req.headers['x-company-id']);
     if (!companyId) {
       throw new BadRequestException('Missing x-company-id');
     }
 
-    if (!authHeader?.startsWith('Bearer ')) {
+    const authHeader = readHeader(req.headers.authorization);
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw new UnauthorizedException('Missing bearer token');
+    }
+
+    const token = authHeader.slice('Bearer '.length).trim();
+    if (!token) {
       throw new UnauthorizedException('Missing bearer token');
     }
 
     let payload: AccessTokenPayload;
 
     try {
-      payload = await this.jwt.verifyAsync<AccessTokenPayload>(
-        authHeader.slice('Bearer '.length),
-      );
+      payload = await this.jwt.verifyAsync<AccessTokenPayload>(token);
     } catch {
       throw new UnauthorizedException('Invalid or expired token');
     }
 
-    const userId = payload.sub?.trim();
-
+    const userId = typeof payload.sub === 'string' ? payload.sub.trim() : '';
     if (!userId) {
       throw new UnauthorizedException('Invalid token payload');
     }
@@ -93,11 +112,12 @@ export class TenantGuard implements CanActivate {
     }
 
     req.headers['x-user-id'] = userId;
+
     req.tenant = {
-      companyId,
+      companyId: membership.company.id,
+      companyName: membership.company.name,
       userId,
       role: membership.role,
-      companyName: membership.company.name,
       email: payload.email ?? null,
       name: payload.name ?? null,
     };

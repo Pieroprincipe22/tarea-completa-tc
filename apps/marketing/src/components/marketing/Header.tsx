@@ -2,10 +2,15 @@ import Link from "next/link";
 import { Container } from "./Container";
 import { Button } from "./Button";
 
+type HeaderNavItem = {
+  readonly label: string;
+  readonly href: string;
+};
+
 export function Header({
   nav,
 }: {
-  nav: { label: string; href: string }[];
+  nav: readonly HeaderNavItem[];
 }) {
   return (
     <header className="sticky top-0 z-50 border-b border-black/10 bg-white/80 backdrop-blur">

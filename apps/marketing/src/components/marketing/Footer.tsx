@@ -1,9 +1,15 @@
 import { Container } from "./Container";
 
+type FooterData = {
+  readonly product: readonly string[];
+  readonly company: readonly string[];
+  readonly contactEmail: string;
+};
+
 export function Footer({
   data,
 }: {
-  data: { product: string[]; company: string[]; contactEmail: string };
+  data: FooterData;
 }) {
   return (
     <footer className="border-t border-black/10 py-10">

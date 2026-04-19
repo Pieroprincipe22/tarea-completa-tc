@@ -1,17 +1,19 @@
 import { Section } from "./Section";
 import { Button } from "./Button";
 
+type PricingPlan = {
+  readonly name: string;
+  readonly price: string;
+  readonly period: string;
+  readonly features: readonly string[];
+  readonly cta: string;
+  readonly highlight?: boolean;
+};
+
 export function Pricing({
   plans,
 }: {
-  plans: {
-    name: string;
-    price: string;
-    period: string;
-    features: string[];
-    cta: string;
-    highlight?: boolean;
-  }[];
+  plans: readonly PricingPlan[];
 }) {
   return (
     <Section title="Precios" subtitle="Planes claros, sin complicaciones.">

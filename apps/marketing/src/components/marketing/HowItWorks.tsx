@@ -1,9 +1,14 @@
 import { Section } from "./Section";
 
+type HowItWorksItem = {
+  readonly title: string;
+  readonly desc: string;
+};
+
 export function HowItWorks({
   items,
 }: {
-  items: { title: string; desc: string }[];
+  items: readonly HowItWorksItem[];
 }) {
   return (
     <Section title="Cómo funciona" subtitle="De la orden al PDF en 3 pasos.">

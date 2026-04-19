@@ -34,10 +34,10 @@ type FormState = {
   selectedCompanyId: string;
 };
 
-function isValidHttpUrl(s: string) {
+function isValidHttpUrl(value: string) {
   try {
-    const u = new URL(s);
-    return u.protocol === 'http:' || u.protocol === 'https:';
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
   } catch {
     return false;
   }
@@ -53,34 +53,43 @@ function asString(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
+function normalizeRole(role: string): string {
+  return role.trim().toUpperCase();
+}
+
 function parseLoginResponse(value: unknown): LoginResponse | null {
   const obj = asRecord(value);
 
-  const accessToken = asString(obj.accessToken);
-  const userId = asString(obj.userId);
-  const name = asString(obj.name);
-  const email = asString(obj.email);
-
-  const topLevelCompanyId = asString(obj.companyId);
-  const topLevelCompanyName = asString(obj.companyName);
-  const topLevelRole = asString(obj.role);
+  const accessToken = asString(obj.accessToken).trim();
+  const userId = asString(obj.userId).trim();
+  const name = asString(obj.name).trim();
+  const email = asString(obj.email).trim();
+  const topLevelCompanyId = asString(obj.companyId).trim();
+  const topLevelCompanyName = asString(obj.companyName).trim();
+  const topLevelRole = normalizeRole(asString(obj.role));
 
   const companiesRaw = Array.isArray(obj.companies) ? obj.companies : [];
 
   const companies = companiesRaw
     .map((item) => {
       const row = asRecord(item);
-      const companyId = asString(row.companyId);
-      const companyName = asString(row.name);
-      const role = asString(row.role);
+      const companyId = asString(row.companyId).trim();
+      const companyName = asString(row.name).trim();
+      const role = normalizeRole(asString(row.role));
 
       if (!companyId || !companyName || !role) return null;
 
-      return { companyId, name: companyName, role };
+      return {
+        companyId,
+        name: companyName,
+        role,
+      };
     })
     .filter((item): item is LoginCompany => item !== null);
 
-  if (!userId) return null;
+  if (!accessToken || !userId) {
+    return null;
+  }
 
   if (
     companies.length === 0 &&
@@ -109,6 +118,7 @@ function parseLoginResponse(value: unknown): LoginResponse | null {
 
 async function readJsonSafe(res: Response): Promise<unknown> {
   const text = await res.text();
+
   if (!text) return null;
 
   try {
@@ -118,12 +128,32 @@ async function readJsonSafe(res: Response): Promise<unknown> {
   }
 }
 
+function buildErrorMessage(error: unknown, apiBase: string): string {
+  if (error instanceof Error) {
+    const msg = error.message?.trim();
+
+    if (
+      msg === 'Failed to fetch' ||
+      msg === 'Load failed' ||
+      msg.includes('fetch')
+    ) {
+      return `No se pudo conectar con ${apiBase}. Revisa que el API esté levantado, que la URL sea correcta y que CORS permita tu frontend.`;
+    }
+
+    return msg || 'Error desconocido al iniciar sesión.';
+  }
+
+  return 'Error desconocido al iniciar sesión.';
+}
+
 export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const s = readTcSession();
-    if (s) router.replace(resolveHomePath(s));
+    const session = readTcSession();
+    if (session) {
+      router.replace(resolveHomePath(session));
+    }
   }, [router]);
 
   const initial = useMemo<FormState>(
@@ -172,7 +202,7 @@ export default function LoginPage() {
     router.replace(resolveHomePath({ role: company.role }));
   }
 
-  async function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
 
@@ -181,17 +211,17 @@ export default function LoginPage() {
     const password = form.password;
 
     if (!isValidHttpUrl(apiBase)) {
-      setError('apiBase inválido. Ej: http://localhost:3002');
+      setError('API Base inválido. Ejemplo: http://localhost:3002');
       return;
     }
 
     if (!email) {
-      setError('email requerido.');
+      setError('El email es obligatorio.');
       return;
     }
 
     if (!password) {
-      setError('password requerido.');
+      setError('La contraseña es obligatoria.');
       return;
     }
 
@@ -205,22 +235,25 @@ export default function LoginPage() {
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          email,
+          password,
+        }),
       });
 
       const json = await readJsonSafe(res);
 
       if (!res.ok) {
         const obj = asRecord(json);
-        const message = asString(obj.message);
+        const messageValue = obj.message;
+        const message = Array.isArray(messageValue)
+          ? messageValue.filter((v) => typeof v === 'string').join(', ')
+          : asString(messageValue);
+
         throw new Error(message || `Error HTTP ${res.status} en /auth/login`);
       }
 
       const parsed = parseLoginResponse(json);
-
-      if (!parsed?.accessToken) {
-        throw new Error('La respuesta de /auth/login no devolvió accessToken.');
-      }
 
       if (!parsed) {
         throw new Error(
@@ -229,7 +262,9 @@ export default function LoginPage() {
       }
 
       if (parsed.companies.length === 0) {
-        throw new Error('El usuario no tiene companies activas asignadas.');
+        throw new Error(
+          'El usuario no tiene empresas activas asignadas para iniciar sesión.',
+        );
       }
 
       const sessionEmail = parsed.email ?? email;
@@ -253,7 +288,7 @@ export default function LoginPage() {
         selectedCompanyId: parsed.companies[0]?.companyId ?? '',
       }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(buildErrorMessage(err, apiBase));
     } finally {
       setLoading(false);
     }
@@ -265,12 +300,13 @@ export default function LoginPage() {
     const apiBase = form.apiBase.trim();
     const email = loginData.email ?? form.email.trim().toLowerCase();
     const name = loginData.name ?? email;
+
     const company = loginData.companies.find(
-      (c) => c.companyId === form.selectedCompanyId,
+      (item) => item.companyId === form.selectedCompanyId,
     );
 
     if (!company) {
-      setError('Selecciona una company válida.');
+      setError('Selecciona una empresa válida.');
       return;
     }
 
@@ -284,108 +320,144 @@ export default function LoginPage() {
     );
   }
 
+  function onReset() {
+    clearTcSession();
+    setForm(initial);
+    setError(null);
+    setLoginData(null);
+  }
+
   return (
-    <div className="flex min-h-[80vh] items-center justify-center p-6">
-      <div className="w-full max-w-md space-y-4 rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
-        <h1 className="text-xl font-semibold">Login</h1>
-        <p className="text-sm text-slate-300">
-          Inicia sesión contra <code>/auth/login</code> y guarda la sesión tenant
-          real.
-        </p>
-
-        <form className="space-y-3" onSubmit={onSubmit}>
-          <div className="space-y-1">
-            <label className="text-sm text-slate-300">API Base</label>
-            <input
-              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2"
-              value={form.apiBase}
-              onChange={(e) => onChange('apiBase', e.target.value)}
-              placeholder={DEFAULT_API_BASE}
-              autoComplete="off"
-            />
+    <main className="min-h-screen bg-slate-950 text-slate-100">
+      <div className="mx-auto flex min-h-screen max-w-md items-center px-6 py-10">
+        <div className="w-full rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
+          <div className="mb-6">
+            <h1 className="text-2xl font-semibold">Login</h1>
+            <p className="mt-2 text-sm text-slate-400">
+              Inicia sesión contra <code>/auth/login</code> y guarda la sesión
+              tenant real.
+            </p>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-sm text-slate-300">Email</label>
-            <input
-              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2"
-              value={form.email}
-              onChange={(e) => onChange('email', e.target.value)}
-              placeholder="admin@tc.local"
-              autoComplete="email"
-              type="email"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-sm text-slate-300">Password</label>
-            <input
-              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2"
-              value={form.password}
-              onChange={(e) => onChange('password', e.target.value)}
-              placeholder="••••••••"
-              autoComplete="current-password"
-              type="password"
-            />
-          </div>
-
-          {loginData && loginData.companies.length > 1 ? (
-            <div className="space-y-1">
-              <label className="text-sm text-slate-300">Company</label>
-              <select
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2"
-                value={form.selectedCompanyId}
-                onChange={(e) => onChange('selectedCompanyId', e.target.value)}
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div>
+              <label
+                htmlFor="apiBase"
+                className="mb-1 block text-sm font-medium text-slate-300"
               >
-                {loginData.companies.map((company) => (
-                  <option key={company.companyId} value={company.companyId}>
-                    {company.name} · {company.role}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
-
-          {error ? (
-            <div className="rounded-xl border border-red-800 bg-red-900/20 p-3 text-sm text-red-200">
-              {error}
-            </div>
-          ) : null}
-
-          <div className="flex gap-2">
-            {!loginData ? (
-              <button
-                className="flex-1 rounded-xl bg-slate-100 px-4 py-2 font-medium text-slate-900 disabled:opacity-60"
+                API Base
+              </label>
+              <input
+                id="apiBase"
+                value={form.apiBase}
+                onChange={(e) => onChange('apiBase', e.target.value)}
+                placeholder={DEFAULT_API_BASE}
+                autoComplete="off"
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none transition focus:border-sky-500"
                 disabled={loading}
-                type="submit"
-              >
-                {loading ? 'Entrando…' : 'Entrar'}
-              </button>
-            ) : (
-              <button
-                className="flex-1 rounded-xl bg-slate-100 px-4 py-2 font-medium text-slate-900"
-                type="button"
-                onClick={onContinueWithCompany}
-              >
-                Continuar
-              </button>
-            )}
+              />
+            </div>
 
-            <button
-              type="button"
-              className="rounded-xl border border-slate-700 px-4 py-2 hover:bg-slate-800"
-              onClick={() => {
-                clearTcSession();
-                setForm(initial);
-                setError(null);
-                setLoginData(null);
-              }}
-            >
-              Limpiar
-            </button>
-          </div>
-        </form>
+            <div>
+              <label
+                htmlFor="email"
+                className="mb-1 block text-sm font-medium text-slate-300"
+              >
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={form.email}
+                onChange={(e) => onChange('email', e.target.value)}
+                placeholder="admin@tc.local"
+                autoComplete="email"
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none transition focus:border-sky-500"
+                disabled={loading}
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="password"
+                className="mb-1 block text-sm font-medium text-slate-300"
+              >
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={form.password}
+                onChange={(e) => onChange('password', e.target.value)}
+                placeholder="••••••••"
+                autoComplete="current-password"
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none transition focus:border-sky-500"
+                disabled={loading}
+              />
+            </div>
+
+            {loginData && loginData.companies.length > 1 ? (
+              <div>
+                <label
+                  htmlFor="company"
+                  className="mb-1 block text-sm font-medium text-slate-300"
+                >
+                  Empresa
+                </label>
+                <select
+                  id="company"
+                  value={form.selectedCompanyId}
+                  onChange={(e) => onChange('selectedCompanyId', e.target.value)}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none transition focus:border-sky-500"
+                  disabled={loading}
+                >
+                  {loginData.companies.map((company) => (
+                    <option key={company.companyId} value={company.companyId}>
+                      {company.name} · {company.role}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+
+            {error ? (
+              <div className="rounded-xl border border-rose-900 bg-rose-950/50 px-3 py-2 text-sm text-rose-300">
+                {error}
+              </div>
+            ) : null}
+
+            <div className="flex gap-3 pt-2">
+              {!loginData ? (
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 rounded-xl bg-sky-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading ? 'Entrando…' : 'Entrar'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onContinueWithCompany}
+                  disabled={loading}
+                  className="flex-1 rounded-xl bg-sky-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Continuar
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={onReset}
+                disabled={loading}
+                className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Limpiar
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }
