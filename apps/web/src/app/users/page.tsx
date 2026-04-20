@@ -1,13 +1,18 @@
 import Link from 'next/link';
 
-type TeamCardProps = {
+type UserCardProps = {
   title: string;
   description: string;
   href?: string;
   comingSoon?: boolean;
 };
 
-function TeamCard({ title, description, href, comingSoon }: TeamCardProps) {
+function UserCard({
+  title,
+  description,
+  href,
+  comingSoon,
+}: UserCardProps) {
   const content = (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 transition hover:bg-slate-800/60">
       <div className="flex items-start justify-between gap-3">
@@ -32,75 +37,75 @@ function TeamCard({ title, description, href, comingSoon }: TeamCardProps) {
   return <Link href={href}>{content}</Link>;
 }
 
-export default function TeamPage() {
+export default function UsersPage() {
   return (
     <main className="space-y-6">
       <section className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
-              Módulo
+              Submódulo
             </div>
             <h1 className="mt-2 text-3xl font-semibold text-slate-100">
-              Personal
+              Usuarios
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-              Gestiona la estructura humana de la empresa: usuarios internos,
-              técnicos, responsables, permisos, disponibilidad y organización del
-              equipo. Esta base está pensada para crecer sin mezclar operación,
-              seguridad y administración.
+              Este bloque centraliza la gestión de usuarios internos de la
+              empresa: accesos, permisos, estado, rol operativo y trazabilidad.
+              Está pensado para crecer luego hacia control de permisos por
+              módulo, perfiles mixtos y seguridad por empresa.
             </p>
           </div>
 
           <div className="rounded-2xl border border-slate-800 bg-slate-950/50 px-4 py-3 text-sm text-slate-300">
-            <div className="font-medium text-slate-100">Foco del módulo</div>
+            <div className="font-medium text-slate-100">Foco del submódulo</div>
             <div className="mt-1 text-slate-400">
-              Equipo · roles · responsables · planificación futura
+              acceso · roles · seguridad · usuarios internos
             </div>
           </div>
         </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2">
-        <TeamCard
-          title="Usuarios"
-          description="Administración de usuarios internos, acceso a módulos, permisos y perfiles operativos."
-          href="/users"
+        <UserCard
+          title="Listado de usuarios"
+          description="Vista futura para consultar usuarios activos, inactivos, rol, empresa y estado de acceso."
+          href="/users/list"
           comingSoon
         />
 
-        <TeamCard
-          title="Técnicos"
-          description="Equipo técnico, especialidades, asignaciones, disponibilidad y rendimiento por operación."
-          href="/technicians"
+        <UserCard
+          title="Alta de usuario"
+          description="Creación futura de usuarios administrativos, técnicos, supervisores o perfiles mixtos."
+          href="/users/new"
           comingSoon
         />
 
-        <TeamCard
-          title="Encargados / responsables"
-          description="Responsables de zona, jefes de equipo o coordinadores operativos para escalar la organización."
-          href="/team/leads"
-          comingSoon
-        />
-
-        <TeamCard
+        <UserCard
           title="Roles y permisos"
-          description="Matriz futura de permisos por módulo, alcance por empresa y control de acciones críticas."
-          href="/team/roles"
+          description="Base futura para definir permisos por módulo, acciones críticas y alcance por tenant."
+          href="/users/roles"
           comingSoon
         />
 
-        <TeamCard
-          title="Turnos y disponibilidad"
-          description="Calendario futuro para disponibilidad técnica, guardias, ausencias y planificación de personal."
-          href="/team/availability"
+        <UserCard
+          title="Estado y activación"
+          description="Control futuro de activación, desactivación, bloqueo de acceso y ciclo de vida del usuario."
+          href="/users/status"
           comingSoon
         />
 
-        <TeamCard
-          title="Estructura del equipo"
-          description="Vista de crecimiento para separar técnicos, administrativos, supervisores y perfiles mixtos."
-          href="/team/structure"
+        <UserCard
+          title="Historial de acceso"
+          description="Trazabilidad futura de accesos, actividad y auditoría administrativa."
+          href="/users/audit"
+          comingSoon
+        />
+
+        <UserCard
+          title="Perfiles operativos"
+          description="Estructura futura para separar administrativos, técnicos, responsables y coordinadores."
+          href="/users/profiles"
           comingSoon
         />
       </section>

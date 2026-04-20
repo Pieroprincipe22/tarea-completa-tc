@@ -1,13 +1,18 @@
 import Link from 'next/link';
 
-type TeamCardProps = {
+type ReportCardProps = {
   title: string;
   description: string;
   href?: string;
   comingSoon?: boolean;
 };
 
-function TeamCard({ title, description, href, comingSoon }: TeamCardProps) {
+function ReportCard({
+  title,
+  description,
+  href,
+  comingSoon,
+}: ReportCardProps) {
   const content = (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 transition hover:bg-slate-800/60">
       <div className="flex items-start justify-between gap-3">
@@ -32,7 +37,7 @@ function TeamCard({ title, description, href, comingSoon }: TeamCardProps) {
   return <Link href={href}>{content}</Link>;
 }
 
-export default function TeamPage() {
+export default function OperationsReportsPage() {
   return (
     <main className="space-y-6">
       <section className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
@@ -42,65 +47,65 @@ export default function TeamPage() {
               Módulo
             </div>
             <h1 className="mt-2 text-3xl font-semibold text-slate-100">
-              Personal
+              Informes
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-              Gestiona la estructura humana de la empresa: usuarios internos,
-              técnicos, responsables, permisos, disponibilidad y organización del
-              equipo. Esta base está pensada para crecer sin mezclar operación,
-              seguridad y administración.
+              Centraliza los informes finales de operación, explotación técnica y
+              análisis administrativo. Este bloque está pensado para crecer desde
+              los partes de trabajo hacia informes por cliente, activo,
+              contrato, período y rendimiento.
             </p>
           </div>
 
           <div className="rounded-2xl border border-slate-800 bg-slate-950/50 px-4 py-3 text-sm text-slate-300">
             <div className="font-medium text-slate-100">Foco del módulo</div>
             <div className="mt-1 text-slate-400">
-              Equipo · roles · responsables · planificación futura
+              análisis · cierre · reporting · explotación
             </div>
           </div>
         </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2">
-        <TeamCard
-          title="Usuarios"
-          description="Administración de usuarios internos, acceso a módulos, permisos y perfiles operativos."
-          href="/users"
+        <ReportCard
+          title="Informes por cliente"
+          description="Vista futura de informes agregados por cliente, contrato y período de servicio."
+          href="/operations/reports/by-customer"
           comingSoon
         />
 
-        <TeamCard
-          title="Técnicos"
-          description="Equipo técnico, especialidades, asignaciones, disponibilidad y rendimiento por operación."
-          href="/technicians"
+        <ReportCard
+          title="Informes por activo"
+          description="Base futura para analizar incidencias, mantenimiento y rendimiento por equipo."
+          href="/operations/reports/by-asset"
           comingSoon
         />
 
-        <TeamCard
-          title="Encargados / responsables"
-          description="Responsables de zona, jefes de equipo o coordinadores operativos para escalar la organización."
-          href="/team/leads"
+        <ReportCard
+          title="Informes por técnico"
+          description="Seguimiento futuro del trabajo realizado, tiempos, cierres y productividad por técnico."
+          href="/operations/reports/by-technician"
           comingSoon
         />
 
-        <TeamCard
-          title="Roles y permisos"
-          description="Matriz futura de permisos por módulo, alcance por empresa y control de acciones críticas."
-          href="/team/roles"
+        <ReportCard
+          title="Cierres operativos"
+          description="Bloque futuro para cierres mensuales, resúmenes ejecutivos y validación administrativa."
+          href="/operations/reports/closures"
           comingSoon
         />
 
-        <TeamCard
-          title="Turnos y disponibilidad"
-          description="Calendario futuro para disponibilidad técnica, guardias, ausencias y planificación de personal."
-          href="/team/availability"
+        <ReportCard
+          title="KPIs y tendencias"
+          description="Evolución futura de indicadores, incidencias recurrentes, tiempos de respuesta y carga operativa."
+          href="/operations/reports/kpis"
           comingSoon
         />
 
-        <TeamCard
-          title="Estructura del equipo"
-          description="Vista de crecimiento para separar técnicos, administrativos, supervisores y perfiles mixtos."
-          href="/team/structure"
+        <ReportCard
+          title="Exportaciones"
+          description="Salida futura a PDF, Excel o entregables para cliente y administración."
+          href="/operations/reports/exports"
           comingSoon
         />
       </section>

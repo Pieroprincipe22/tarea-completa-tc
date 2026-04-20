@@ -3,25 +3,34 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { resolveCoreNavItems } from '@/lib/tc/api';
-import { clearTcSession, readTcSession } from '@/lib/tc/session';
+import {
+  clearTcSession,
+  readTcSession,
+  type TcSession,
+} from '@/lib/tc/session';
+import {
+  getCurrentSectionKey,
+  getPrimaryNavItems,
+} from '@/lib/tc/navigation';
 
-type TcSession = ReturnType<typeof readTcSession>;
+function formatSessionLabel(session: TcSession | null, mounted: boolean) {
+  if (!mounted) return 'Cargando...';
+  return session?.email ?? session?.name ?? 'Sin sesión';
+}
 
-function isActivePath(pathname: string, href: string): boolean {
-  if (pathname === href) return true;
+function formatSessionMeta(session: TcSession | null, mounted: boolean) {
+  if (!mounted) return '...';
 
-  if (href === '/dashboard' || href === '/technician/dashboard') {
-    return pathname === href;
-  }
+  const company = session?.companyName ?? session?.companyId ?? 'sin-company';
+  const role = session?.role ? ` · ${session.role}` : '';
 
-  return pathname.startsWith(`${href}/`);
+  return `${company}${role}`;
 }
 
 export default function TopBar() {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
-  const [session, setSession] = useState<TcSession>(null);
+  const [session, setSession] = useState<TcSession | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -45,54 +54,73 @@ export default function TopBar() {
     setSession(readTcSession());
   }, [pathname]);
 
-  const navItems = useMemo(() => resolveCoreNavItems(session), [session]);
+  const primaryNavItems = useMemo(
+    () => getPrimaryNavItems(session?.role),
+    [session?.role],
+  );
+
+  const currentSectionKey = useMemo(
+    () => getCurrentSectionKey(pathname, session?.role),
+    [pathname, session?.role],
+  );
 
   if (pathname === '/login') return null;
 
   return (
-    <div className="border-b border-slate-800 bg-slate-900/30">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-3">
-        <div className="text-sm text-slate-300">
-          <span className="font-semibold text-slate-100">
-            {mounted ? session?.email ?? session?.name ?? 'Sin sesión' : 'Cargando...'}
-          </span>{' '}
-          —{' '}
-          <span className="opacity-80">
-            {mounted
-              ? `${session?.companyName ?? session?.companyId ?? 'sin-company'}${
-                  session?.role ? ` · ${session.role}` : ''
-                }`
-              : '...'}
-          </span>
+    <header className="border-b border-slate-800 bg-slate-900/40 backdrop-blur">
+      <div className="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <div className="text-sm text-slate-300">
+              <span className="font-semibold text-slate-100">
+                {formatSessionLabel(session, mounted)}
+              </span>{' '}
+              —{' '}
+              <span className="opacity-80">
+                {formatSessionMeta(session, mounted)}
+              </span>
+            </div>
+
+            <div className="mt-1 text-xs text-slate-500">
+              Navegación estructurada por módulos para crecer sin mezclar áreas.
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 transition hover:bg-slate-800"
+              onClick={() => {
+                clearTcSession();
+                window.location.href = '/login';
+              }}
+              type="button"
+            >
+              Logout
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3 text-sm">
-          {navItems.map((item) => {
-            const active = isActivePath(pathname, item.path);
+        <nav className="flex flex-wrap items-center gap-2">
+          {primaryNavItems.map((item) => {
+            const active = item.sectionKey === currentSectionKey;
 
             return (
               <Link
                 key={item.key}
-                className={active ? 'underline' : 'hover:underline'}
                 href={item.path}
+                className={[
+                  'rounded-xl px-3 py-2 text-sm font-medium transition',
+                  active
+                    ? 'bg-sky-600 text-white'
+                    : 'border border-slate-800 bg-slate-900/40 text-slate-300 hover:bg-slate-800 hover:text-white',
+                ].join(' ')}
               >
                 {item.title}
               </Link>
             );
           })}
-
-          <button
-            className="rounded-lg border border-slate-700 px-3 py-1 hover:bg-slate-800"
-            onClick={() => {
-              clearTcSession();
-              window.location.href = '/login';
-            }}
-            type="button"
-          >
-            Logout
-          </button>
-        </div>
+        </nav>
       </div>
-    </div>
+    </header>
   );
 }

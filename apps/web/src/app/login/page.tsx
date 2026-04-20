@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   DEFAULT_API_BASE,
   clearTcSession,
@@ -9,6 +9,7 @@ import {
   resolveHomePath,
   writeTcSession,
 } from '@/lib/tc/session';
+import { resolveCorePaths, tcGet } from '@/lib/tc/api';
 
 type LoginCompany = {
   companyId: string;
@@ -148,13 +149,7 @@ function buildErrorMessage(error: unknown, apiBase: string): string {
 
 export default function LoginPage() {
   const router = useRouter();
-
-  useEffect(() => {
-    const session = readTcSession();
-    if (session) {
-      router.replace(resolveHomePath(session));
-    }
-  }, [router]);
+  const searchParams = useSearchParams();
 
   const initial = useMemo<FormState>(
     () => ({
@@ -169,7 +164,46 @@ export default function LoginPage() {
   const [form, setForm] = useState<FormState>(initial);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [checkingStoredSession, setCheckingStoredSession] = useState(true);
   const [loginData, setLoginData] = useState<LoginResponse | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      const session = readTcSession();
+
+      if (!session) {
+        if (!cancelled) setCheckingStoredSession(false);
+        return;
+      }
+
+      try {
+        const paths = resolveCorePaths(session);
+        const ping = await tcGet<{ ok?: boolean }>(session, paths.tenantPing);
+
+        if (cancelled) return;
+
+        if (ping.code >= 200 && ping.code < 300) {
+          const next = searchParams.get('next')?.trim();
+          router.replace(next || resolveHomePath(session));
+          return;
+        }
+
+        clearTcSession();
+      } catch {
+        clearTcSession();
+      }
+
+      if (!cancelled) {
+        setCheckingStoredSession(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router, searchParams]);
 
   function onChange<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -199,7 +233,8 @@ export default function LoginPage() {
       role: company.role,
     });
 
-    router.replace(resolveHomePath({ role: company.role }));
+    const next = searchParams.get('next')?.trim();
+    router.replace(next || resolveHomePath({ role: company.role }));
   }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -325,6 +360,21 @@ export default function LoginPage() {
     setForm(initial);
     setError(null);
     setLoginData(null);
+  }
+
+  if (checkingStoredSession) {
+    return (
+      <main className="min-h-screen bg-slate-950 text-slate-100">
+        <div className="mx-auto flex min-h-screen max-w-md items-center px-6 py-10">
+          <div className="w-full rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
+            <h1 className="text-2xl font-semibold">Login</h1>
+            <p className="mt-2 text-sm text-slate-400">
+              Validando sesión guardada…
+            </p>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   return (

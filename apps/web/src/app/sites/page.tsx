@@ -1,13 +1,13 @@
 import Link from 'next/link';
 
-type TeamCardProps = {
+type SiteCardProps = {
   title: string;
   description: string;
   href?: string;
   comingSoon?: boolean;
 };
 
-function TeamCard({ title, description, href, comingSoon }: TeamCardProps) {
+function SiteCard({ title, description, href, comingSoon }: SiteCardProps) {
   const content = (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 transition hover:bg-slate-800/60">
       <div className="flex items-start justify-between gap-3">
@@ -32,75 +32,75 @@ function TeamCard({ title, description, href, comingSoon }: TeamCardProps) {
   return <Link href={href}>{content}</Link>;
 }
 
-export default function TeamPage() {
+export default function SitesPage() {
   return (
     <main className="space-y-6">
       <section className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
-              Módulo
+              Submódulo
             </div>
             <h1 className="mt-2 text-3xl font-semibold text-slate-100">
-              Personal
+              Sites / ubicaciones
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-              Gestiona la estructura humana de la empresa: usuarios internos,
-              técnicos, responsables, permisos, disponibilidad y organización del
-              equipo. Esta base está pensada para crecer sin mezclar operación,
-              seguridad y administración.
+              Este bloque organiza las ubicaciones operativas donde se presta el
+              servicio: hoteles, edificios, plantas, salas técnicas, locales o
+              centros de trabajo. Está pensado para crecer con activos,
+              contratos, contactos, planificación y trazabilidad por site.
             </p>
           </div>
 
           <div className="rounded-2xl border border-slate-800 bg-slate-950/50 px-4 py-3 text-sm text-slate-300">
-            <div className="font-medium text-slate-100">Foco del módulo</div>
+            <div className="font-medium text-slate-100">Foco del submódulo</div>
             <div className="mt-1 text-slate-400">
-              Equipo · roles · responsables · planificación futura
+              ubicaciones · clientes · activos · operación
             </div>
           </div>
         </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2">
-        <TeamCard
-          title="Usuarios"
-          description="Administración de usuarios internos, acceso a módulos, permisos y perfiles operativos."
-          href="/users"
+        <SiteCard
+          title="Listado de sites"
+          description="Vista futura de hoteles, edificios, plantas, salas técnicas o centros vinculados a cada cliente."
+          href="/sites/list"
           comingSoon
         />
 
-        <TeamCard
-          title="Técnicos"
-          description="Equipo técnico, especialidades, asignaciones, disponibilidad y rendimiento por operación."
-          href="/technicians"
+        <SiteCard
+          title="Alta de site"
+          description="Creación futura de ubicaciones con dirección, datos operativos, cliente y observaciones."
+          href="/sites/new"
           comingSoon
         />
 
-        <TeamCard
-          title="Encargados / responsables"
-          description="Responsables de zona, jefes de equipo o coordinadores operativos para escalar la organización."
-          href="/team/leads"
+        <SiteCard
+          title="Contactos por site"
+          description="Base futura para responsables, recepción, mantenimiento interno y contactos operativos del cliente."
+          href="/sites/contacts"
           comingSoon
         />
 
-        <TeamCard
-          title="Roles y permisos"
-          description="Matriz futura de permisos por módulo, alcance por empresa y control de acciones críticas."
-          href="/team/roles"
+        <SiteCard
+          title="Activos del site"
+          description="Relación futura de equipos y máquinas instaladas en cada ubicación para trazabilidad completa."
+          href="/sites/assets"
           comingSoon
         />
 
-        <TeamCard
-          title="Turnos y disponibilidad"
-          description="Calendario futuro para disponibilidad técnica, guardias, ausencias y planificación de personal."
-          href="/team/availability"
+        <SiteCard
+          title="Cobertura contractual"
+          description="Visión futura del alcance contractual, periodicidad y servicios cubiertos en cada site."
+          href="/sites/contracts"
           comingSoon
         />
 
-        <TeamCard
-          title="Estructura del equipo"
-          description="Vista de crecimiento para separar técnicos, administrativos, supervisores y perfiles mixtos."
-          href="/team/structure"
+        <SiteCard
+          title="Historial operativo"
+          description="Seguimiento futuro de órdenes, partes, incidencias y actividad acumulada por ubicación."
+          href="/sites/history"
           comingSoon
         />
       </section>

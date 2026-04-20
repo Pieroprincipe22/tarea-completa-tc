@@ -1,5 +1,6 @@
 import {
   DEFAULT_API_BASE,
+  clearTcSession,
   readTcSession,
   type TcSession,
   isTechnicianRole,
@@ -85,6 +86,70 @@ async function readBody(res: Response): Promise<unknown> {
   return rawText;
 }
 
+function extractApiMessage(json: unknown): string {
+  if (typeof json === 'string') {
+    return json.trim();
+  }
+
+  if (!isRecord(json)) {
+    return '';
+  }
+
+  const message = json.message;
+
+  if (typeof message === 'string') {
+    return message.trim();
+  }
+
+  if (Array.isArray(message)) {
+    const parts = message.filter(
+      (x): x is string => typeof x === 'string' && !!x.trim(),
+    );
+    if (parts.length > 0) {
+      return parts.join(' · ');
+    }
+  }
+
+  const error = json.error;
+  if (typeof error === 'string') {
+    return error.trim();
+  }
+
+  return '';
+}
+
+function isExpiredOrInvalidAuth(code: number, json: unknown): boolean {
+  if (code !== 401) return false;
+
+  const message = extractApiMessage(json).toLowerCase();
+
+  if (!message) return true;
+
+  return (
+    message.includes('invalid or expired token') ||
+    message.includes('missing bearer token') ||
+    message.includes('invalid token payload') ||
+    message.includes('no active membership for company') ||
+    message.includes('unauthorized')
+  );
+}
+
+function redirectToLoginPreservingNext() {
+  if (typeof window === 'undefined') return;
+
+  const currentPath =
+    window.location.pathname +
+    window.location.search +
+    window.location.hash;
+
+  if (window.location.pathname === '/login') {
+    return;
+  }
+
+  const next = encodeURIComponent(currentPath);
+  window.location.replace(`/login?next=${next}`);
+}
+
 export type TcFetchOpts = {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   path: string;
@@ -122,6 +187,12 @@ export async function tcFetch<T = unknown>(
   });
 
   const json = (await readBody(res)) as unknown;
+
+  if (isExpiredOrInvalidAuth(res.status, json)) {
+    clearTcSession();
+    redirectToLoginPreservingNext();
+  }
+
   return { code: res.status, json: json as T };
 }
 

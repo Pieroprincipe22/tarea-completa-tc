@@ -1,13 +1,18 @@
 import Link from 'next/link';
 
-type TeamCardProps = {
+type AssetModuleCardProps = {
   title: string;
   description: string;
   href?: string;
   comingSoon?: boolean;
 };
 
-function TeamCard({ title, description, href, comingSoon }: TeamCardProps) {
+function AssetModuleCard({
+  title,
+  description,
+  href,
+  comingSoon,
+}: AssetModuleCardProps) {
   const content = (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 transition hover:bg-slate-800/60">
       <div className="flex items-start justify-between gap-3">
@@ -32,75 +37,75 @@ function TeamCard({ title, description, href, comingSoon }: TeamCardProps) {
   return <Link href={href}>{content}</Link>;
 }
 
-export default function TeamPage() {
+export default function AssetsPage() {
   return (
     <main className="space-y-6">
       <section className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
-              Módulo
+              Submódulo
             </div>
             <h1 className="mt-2 text-3xl font-semibold text-slate-100">
-              Personal
+              Equipos / activos
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-              Gestiona la estructura humana de la empresa: usuarios internos,
-              técnicos, responsables, permisos, disponibilidad y organización del
-              equipo. Esta base está pensada para crecer sin mezclar operación,
-              seguridad y administración.
+              Este bloque agrupa las máquinas, equipos y activos instalados en
+              cliente, site o ubicación técnica. Está preparado para crecer con
+              historial, mantenimiento asociado, incidencias, documentación y
+              trazabilidad completa del ciclo de vida del equipo.
             </p>
           </div>
 
           <div className="rounded-2xl border border-slate-800 bg-slate-950/50 px-4 py-3 text-sm text-slate-300">
-            <div className="font-medium text-slate-100">Foco del módulo</div>
+            <div className="font-medium text-slate-100">Foco del submódulo</div>
             <div className="mt-1 text-slate-400">
-              Equipo · roles · responsables · planificación futura
+              máquinas · historial · trazabilidad · documentación
             </div>
           </div>
         </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2">
-        <TeamCard
-          title="Usuarios"
-          description="Administración de usuarios internos, acceso a módulos, permisos y perfiles operativos."
-          href="/users"
+        <AssetModuleCard
+          title="Listado de activos"
+          description="Vista futura de equipos registrados, estado, site, cliente, marca, modelo y código interno."
+          href="/assets/list"
           comingSoon
         />
 
-        <TeamCard
-          title="Técnicos"
-          description="Equipo técnico, especialidades, asignaciones, disponibilidad y rendimiento por operación."
-          href="/technicians"
+        <AssetModuleCard
+          title="Alta de activo"
+          description="Creación futura de máquinas, equipos e instalaciones vinculadas a cliente y ubicación."
+          href="/assets/new"
           comingSoon
         />
 
-        <TeamCard
-          title="Encargados / responsables"
-          description="Responsables de zona, jefes de equipo o coordinadores operativos para escalar la organización."
-          href="/team/leads"
+        <AssetModuleCard
+          title="Ficha técnica"
+          description="Base futura para datos de marca, modelo, serie, ubicación, instalación y observaciones."
+          href="/assets/specs"
           comingSoon
         />
 
-        <TeamCard
-          title="Roles y permisos"
-          description="Matriz futura de permisos por módulo, alcance por empresa y control de acciones críticas."
-          href="/team/roles"
+        <AssetModuleCard
+          title="Historial del equipo"
+          description="Seguimiento futuro de work orders, partes, incidencias y mantenimiento por activo."
+          href="/assets/history"
           comingSoon
         />
 
-        <TeamCard
-          title="Turnos y disponibilidad"
-          description="Calendario futuro para disponibilidad técnica, guardias, ausencias y planificación de personal."
-          href="/team/availability"
+        <AssetModuleCard
+          title="Documentación"
+          description="Bloque futuro para manuales, fichas técnicas, garantías, anexos y archivos asociados."
+          href="/assets/documents"
           comingSoon
         />
 
-        <TeamCard
-          title="Estructura del equipo"
-          description="Vista de crecimiento para separar técnicos, administrativos, supervisores y perfiles mixtos."
-          href="/team/structure"
+        <AssetModuleCard
+          title="Estado operativo"
+          description="Gestión futura de activo en uso, mantenimiento, retirado, averiado o fuera de servicio."
+          href="/assets/status"
           comingSoon
         />
       </section>

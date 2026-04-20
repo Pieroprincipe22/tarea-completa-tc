@@ -1,13 +1,18 @@
 import Link from 'next/link';
 
-type TeamCardProps = {
+type AssetCardProps = {
   title: string;
   description: string;
   href?: string;
   comingSoon?: boolean;
 };
 
-function TeamCard({ title, description, href, comingSoon }: TeamCardProps) {
+function AssetCard({
+  title,
+  description,
+  href,
+  comingSoon,
+}: AssetCardProps) {
   const content = (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 transition hover:bg-slate-800/60">
       <div className="flex items-start justify-between gap-3">
@@ -32,7 +37,7 @@ function TeamCard({ title, description, href, comingSoon }: TeamCardProps) {
   return <Link href={href}>{content}</Link>;
 }
 
-export default function TeamPage() {
+export default function InventoryPage() {
   return (
     <main className="space-y-6">
       <section className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
@@ -42,65 +47,63 @@ export default function TeamPage() {
               Módulo
             </div>
             <h1 className="mt-2 text-3xl font-semibold text-slate-100">
-              Personal
+              Activos e inventario
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-              Gestiona la estructura humana de la empresa: usuarios internos,
-              técnicos, responsables, permisos, disponibilidad y organización del
-              equipo. Esta base está pensada para crecer sin mezclar operación,
-              seguridad y administración.
+              Centraliza la gestión de equipos, inventario, ubicaciones y stock
+              operativo. Esta estructura está pensada para crecer sin mezclar
+              datos técnicos, materiales y sites en un único módulo desordenado.
             </p>
           </div>
 
           <div className="rounded-2xl border border-slate-800 bg-slate-950/50 px-4 py-3 text-sm text-slate-300">
             <div className="font-medium text-slate-100">Foco del módulo</div>
             <div className="mt-1 text-slate-400">
-              Equipo · roles · responsables · planificación futura
+              Equipos · repuestos · stock · ubicaciones
             </div>
           </div>
         </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2">
-        <TeamCard
-          title="Usuarios"
-          description="Administración de usuarios internos, acceso a módulos, permisos y perfiles operativos."
-          href="/users"
+        <AssetCard
+          title="Inventario"
+          description="Control futuro de materiales, repuestos, consumibles, entradas, salidas y stock mínimo."
+          href="/inventory"
+        />
+
+        <AssetCard
+          title="Equipos / activos"
+          description="Registro de máquinas, fan coils, calderas, bombas, climatización y otros activos instalados."
+          href="/assets"
           comingSoon
         />
 
-        <TeamCard
-          title="Técnicos"
-          description="Equipo técnico, especialidades, asignaciones, disponibilidad y rendimiento por operación."
-          href="/technicians"
+        <AssetCard
+          title="Sites / ubicaciones"
+          description="Gestión de edificios, hoteles, plantas, salas técnicas y ubicaciones operativas del cliente."
+          href="/sites"
           comingSoon
         />
 
-        <TeamCard
-          title="Encargados / responsables"
-          description="Responsables de zona, jefes de equipo o coordinadores operativos para escalar la organización."
-          href="/team/leads"
+        <AssetCard
+          title="Movimientos de almacén"
+          description="Historial futuro de entradas, salidas, asignación a work orders y trazabilidad de material."
+          href="/inventory/movements"
           comingSoon
         />
 
-        <TeamCard
-          title="Roles y permisos"
-          description="Matriz futura de permisos por módulo, alcance por empresa y control de acciones críticas."
-          href="/team/roles"
+        <AssetCard
+          title="Stock por técnico"
+          description="Control futuro de material asignado a cada técnico para intervención y mantenimiento."
+          href="/inventory/technician-stock"
           comingSoon
         />
 
-        <TeamCard
-          title="Turnos y disponibilidad"
-          description="Calendario futuro para disponibilidad técnica, guardias, ausencias y planificación de personal."
-          href="/team/availability"
-          comingSoon
-        />
-
-        <TeamCard
-          title="Estructura del equipo"
-          description="Vista de crecimiento para separar técnicos, administrativos, supervisores y perfiles mixtos."
-          href="/team/structure"
+        <AssetCard
+          title="Compras y reposición"
+          description="Base futura para compras, reposición automática y previsión de consumo por operación."
+          href="/inventory/purchasing"
           comingSoon
         />
       </section>
