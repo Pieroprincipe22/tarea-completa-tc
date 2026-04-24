@@ -107,11 +107,9 @@ const ADMIN_SECTIONS: TcNavSection[] = [
           }),
           leaf('reports', 'Informes', '/operations/reports', {
             description: 'Informes finales y explotación administrativa.',
-            comingSoon: true,
           }),
           leaf('planning', 'Planificación', '/operations/planning', {
             description: 'Agenda, programación y coordinación operativa.',
-            comingSoon: true,
           }),
         ],
       },
@@ -132,7 +130,6 @@ const ADMIN_SECTIONS: TcNavSection[] = [
           }),
           leaf('contracts', 'Contratos', '/contracts', {
             description: 'Contratos, condiciones y renovaciones.',
-            comingSoon: true,
           }),
         ],
       },
@@ -151,18 +148,15 @@ const ADMIN_SECTIONS: TcNavSection[] = [
           leaf('assets-home', 'Resumen de activos', '/inventory', {
             description: 'Entrada principal del módulo de activos e inventario.',
           }),
-          leaf('inventory', 'Inventario', '/inventory/stock', {
+          leaf('inventory-stock', 'Inventario y stock', '/inventory/stock', {
             description: 'Materiales, repuestos, consumibles y stock.',
-            comingSoon: true,
           }),
           leaf('assets', 'Equipos / activos', '/assets', {
             description: 'Equipos instalados en clientes y sites.',
-            comingSoon: true,
           }),
           leaf('sites', 'Sites / ubicaciones', '/sites', {
             description:
               'Centros, plantas, edificios o ubicaciones de servicio.',
-            comingSoon: true,
           }),
         ],
       },
@@ -183,11 +177,9 @@ const ADMIN_SECTIONS: TcNavSection[] = [
           }),
           leaf('technicians', 'Técnicos', '/technicians', {
             description: 'Gestión del equipo técnico.',
-            comingSoon: true,
           }),
           leaf('users', 'Usuarios', '/users', {
             description: 'Usuarios internos y permisos.',
-            comingSoon: true,
           }),
         ],
       },
@@ -196,13 +188,16 @@ const ADMIN_SECTIONS: TcNavSection[] = [
   {
     key: 'plantillas',
     title: 'Plantillas',
-    sectionPath: '/maintenance-templates',
+    sectionPath: '/templates',
     groups: [
       {
         key: 'plantillas-main',
         title: 'Plantillas',
         shortTitle: 'Plantillas',
         items: [
+          leaf('templates-home', 'Resumen de plantillas', '/templates', {
+            description: 'Entrada principal del módulo de plantillas.',
+          }),
           leaf(
             'checklist-templates',
             'Plantillas de checklist',
@@ -212,12 +207,11 @@ const ADMIN_SECTIONS: TcNavSection[] = [
             },
           ),
           leaf(
-            'maintenance-templates-future',
+            'maintenance-templates',
             'Plantillas de mantenimiento',
             '/templates/maintenance',
             {
               description: 'Biblioteca avanzada de plantillas técnicas.',
-              comingSoon: true,
             },
           ),
         ],
