@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { readTcSession, type TcSession } from '@/lib/tc/session';
+import { readTcSession, } from '@/lib/tc/session';
 import { errMsg, isRecord, resolveCorePaths, tcGet } from '@/lib/tc/api';
 
 type TemplateItem = {

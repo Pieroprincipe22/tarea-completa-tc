@@ -1,16 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-
-import {
-  isTechnicianSession,
-  readTcSession,
-  resolveHomePath,
-  resolveWorkOrdersPath,
-  type TcSession,
-} from '@/lib/tc/session';
+import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   errMsg,
   isRecord,
@@ -19,11 +11,7 @@ import {
   tcGet,
   tcPost,
 } from '@/lib/tc/api';
-
-type Load<T> =
-  | { status: 'loading' }
-  | { status: 'ok'; data: T }
-  | { status: 'error'; error: string };
+import { readTcSession, type TcSession } from '@/lib/tc/session';
 
 type CustomerOption = {
   id: string;
@@ -33,134 +21,189 @@ type CustomerOption = {
 type SiteOption = {
   id: string;
   name: string;
-  address?: string | null;
   customerId?: string | null;
+  customer?: CustomerOption | null;
 };
 
 type AssetOption = {
   id: string;
   name: string;
-  brand?: string | null;
-  model?: string | null;
+  code?: string | null;
+  internalCode?: string | null;
   serialNumber?: string | null;
   siteId?: string | null;
   customerId?: string | null;
+  site?: {
+    id: string;
+    name: string;
+    customerId?: string | null;
+  } | null;
 };
 
 type TechnicianOption = {
   id: string;
+  userId?: string;
   name: string;
   email?: string | null;
+  role?: string | null;
+  isActive?: boolean;
 };
 
-type WorkOrderForm = {
+type WorkOrderPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+
+type FormState = {
   title: string;
   description: string;
   customerId: string;
   siteId: string;
   assetId: string;
-  assignedToUserId: string;
-  priority: '' | '1' | '2' | '3' | '4';
+  assignedToId: string;
+  priority: WorkOrderPriority;
   scheduledAt: string;
 };
 
-function asStr(v: unknown, fallback = ''): string {
-  return typeof v === 'string' ? v : fallback;
+type LoadState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'ok' }
+  | { status: 'error'; error: string };
+
+const INITIAL_FORM: FormState = {
+  title: '',
+  description: '',
+  customerId: '',
+  siteId: '',
+  assetId: '',
+  assignedToId: '',
+  priority: 'MEDIUM',
+  scheduledAt: '',
+};
+
+const PRIORITY_OPTIONS: Array<{
+  value: WorkOrderPriority;
+  label: string;
+}> = [
+  { value: 'LOW', label: 'Baja' },
+  { value: 'MEDIUM', label: 'Media' },
+  { value: 'HIGH', label: 'Alta' },
+  { value: 'URGENT', label: 'Urgente' },
+];
+
+function asStr(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value : fallback;
 }
 
-function asNullableStr(v: unknown): string | null {
-  return typeof v === 'string' ? v : null;
+function asNullableStr(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null;
 }
 
-function apiErrorMessage(json: unknown, fallback: string): string {
-  if (typeof json === 'string' && json.trim()) return json;
+function parseCustomer(value: unknown): CustomerOption | null {
+  if (!isRecord(value)) return null;
 
-  if (isRecord(json)) {
-    const message = json.message;
-
-    if (typeof message === 'string' && message.trim()) {
-      return message;
-    }
-
-    if (Array.isArray(message)) {
-      const parts = message.filter((x): x is string => typeof x === 'string' && !!x.trim());
-      if (parts.length) return parts.join(' · ');
-    }
-
-    const error = json.error;
-    if (typeof error === 'string' && error.trim()) {
-      return `${error}: ${fallback}`;
-    }
-  }
-
-  return fallback;
-}
-
-function parseCustomer(x: unknown): CustomerOption | null {
-  if (!isRecord(x)) return null;
-
-  const id = asStr(x.id);
-  const name = asStr(x.name);
+  const id = asStr(value.id);
+  const name = asStr(value.name);
 
   if (!id || !name) return null;
 
   return { id, name };
 }
 
-function parseSite(x: unknown): SiteOption | null {
-  if (!isRecord(x)) return null;
+function parseSite(value: unknown): SiteOption | null {
+  if (!isRecord(value)) return null;
 
-  const id = asStr(x.id);
-  const name = asStr(x.name);
+  const id = asStr(value.id);
+  const name = asStr(value.name);
+
+  if (!id || !name) return null;
+
+  const customer = parseCustomer(value.customer);
+
+  return {
+    id,
+    name,
+    customerId: asNullableStr(value.customerId) ?? customer?.id ?? null,
+    customer,
+  };
+}
+
+function parseAsset(value: unknown): AssetOption | null {
+  if (!isRecord(value)) return null;
+
+  const id = asStr(value.id);
+  const name = asStr(value.name);
+
+  if (!id || !name) return null;
+
+  const site = isRecord(value.site)
+    ? {
+        id: asStr(value.site.id),
+        name: asStr(value.site.name),
+        customerId: asNullableStr(value.site.customerId),
+      }
+    : null;
+
+  return {
+    id,
+    name,
+    code: asNullableStr(value.code),
+    internalCode: asNullableStr(value.internalCode),
+    serialNumber: asNullableStr(value.serialNumber),
+    siteId: asNullableStr(value.siteId) ?? site?.id ?? null,
+    customerId: asNullableStr(value.customerId) ?? site?.customerId ?? null,
+    site: site?.id && site?.name ? site : null,
+  };
+}
+
+function parseTechnician(value: unknown): TechnicianOption | null {
+  if (!isRecord(value)) return null;
+
+  const id = asStr(value.id) || asStr(value.userId);
+  const userId = asStr(value.userId) || id;
+  const email = asNullableStr(value.email);
+  const name = asStr(value.name) || email || '';
+  const role = asNullableStr(value.role);
+  const isActive =
+    typeof value.isActive === 'boolean' ? value.isActive : undefined;
 
   if (!id || !name) return null;
 
   return {
     id,
+    userId,
     name,
-    address: asNullableStr(x.address),
-    customerId: asNullableStr(x.customerId),
+    email,
+    role,
+    isActive,
   };
 }
 
-function parseAsset(x: unknown): AssetOption | null {
-  if (!isRecord(x)) return null;
-
-  const id = asStr(x.id);
-  const name = asStr(x.name);
-
-  if (!id || !name) return null;
-
-  const nestedSite = isRecord(x.site) ? x.site : null;
-
-  return {
-    id,
-    name,
-    brand: asNullableStr(x.brand),
-    model: asNullableStr(x.model),
-    serialNumber: asNullableStr(x.serialNumber) ?? asNullableStr(x.serial),
-    siteId: asNullableStr(x.siteId) ?? asNullableStr(nestedSite?.id),
-    customerId: asNullableStr(x.customerId) ?? asNullableStr(nestedSite?.customerId),
-  };
+function optionalString(value: string): string | undefined {
+  const normalized = value.trim();
+  return normalized ? normalized : undefined;
 }
 
-function parseTechnician(x: unknown): TechnicianOption | null {
-  if (!isRecord(x)) return null;
+function normalizeDateTimeLocal(value: string): string | undefined {
+  const normalized = value.trim();
 
-  const id = asStr(x.id);
-  const name = asStr(x.name);
-  const email = asNullableStr(x.email);
+  if (!normalized) return undefined;
 
-  if (!id || !name) return null;
+  const date = new Date(normalized);
 
-  return { id, name, email };
+  if (Number.isNaN(date.getTime())) return undefined;
+
+  return date.toISOString();
 }
 
-function inputToIso(value: string): string | undefined {
-  if (!value.trim()) return undefined;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return undefined;
-  return d.toISOString();
+function getAssetCode(asset: AssetOption): string {
+  return asset.code ?? asset.internalCode ?? asset.serialNumber ?? 'Sin código';
+}
+
+function getTechnicianLabel(technician: TechnicianOption): string {
+  if (technician.email && technician.email !== technician.name) {
+    return `${technician.name} · ${technician.email}`;
+  }
+
+  return technician.name;
 }
 
 export default function NewWorkOrderPage() {
@@ -170,502 +213,530 @@ export default function NewWorkOrderPage() {
   const [session, setSession] = useState<TcSession | null>(null);
   const paths = useMemo(() => resolveCorePaths(session), [session]);
 
-  const [catalogState, setCatalogState] = useState<
-    Load<{
-      customers: CustomerOption[];
-      sites: SiteOption[];
-      assets: AssetOption[];
-      technicians: TechnicianOption[];
-    }>
-  >({ status: 'loading' });
+  const [form, setForm] = useState<FormState>(INITIAL_FORM);
 
-  const [form, setForm] = useState<WorkOrderForm>({
-    title: '',
-    description: '',
-    customerId: '',
-    siteId: '',
-    assetId: '',
-    assignedToUserId: '',
-    priority: '',
-    scheduledAt: '',
-  });
+  const [customers, setCustomers] = useState<CustomerOption[]>([]);
+  const [sites, setSites] = useState<SiteOption[]>([]);
+  const [assets, setAssets] = useState<AssetOption[]>([]);
+  const [technicians, setTechnicians] = useState<TechnicianOption[]>([]);
 
-  const [submitError, setSubmitError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [loadState, setLoadState] = useState<LoadState>({ status: 'idle' });
+  const [isSaving, setIsSaving] = useState(false);
+
+  const [prefillAssetId, setPrefillAssetId] = useState('');
+  const [technicianWarning, setTechnicianWarning] = useState<string | null>(
+    null,
+  );
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
     setSession(readTcSession());
+
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      setPrefillAssetId(searchParams.get('assetId') ?? '');
+    }
   }, []);
 
   useEffect(() => {
-    if (!mounted || !session) return;
+    if (!mounted) return;
 
-    if (isTechnicianSession(session)) {
-      router.replace(resolveWorkOrdersPath(session));
+    if (!session) {
+      setLoadState({ status: 'ok' });
+      return;
     }
-  }, [mounted, router, session]);
-
-  useEffect(() => {
-    if (!mounted || !session) return;
-    if (isTechnicianSession(session)) return;
 
     let cancelled = false;
 
-    (async () => {
+    async function loadOptions() {
       try {
-        setCatalogState({ status: 'loading' });
+        setLoadState({ status: 'loading' });
+        setErrorMessage(null);
+        setTechnicianWarning(null);
 
-        const [customersRes, sitesRes, assetsRes, techniciansRes] = await Promise.all([
+        const [
+          customersResponse,
+          sitesResponse,
+          assetsResponse,
+          techniciansResponse,
+        ] = await Promise.all([
           tcGet<unknown>(session, paths.customers),
           tcGet<unknown>(session, paths.sites),
           tcGet<unknown>(session, paths.assets),
-          tcGet<unknown>(session, `${paths.workOrders}/meta/technicians`),
+          tcGet<unknown>(session, paths.technicians),
         ]);
 
         if (cancelled) return;
 
-        const responses = [customersRes, sitesRes, assetsRes, techniciansRes];
-        const failed = responses.find((r) => r.code < 200 || r.code >= 300);
-
-        if (failed) {
-          setCatalogState({
+        if (customersResponse.code < 200 || customersResponse.code >= 300) {
+          setLoadState({
             status: 'error',
-            error: apiErrorMessage(failed.json, `HTTP ${failed.code}`),
+            error: `No se pudieron cargar los clientes. HTTP ${customersResponse.code}`,
           });
           return;
         }
 
-        const customers = normalizeList<unknown>(customersRes.json).items
-          .map(parseCustomer)
-          .filter((x): x is CustomerOption => !!x)
-          .sort((a, b) => a.name.localeCompare(b.name, 'es'));
-
-        const sites = normalizeList<unknown>(sitesRes.json).items
-          .map(parseSite)
-          .filter((x): x is SiteOption => !!x)
-          .sort((a, b) => a.name.localeCompare(b.name, 'es'));
-
-        const assets = normalizeList<unknown>(assetsRes.json).items
-          .map(parseAsset)
-          .filter((x): x is AssetOption => !!x)
-          .sort((a, b) => a.name.localeCompare(b.name, 'es'));
-
-        const technicians = normalizeList<unknown>(techniciansRes.json).items
-          .map(parseTechnician)
-          .filter((x): x is TechnicianOption => !!x)
-          .sort((a, b) => a.name.localeCompare(b.name, 'es'));
-
-        setCatalogState({
-          status: 'ok',
-          data: {
-            customers,
-            sites,
-            assets,
-            technicians,
-          },
-        });
-      } catch (e) {
-        if (!cancelled) {
-          setCatalogState({
+        if (sitesResponse.code < 200 || sitesResponse.code >= 300) {
+          setLoadState({
             status: 'error',
-            error: errMsg(e),
+            error: `No se pudieron cargar los sites. HTTP ${sitesResponse.code}`,
+          });
+          return;
+        }
+
+        if (assetsResponse.code < 200 || assetsResponse.code >= 300) {
+          setLoadState({
+            status: 'error',
+            error: `No se pudieron cargar los activos. HTTP ${assetsResponse.code}`,
+          });
+          return;
+        }
+
+        const customerItems = normalizeList<unknown>(
+          customersResponse.json,
+        ).items;
+        const siteItems = normalizeList<unknown>(sitesResponse.json).items;
+        const assetItems = normalizeList<unknown>(assetsResponse.json).items;
+
+        const parsedCustomers = customerItems
+          .map(parseCustomer)
+          .filter((item): item is CustomerOption => !!item);
+
+        const parsedSites = siteItems
+          .map(parseSite)
+          .filter((item): item is SiteOption => !!item);
+
+        const parsedAssets = assetItems
+          .map(parseAsset)
+          .filter((item): item is AssetOption => !!item);
+
+        setCustomers(parsedCustomers);
+        setSites(parsedSites);
+        setAssets(parsedAssets);
+
+        if (techniciansResponse.code >= 200 && techniciansResponse.code < 300) {
+          const technicianItems = normalizeList<unknown>(
+            techniciansResponse.json,
+          ).items;
+
+          const loadedTechnicians = technicianItems
+            .map(parseTechnician)
+            .filter((item): item is TechnicianOption => !!item)
+            .filter((item) => item.isActive !== false);
+
+          setTechnicians(loadedTechnicians);
+
+          if (loadedTechnicians.length === 0) {
+            setTechnicianWarning(
+              'No hay técnicos activos vinculados a esta empresa. Puedes crear la orden sin asignarla.',
+            );
+          }
+        } else {
+          setTechnicians([]);
+          setTechnicianWarning(
+            `No se pudieron cargar técnicos automáticamente. HTTP ${techniciansResponse.code}`,
+          );
+        }
+
+        setLoadState({ status: 'ok' });
+      } catch (error) {
+        if (!cancelled) {
+          setLoadState({
+            status: 'error',
+            error: errMsg(error),
           });
         }
       }
-    })();
+    }
+
+    void loadOptions();
 
     return () => {
       cancelled = true;
     };
-  }, [mounted, session, paths.assets, paths.customers, paths.sites, paths.workOrders]);
-
-  const filteredSites = useMemo(() => {
-    if (catalogState.status !== 'ok') return [];
-    if (!form.customerId) return catalogState.data.sites;
-    return catalogState.data.sites.filter((site) => site.customerId === form.customerId);
-  }, [catalogState, form.customerId]);
-
-  const filteredAssets = useMemo(() => {
-    if (catalogState.status !== 'ok') return [];
-
-    if (form.siteId) {
-      return catalogState.data.assets.filter((asset) => asset.siteId === form.siteId);
-    }
-
-    if (form.customerId) {
-      return catalogState.data.assets.filter((asset) => asset.customerId === form.customerId);
-    }
-
-    return catalogState.data.assets;
-  }, [catalogState, form.customerId, form.siteId]);
+  }, [
+    mounted,
+    paths.assets,
+    paths.customers,
+    paths.sites,
+    paths.technicians,
+    session,
+  ]);
 
   useEffect(() => {
-    if (!form.siteId) return;
-    const exists = filteredSites.some((site) => site.id === form.siteId);
-    if (!exists) {
-      setForm((prev) => ({
-        ...prev,
-        siteId: '',
-        assetId: '',
-      }));
-    }
-  }, [filteredSites, form.siteId]);
+    if (!prefillAssetId || assets.length === 0) return;
 
-  useEffect(() => {
-    if (!form.assetId) return;
-    const exists = filteredAssets.some((asset) => asset.id === form.assetId);
-    if (!exists) {
-      setForm((prev) => ({
-        ...prev,
-        assetId: '',
-      }));
-    }
-  }, [filteredAssets, form.assetId]);
+    setForm((current) => {
+      if (current.assetId) return current;
 
-  function updateField<K extends keyof WorkOrderForm>(key: K, value: WorkOrderForm[K]) {
-    setForm((prev) => {
-      if (key === 'customerId') {
-        return {
-          ...prev,
-          customerId: value as WorkOrderForm[K] & string,
-          siteId: '',
-          assetId: '',
-        };
-      }
-
-      if (key === 'siteId') {
-        return {
-          ...prev,
-          siteId: value as WorkOrderForm[K] & string,
-          assetId: '',
-        };
-      }
+      const asset = assets.find((item) => item.id === prefillAssetId);
+      if (!asset) return current;
 
       return {
-        ...prev,
-        [key]: value,
+        ...current,
+        assetId: asset.id,
+        siteId: asset.siteId ?? current.siteId,
+        customerId: asset.customerId ?? current.customerId,
       };
     });
+  }, [assets, prefillAssetId]);
+
+  const filteredSites = useMemo(() => {
+    if (!form.customerId) return sites;
+
+    return sites.filter((site) => site.customerId === form.customerId);
+  }, [form.customerId, sites]);
+
+  const filteredAssets = useMemo(() => {
+    return assets.filter((asset) => {
+      if (form.siteId) return asset.siteId === form.siteId;
+      if (form.customerId) return asset.customerId === form.customerId;
+
+      return true;
+    });
+  }, [assets, form.customerId, form.siteId]);
+
+  function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setForm((current) => ({ ...current, [key]: value }));
   }
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setSubmitError('');
+  function handleCustomerChange(customerId: string) {
+    setForm((current) => ({
+      ...current,
+      customerId,
+      siteId: '',
+      assetId: '',
+    }));
+  }
+
+  function handleSiteChange(siteId: string) {
+    const selectedSite = sites.find((site) => site.id === siteId);
+
+    setForm((current) => ({
+      ...current,
+      siteId,
+      assetId: '',
+      customerId: selectedSite?.customerId ?? current.customerId,
+    }));
+  }
+
+  function handleAssetChange(assetId: string) {
+    const selectedAsset = assets.find((asset) => asset.id === assetId);
+
+    setForm((current) => ({
+      ...current,
+      assetId,
+      siteId: selectedAsset?.siteId ?? current.siteId,
+      customerId: selectedAsset?.customerId ?? current.customerId,
+    }));
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
 
     if (!session) {
-      setSubmitError('No hay sesión activa.');
+      setErrorMessage('Necesitas iniciar sesión para crear una orden de trabajo.');
       return;
     }
 
     if (!form.title.trim()) {
-      setSubmitError('El título es obligatorio.');
-      return;
-    }
-
-    if (!form.customerId) {
-      setSubmitError('Debes seleccionar un customer.');
-      return;
-    }
-
-    if (!form.siteId) {
-      setSubmitError('Debes seleccionar un site.');
+      setErrorMessage('El título de la orden es obligatorio.');
       return;
     }
 
     try {
-      setSubmitting(true);
+      setIsSaving(true);
+      setErrorMessage(null);
 
-      const body: Record<string, unknown> = {
+      const payload = {
         title: form.title.trim(),
-        customerId: form.customerId,
-        siteId: form.siteId,
+        description: optionalString(form.description),
+        customerId: optionalString(form.customerId),
+        siteId: optionalString(form.siteId),
+        assetId: optionalString(form.assetId),
+        assignedToId: optionalString(form.assignedToId),
+        priority: form.priority,
+        scheduledAt: normalizeDateTimeLocal(form.scheduledAt),
       };
 
-      const description = form.description.trim();
-      if (description) body.description = description;
-      if (form.assetId) body.assetId = form.assetId;
-      if (form.assignedToUserId) body.assignedToUserId = form.assignedToUserId;
-      if (form.priority) body.priority = Number(form.priority);
+      const response = await tcPost<unknown>(session, paths.workOrders, payload);
 
-      const scheduledAtIso = inputToIso(form.scheduledAt);
-      if (scheduledAtIso) body.scheduledAt = scheduledAtIso;
-
-      const r = await tcPost<unknown>(session, paths.workOrders, body);
-
-      if (r.code < 200 || r.code >= 300) {
-        setSubmitError(apiErrorMessage(r.json, `HTTP ${r.code}`));
+      if (response.code < 200 || response.code >= 300) {
+        setErrorMessage(`No se pudo crear la orden. HTTP ${response.code}`);
         return;
       }
 
-      let newId = '';
-
-      if (isRecord(r.json) && typeof r.json.id === 'string') {
-        newId = r.json.id;
-      }
-
-      if (newId) {
-        router.push(`/work-orders/${newId}`);
-        return;
-      }
-
-      router.push(resolveWorkOrdersPath(session));
-    } catch (e) {
-      setSubmitError(errMsg(e));
+      router.push('/work-orders');
+      router.refresh();
+    } catch (error) {
+      setErrorMessage(`No se pudo crear la orden: ${errMsg(error)}`);
     } finally {
-      setSubmitting(false);
+      setIsSaving(false);
     }
   }
 
   if (!mounted) {
     return (
-      <main className="mx-auto max-w-5xl p-6">
-        <p>Cargando sesión…</p>
+      <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-4xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <p className="text-sm font-medium text-slate-500">
+            Cargando sesión...
+          </p>
+        </div>
       </main>
     );
   }
 
   if (!session) {
     return (
-      <main className="mx-auto max-w-5xl p-6">
-        <h1 className="mb-4 text-3xl font-semibold">New Work Order</h1>
-        <p className="mb-4">Sin sesión tenant. Ve a /login.</p>
-        <Link className="underline" href="/login">
-          Ir a /login
-        </Link>
+      <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-3xl rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+          <p className="text-sm font-medium text-slate-500">
+            Nueva orden de trabajo
+          </p>
+
+          <h1 className="mt-1 text-2xl font-bold text-slate-950">
+            Sesión no encontrada
+          </h1>
+
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Para crear órdenes de trabajo necesitas iniciar sesión y tener una
+            empresa activa.
+          </p>
+
+          <Link
+            href="/login"
+            className="mt-5 inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+          >
+            Ir a login
+          </Link>
+        </div>
       </main>
     );
   }
-
-  if (isTechnicianSession(session)) {
-    return (
-      <main className="mx-auto max-w-5xl p-6">
-        <p>Redirigiendo al panel técnico…</p>
-      </main>
-    );
-  }
-
-  const backHref = resolveWorkOrdersPath(session);
-  const homeHref = resolveHomePath(session);
 
   return (
-    <main className="mx-auto max-w-5xl p-6">
-      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold">Nueva Work Order</h1>
-          <p className="mt-1 text-sm text-slate-400">
-            Crea una orden de trabajo y asígnala opcionalmente a un técnico.
-          </p>
-        </div>
+    <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-500">
+                Órdenes de trabajo
+              </p>
 
-        <div className="flex gap-4 text-sm">
-          <Link className="underline" href={homeHref}>
-            Dashboard
-          </Link>
-          <Link className="underline" href={backHref}>
-            Volver a Work Orders
-          </Link>
-        </div>
-      </div>
+              <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+                Nueva orden de trabajo
+              </h1>
 
-      {catalogState.status === 'loading' ? (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
-          <p>Cargando catálogos…</p>
-        </div>
-      ) : catalogState.status === 'error' ? (
-        <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-4 text-rose-200">
-          <p>{catalogState.error}</p>
-        </div>
-      ) : (
-        <>
-          <div className="mb-6 grid gap-3 rounded-2xl border border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-300 md:grid-cols-4">
-            <div>
-              <div className="text-slate-400">Customers</div>
-              <div className="mt-1 font-medium">{catalogState.data.customers.length}</div>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                Crea una orden vinculada a cliente, site, activo y técnico
+                asignado.
+              </p>
             </div>
-            <div>
-              <div className="text-slate-400">Sites</div>
-              <div className="mt-1 font-medium">{catalogState.data.sites.length}</div>
-            </div>
-            <div>
-              <div className="text-slate-400">Assets</div>
-              <div className="mt-1 font-medium">{catalogState.data.assets.length}</div>
-            </div>
-            <div>
-              <div className="text-slate-400">Technicians</div>
-              <div className="mt-1 font-medium">{catalogState.data.technicians.length}</div>
-            </div>
+
+            <Link
+              href="/work-orders"
+              className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              Volver a órdenes
+            </Link>
+          </div>
+        </section>
+
+        {loadState.status === 'error' ? (
+          <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700">
+            {loadState.error}
+          </div>
+        ) : null}
+
+        {technicianWarning ? (
+          <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
+            {technicianWarning}
+          </div>
+        ) : null}
+
+        <form
+          onSubmit={handleSubmit}
+          className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="flex flex-col gap-2 md:col-span-2">
+              <span className="text-sm font-semibold text-slate-700">
+                Título *
+              </span>
+
+              <input
+                value={form.title}
+                onChange={(event) => updateField('title', event.target.value)}
+                placeholder="Ejemplo: Revisión de fan coil habitación 407"
+                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400"
+              />
+            </label>
+
+            <label className="flex flex-col gap-2">
+              <span className="text-sm font-semibold text-slate-700">
+                Cliente
+              </span>
+
+              <select
+                value={form.customerId}
+                onChange={(event) => handleCustomerChange(event.target.value)}
+                disabled={loadState.status === 'loading'}
+                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-slate-400 disabled:bg-slate-100"
+              >
+                <option value="">Sin cliente específico</option>
+                {customers.map((customer) => (
+                  <option key={customer.id} value={customer.id}>
+                    {customer.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex flex-col gap-2">
+              <span className="text-sm font-semibold text-slate-700">
+                Site / ubicación
+              </span>
+
+              <select
+                value={form.siteId}
+                onChange={(event) => handleSiteChange(event.target.value)}
+                disabled={loadState.status === 'loading'}
+                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-slate-400 disabled:bg-slate-100"
+              >
+                <option value="">Sin site específico</option>
+                {filteredSites.map((site) => (
+                  <option key={site.id} value={site.id}>
+                    {site.name}
+                    {site.customer?.name ? ` · ${site.customer.name}` : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex flex-col gap-2">
+              <span className="text-sm font-semibold text-slate-700">
+                Activo / máquina
+              </span>
+
+              <select
+                value={form.assetId}
+                onChange={(event) => handleAssetChange(event.target.value)}
+                disabled={loadState.status === 'loading'}
+                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-slate-400 disabled:bg-slate-100"
+              >
+                <option value="">Sin activo específico</option>
+                {filteredAssets.map((asset) => (
+                  <option key={asset.id} value={asset.id}>
+                    {asset.name} · {getAssetCode(asset)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex flex-col gap-2">
+              <span className="text-sm font-semibold text-slate-700">
+                Técnico asignado
+              </span>
+
+              <select
+                value={form.assignedToId}
+                onChange={(event) =>
+                  updateField('assignedToId', event.target.value)
+                }
+                disabled={loadState.status === 'loading'}
+                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-slate-400 disabled:bg-slate-100"
+              >
+                <option value="">Sin asignar</option>
+                {technicians.map((technician) => (
+                  <option key={technician.id} value={technician.id}>
+                    {getTechnicianLabel(technician)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex flex-col gap-2">
+              <span className="text-sm font-semibold text-slate-700">
+                Prioridad
+              </span>
+
+              <select
+                value={form.priority}
+                onChange={(event) =>
+                  updateField(
+                    'priority',
+                    event.target.value as WorkOrderPriority,
+                  )
+                }
+                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-slate-400"
+              >
+                {PRIORITY_OPTIONS.map((priority) => (
+                  <option key={priority.value} value={priority.value}>
+                    {priority.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex flex-col gap-2">
+              <span className="text-sm font-semibold text-slate-700">
+                Fecha programada
+              </span>
+
+              <input
+                type="datetime-local"
+                value={form.scheduledAt}
+                onChange={(event) =>
+                  updateField('scheduledAt', event.target.value)
+                }
+                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-slate-400"
+              />
+            </label>
+
+            <label className="flex flex-col gap-2 md:col-span-2">
+              <span className="text-sm font-semibold text-slate-700">
+                Descripción
+              </span>
+
+              <textarea
+                value={form.description}
+                onChange={(event) =>
+                  updateField('description', event.target.value)
+                }
+                placeholder="Describe el trabajo a realizar, síntomas, instrucciones de acceso, materiales o prioridad operativa..."
+                rows={6}
+                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400"
+              />
+            </label>
           </div>
 
-          <form
-            className="space-y-6 rounded-2xl border border-slate-800 bg-slate-900/40 p-6"
-            onSubmit={onSubmit}
-          >
-            <section className="grid gap-4 md:grid-cols-2">
-              <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-medium text-slate-200">
-                  Título *
-                </label>
-                <input
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none"
-                  value={form.title}
-                  onChange={(e) => updateField('title', e.target.value)}
-                  placeholder="Ej: Revisar fuga en cuarto de bombas"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-medium text-slate-200">
-                  Descripción
-                </label>
-                <textarea
-                  className="min-h-[120px] w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none"
-                  value={form.description}
-                  onChange={(e) => updateField('description', e.target.value)}
-                  placeholder="Describe el trabajo a realizar"
-                />
-              </div>
-            </section>
-
-            <section className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-200">
-                  Customer *
-                </label>
-                <select
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none"
-                  value={form.customerId}
-                  onChange={(e) => updateField('customerId', e.target.value)}
-                >
-                  <option value="">Selecciona un customer</option>
-                  {catalogState.data.customers.map((customer) => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-200">
-                  Site *
-                </label>
-                <select
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none"
-                  value={form.siteId}
-                  onChange={(e) => updateField('siteId', e.target.value)}
-                  disabled={!form.customerId}
-                >
-                  <option value="">
-                    {form.customerId ? 'Selecciona un site' : 'Primero selecciona customer'}
-                  </option>
-                  {filteredSites.map((site) => (
-                    <option key={site.id} value={site.id}>
-                      {site.name}
-                      {site.address ? ` — ${site.address}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-200">
-                  Asset
-                </label>
-                <select
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none"
-                  value={form.assetId}
-                  onChange={(e) => updateField('assetId', e.target.value)}
-                  disabled={!form.customerId}
-                >
-                  <option value="">Sin asset</option>
-                  {filteredAssets.map((asset) => (
-                    <option key={asset.id} value={asset.id}>
-                      {asset.name}
-                      {asset.brand || asset.model
-                        ? ` — ${[asset.brand, asset.model].filter(Boolean).join(' ')}`
-                        : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-200">
-                  Técnico asignado
-                </label>
-                <select
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none"
-                  value={form.assignedToUserId}
-                  onChange={(e) => updateField('assignedToUserId', e.target.value)}
-                >
-                  <option value="">Sin asignar</option>
-                  {catalogState.data.technicians.map((tech) => (
-                    <option key={tech.id} value={tech.id}>
-                      {tech.name}
-                      {tech.email ? ` — ${tech.email}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-200">
-                  Prioridad
-                </label>
-                <select
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none"
-                  value={form.priority}
-                  onChange={(e) =>
-                    updateField('priority', e.target.value as WorkOrderForm['priority'])
-                  }
-                >
-                  <option value="">Sin prioridad</option>
-                  <option value="1">1 - Baja</option>
-                  <option value="2">2 - Media</option>
-                  <option value="3">3 - Alta</option>
-                  <option value="4">4 - Urgente</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-200">
-                  Programado para
-                </label>
-                <input
-                  type="datetime-local"
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none"
-                  value={form.scheduledAt}
-                  onChange={(e) => updateField('scheduledAt', e.target.value)}
-                />
-              </div>
-            </section>
-
-            {submitError ? (
-              <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
-                {submitError}
-              </div>
-            ) : null}
-
-            <div className="flex flex-col gap-3 pt-2 md:flex-row">
-              <button
-                type="submit"
-                disabled={submitting}
-                className="rounded-xl bg-slate-100 px-4 py-2 font-medium text-slate-900 disabled:opacity-60"
-              >
-                {submitting ? 'Creando…' : 'Crear Work Order'}
-              </button>
-
-              <Link
-                href={backHref}
-                className="rounded-xl border border-slate-700 px-4 py-2 text-center hover:bg-slate-800"
-              >
-                Cancelar
-              </Link>
+          {errorMessage ? (
+            <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+              {errorMessage}
             </div>
-          </form>
-        </>
-      )}
+          ) : null}
+
+          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Link
+              href="/work-orders"
+              className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              Cancelar
+            </Link>
+
+            <button
+              type="submit"
+              disabled={isSaving || loadState.status === 'loading'}
+              className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+            >
+              {isSaving ? 'Guardando...' : 'Crear orden'}
+            </button>
+          </div>
+        </form>
+      </div>
     </main>
   );
 }

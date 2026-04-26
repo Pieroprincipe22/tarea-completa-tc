@@ -46,6 +46,8 @@ type Load<T> =
   | { status: 'ok'; data: T }
   | { status: 'error'; error: string };
 
+const EMPTY_ASSETS: AssetRow[] = [];
+
 function asStr(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback;
 }
@@ -120,9 +122,11 @@ function getAssetCode(asset: AssetRow): string {
 }
 
 function getAssetTechnicalInfo(asset: AssetRow): string {
-  return [asset.brand, asset.model, asset.serialNumber ?? asset.serial]
-    .filter(Boolean)
-    .join(' · ') || 'Sin datos técnicos';
+  return (
+    [asset.brand, asset.model, asset.serialNumber ?? asset.serial]
+      .filter(Boolean)
+      .join(' · ') || 'Sin datos técnicos'
+  );
 }
 
 function getAssetLocation(asset: AssetRow): string {
@@ -216,7 +220,7 @@ export default function AssetsPage() {
     };
   }, [mounted, paths.assets, session]);
 
-  const assets = state.status === 'ok' ? state.data : [];
+  const assets = state.status === 'ok' ? state.data : EMPTY_ASSETS;
 
   const statusOptions = useMemo(() => {
     const uniqueStatuses = new Set<AssetStatus>();

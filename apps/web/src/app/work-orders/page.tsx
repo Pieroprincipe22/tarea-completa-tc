@@ -12,8 +12,13 @@ import {
 } from '@/lib/tc/session';
 import { errMsg, isRecord, normalizeList, resolveCorePaths, tcGet } from '@/lib/tc/api';
 
-const STATUS_OPTIONS = ['', 'OPEN', 'ASSIGNED', 'IN_PROGRESS', 'DONE', 'CANCELLED'] as const;
-type StatusFilterValue = (typeof STATUS_OPTIONS)[number];
+type StatusFilterValue =
+  | ''
+  | 'OPEN'
+  | 'ASSIGNED'
+  | 'IN_PROGRESS'
+  | 'DONE'
+  | 'CANCELLED';
 
 type WorkOrderRow = {
   id: string;

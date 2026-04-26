@@ -13,6 +13,7 @@ export type TcApiPaths = {
   customers: string;
   sites: string;
   assets: string;
+  technicians: string;
   templates: string;
   reports: string;
   workOrders: string;
@@ -52,6 +53,7 @@ export function resolveCorePaths(
     customers: '/customers',
     sites: '/sites',
     assets: '/assets',
+    technicians: '/technicians',
     templates: '/maintenance-templates',
     reports: '/maintenance-reports',
     workOrders: '/work-orders',

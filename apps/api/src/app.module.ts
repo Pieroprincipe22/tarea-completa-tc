@@ -15,37 +15,34 @@ import { HealthController } from './health/health.controller';
 import { MaintenanceReportsModule } from './maintenance-reports/maintenance-reports.module';
 import { MaintenanceTemplatesModule } from './maintenance-templates/maintenance-templates.module';
 import { SitesModule } from './sites/sites.module';
+import { TechniciansModule } from './technicians/technicians.module';
 import { TenantModule } from './tenant/tenant.module';
 import { WorkOrdersModule } from './work-orders/work-orders.module';
 
 @Module({
   imports: [
-    // ✅ Config primero: carga .env antes de inicializar módulos que lo necesitan (Prisma/DB)
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
       expandVariables: true,
     }),
 
-    // Infra / Core
     DatabaseModule,
 
-    // Auth / Tenant
     AuthModule,
     TenantModule,
 
-    // Domain
     CompaniesModule,
     CustomersModule,
     SitesModule,
     ContactsModule,
     AssetsModule,
+    TechniciansModule,
     MaintenanceTemplatesModule,
     MaintenanceReportsModule,
     WorkOrdersModule,
     AttachmentsModule,
 
-    // Admin al final (UI/operación)
     AdminModule,
   ],
   controllers: [AppController, HealthController],

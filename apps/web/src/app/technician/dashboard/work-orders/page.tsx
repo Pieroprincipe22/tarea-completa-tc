@@ -2,13 +2,6 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import {
-  type TcSession,
-  isTechnicianSession,
-  readTcSession,
-  resolveHomePath,
-} from '@/lib/tc/session';
 import {
   errMsg,
   isRecord,
@@ -17,23 +10,45 @@ import {
   tcGet,
   tcPatch,
 } from '@/lib/tc/api';
+import {
+  isTechnicianSession,
+  readTcSession,
+  resolveHomePath,
+  type TcSession,
+} from '@/lib/tc/session';
 
-const STATUS_OPTIONS = ['', 'OPEN', 'ASSIGNED', 'IN_PROGRESS', 'DONE', 'CANCELLED'] as const;
-type StatusFilterValue = (typeof STATUS_OPTIONS)[number];
-type ActionStatusValue = 'OPEN' | 'IN_PROGRESS' | 'DONE';
+type WorkOrderStatus =
+  | 'OPEN'
+  | 'ASSIGNED'
+  | 'IN_PROGRESS'
+  | 'DONE'
+  | 'CANCELLED'
+  | string;
+
+type WorkOrderPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT' | string;
+
+type NamedEntity = {
+  id: string;
+  name: string;
+  address?: string | null;
+  email?: string | null;
+};
 
 type WorkOrderRow = {
   id: string;
   title: string;
   description?: string | null;
-  status: string;
-  priority: string | null;
-  customer?: { id: string; name: string } | null;
-  site?: { id: string; name: string; address?: string | null } | null;
-  asset?: { id: string; name: string } | null;
+  status: WorkOrderStatus;
+  priority?: WorkOrderPriority | null;
+  customer?: NamedEntity | null;
+  site?: NamedEntity | null;
+  asset?: NamedEntity | null;
+  assignedTo?: NamedEntity | null;
+  assignedToId?: string | null;
   scheduledAt?: string | null;
   startedAt?: string | null;
   completedAt?: string | null;
+  createdAt?: string | null;
   updatedAt?: string | null;
 };
 
@@ -42,78 +57,97 @@ type Load<T> =
   | { status: 'ok'; data: T }
   | { status: 'error'; error: string };
 
-type ActionMessage =
-  | { type: 'success'; text: string }
-  | { type: 'error'; text: string }
-  | null;
+type WorkOrderAction = 'start' | 'done' | 'reopen';
 
-function asStr(v: unknown, fallback = ''): string {
-  return typeof v === 'string' ? v : fallback;
+const EMPTY_WORK_ORDERS: WorkOrderRow[] = [];
+
+function asStr(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value : fallback;
 }
 
-function asNullableStr(v: unknown): string | null {
-  return typeof v === 'string' ? v : null;
+function asNullableStr(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null;
 }
 
-function parseNamedEntity(
-  v: unknown,
-): { id: string; name: string; address?: string | null } | null {
-  if (!isRecord(v)) return null;
+function parseNamedEntity(value: unknown): NamedEntity | null {
+  if (!isRecord(value)) return null;
 
-  const id = asStr(v.id);
-  const name = asStr(v.name);
+  const id = asStr(value.id);
+  const name = asStr(value.name);
 
   if (!id || !name) return null;
 
   return {
     id,
     name,
-    address: asNullableStr(v.address),
+    address: asNullableStr(value.address),
+    email: asNullableStr(value.email),
   };
 }
 
-function parseRow(x: unknown): WorkOrderRow | null {
-  if (!isRecord(x)) return null;
-
-  const id = asStr(x.id);
-  if (!id) return null;
-
-  const priority = asNullableStr(x.priority);
+function parseWorkOrder(value: unknown): WorkOrderRow {
+  if (!isRecord(value)) {
+    return {
+      id: '',
+      title: 'Orden sin título',
+      status: 'OPEN',
+      priority: 'MEDIUM',
+    };
+  }
 
   return {
-    id,
-    title: asStr(x.title, '—'),
-    description: asNullableStr(x.description),
-    status: asStr(x.status, '—'),
-    priority: priority ? priority.toUpperCase() : null,
-    customer: parseNamedEntity(x.customer),
-    site: parseNamedEntity(x.site),
-    asset: parseNamedEntity(x.asset),
-    scheduledAt: asNullableStr(x.scheduledAt),
-    startedAt: asNullableStr(x.startedAt),
-    completedAt: asNullableStr(x.completedAt),
-    updatedAt: asNullableStr(x.updatedAt),
+    id: asStr(value.id),
+    title: asStr(value.title, 'Orden sin título'),
+    description: asNullableStr(value.description),
+    status: asStr(value.status, 'OPEN'),
+    priority: asNullableStr(value.priority),
+    customer: parseNamedEntity(value.customer),
+    site: parseNamedEntity(value.site),
+    asset: parseNamedEntity(value.asset),
+    assignedTo: parseNamedEntity(value.assignedTo),
+    assignedToId: asNullableStr(value.assignedToId),
+    scheduledAt: asNullableStr(value.scheduledAt),
+    startedAt: asNullableStr(value.startedAt),
+    completedAt: asNullableStr(value.completedAt),
+    createdAt: asNullableStr(value.createdAt),
+    updatedAt: asNullableStr(value.updatedAt),
   };
 }
 
-function formatStatus(status: string): string {
+function formatDateTime(value?: string | null): string {
+  if (!value) return '—';
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return '—';
+
+  return new Intl.DateTimeFormat('es-ES', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
+function formatStatus(status: WorkOrderStatus): string {
   switch (status) {
     case 'OPEN':
-      return 'Open';
+      return 'Abierta';
     case 'ASSIGNED':
-      return 'Assigned';
+      return 'Asignada';
     case 'IN_PROGRESS':
-      return 'In Progress';
+      return 'En progreso';
     case 'DONE':
-      return 'Done';
+      return 'Finalizada';
     case 'CANCELLED':
-      return 'Cancelled';
+      return 'Cancelada';
     default:
       return status || '—';
   }
 }
 
-function formatPriority(priority: string | null): string {
+function formatPriority(priority?: WorkOrderPriority | null): string {
   switch (priority) {
     case 'LOW':
       return 'Baja';
@@ -128,49 +162,62 @@ function formatPriority(priority: string | null): string {
   }
 }
 
-function formatDate(value?: string | null): string {
-  if (!value) return '—';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleString('es-ES');
+function statusBadgeClass(status: WorkOrderStatus): string {
+  switch (status) {
+    case 'OPEN':
+      return 'border-amber-200 bg-amber-50 text-amber-700';
+    case 'ASSIGNED':
+      return 'border-sky-200 bg-sky-50 text-sky-700';
+    case 'IN_PROGRESS':
+      return 'border-blue-200 bg-blue-50 text-blue-700';
+    case 'DONE':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+    case 'CANCELLED':
+      return 'border-rose-200 bg-rose-50 text-rose-700';
+    default:
+      return 'border-slate-200 bg-slate-50 text-slate-600';
+  }
 }
 
-function getApiError(json: unknown, code: number): string {
-  if (isRecord(json)) {
-    const message = json.message;
-
-    if (typeof message === 'string' && message.trim()) {
-      return message;
-    }
-
-    if (Array.isArray(message)) {
-      const joined = message.filter((x): x is string => typeof x === 'string').join(', ');
-      if (joined) return joined;
-    }
-
-    const error = json.error;
-    if (typeof error === 'string' && error.trim()) {
-      return `${error} (HTTP ${code})`;
-    }
+function priorityBadgeClass(priority?: WorkOrderPriority | null): string {
+  switch (priority) {
+    case 'LOW':
+      return 'border-slate-200 bg-slate-50 text-slate-600';
+    case 'MEDIUM':
+      return 'border-yellow-200 bg-yellow-50 text-yellow-700';
+    case 'HIGH':
+      return 'border-orange-200 bg-orange-50 text-orange-700';
+    case 'URGENT':
+      return 'border-rose-200 bg-rose-50 text-rose-700';
+    default:
+      return 'border-slate-200 bg-slate-50 text-slate-600';
   }
+}
 
-  return `HTTP ${code}`;
+function canStart(order: WorkOrderRow): boolean {
+  return order.status === 'OPEN' || order.status === 'ASSIGNED';
+}
+
+function canMarkDone(order: WorkOrderRow): boolean {
+  return order.status === 'IN_PROGRESS' || order.status === 'ASSIGNED';
+}
+
+function canReopen(order: WorkOrderRow): boolean {
+  return order.status === 'DONE' || order.status === 'CANCELLED';
 }
 
 export default function TechnicianWorkOrdersPage() {
-  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [session, setSession] = useState<TcSession | null>(null);
   const paths = useMemo(() => resolveCorePaths(session), [session]);
-  const dashboardHref = useMemo(() => resolveHomePath(session), [session]);
+  const homePath = useMemo(() => resolveHomePath(session), [session]);
 
-  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>('');
-  const [reloadKey, setReloadKey] = useState(0);
-  const [actingId, setActingId] = useState<string | null>(null);
-  const [actionMessage, setActionMessage] = useState<ActionMessage>(null);
   const [state, setState] = useState<Load<WorkOrderRow[]>>({
     status: 'loading',
   });
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     setMounted(true);
@@ -178,298 +225,411 @@ export default function TechnicianWorkOrdersPage() {
   }, []);
 
   useEffect(() => {
-    if (!mounted || !session) return;
+    if (!mounted) return;
 
-    if (!isTechnicianSession(session)) {
-      router.replace(resolveHomePath(session));
+    if (!session) {
+      setState({
+        status: 'error',
+        error: 'Sesión no encontrada. Inicia sesión como técnico.',
+      });
+      return;
     }
-  }, [mounted, router, session, dashboardHref]);
-
-  useEffect(() => {
-    if (!mounted || !session || !isTechnicianSession(session)) return;
 
     let cancelled = false;
 
-    (async () => {
+    async function loadWorkOrders() {
       try {
         setState({ status: 'loading' });
+        setActionError(null);
 
-        const query = new URLSearchParams({
-          assignedToUserId: session.userId,
-          pageSize: '100',
-        });
+        const query = new URLSearchParams();
+        query.set('assignedToId', session.userId);
+        query.set('pageSize', '100');
 
-        if (statusFilter) {
-          query.set('status', statusFilter);
-        }
-
-        const r = await tcGet(session, `${paths.workOrders}?${query.toString()}`);
+        const response = await tcGet<unknown>(
+          session,
+          `${paths.workOrders}?${query.toString()}`,
+        );
 
         if (cancelled) return;
 
-        if (r.code < 200 || r.code >= 300) {
-          setState({ status: 'error', error: `HTTP ${r.code}` });
+        if (response.code < 200 || response.code >= 300) {
+          setState({
+            status: 'error',
+            error: `No se pudieron cargar tus órdenes. HTTP ${response.code}`,
+          });
           return;
         }
 
-        const { items } = normalizeList<unknown>(r.json);
-        const rows = items.map(parseRow).filter((x): x is WorkOrderRow => !!x);
+        const { items } = normalizeList<unknown>(response.json);
+        const rows = items.map(parseWorkOrder).filter((order) => order.id);
 
         setState({ status: 'ok', data: rows });
-      } catch (e) {
+      } catch (error) {
         if (!cancelled) {
-          setState({ status: 'error', error: errMsg(e) });
+          setState({
+            status: 'error',
+            error: errMsg(error),
+          });
         }
       }
-    })();
+    }
+
+    void loadWorkOrders();
 
     return () => {
       cancelled = true;
     };
-  }, [mounted, session, statusFilter, reloadKey, paths.workOrders]);
+  }, [mounted, paths.workOrders, refreshKey, session]);
 
-  async function changeStatus(id: string, status: ActionStatusValue) {
-    if (!session) return;
+  async function handleAction(orderId: string, action: WorkOrderAction) {
+    if (!session) {
+      setActionError('Sesión no encontrada.');
+      return;
+    }
 
     try {
-      setActingId(id);
-      setActionMessage(null);
+      setActionLoadingId(orderId);
+      setActionError(null);
 
-      const r = await tcPatch(session, `${paths.workOrders}/${id}/status`, { status });
+      const response = await tcPatch<unknown>(
+        session,
+        `${paths.workOrders}/${orderId}/${action}`,
+      );
 
-      if (r.code < 200 || r.code >= 300) {
-        setActionMessage({
-          type: 'error',
-          text: getApiError(r.json, r.code),
-        });
+      if (response.code < 200 || response.code >= 300) {
+        setActionError(`No se pudo actualizar la orden. HTTP ${response.code}`);
         return;
       }
 
-      setActionMessage({
-        type: 'success',
-        text: `Estado actualizado a ${status}.`,
-      });
-
-      setReloadKey((x) => x + 1);
-    } catch (e) {
-      setActionMessage({
-        type: 'error',
-        text: errMsg(e),
-      });
+      setRefreshKey((current) => current + 1);
+    } catch (error) {
+      setActionError(`No se pudo actualizar la orden: ${errMsg(error)}`);
     } finally {
-      setActingId(null);
+      setActionLoadingId(null);
     }
   }
 
+  const workOrders = state.status === 'ok' ? state.data : EMPTY_WORK_ORDERS;
+
+  const pendingCount = workOrders.filter(
+    (order) => order.status === 'OPEN' || order.status === 'ASSIGNED',
+  ).length;
+
+  const inProgressCount = workOrders.filter(
+    (order) => order.status === 'IN_PROGRESS',
+  ).length;
+
+  const doneCount = workOrders.filter((order) => order.status === 'DONE').length;
+
   if (!mounted) {
     return (
-      <main className="mx-auto max-w-6xl p-6">
-        <p>Cargando sesión…</p>
+      <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-7xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <p className="text-sm font-medium text-slate-500">
+            Cargando sesión...
+          </p>
+        </div>
       </main>
     );
   }
 
   if (!session) {
     return (
-      <main className="mx-auto max-w-6xl p-6">
-        <p className="mb-4">Sin sesión. Ve a /login.</p>
-        <Link className="underline" href="/login">
-          Ir a login
-        </Link>
+      <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-3xl rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+          <p className="text-sm font-medium text-slate-500">
+            Panel técnico
+          </p>
+
+          <h1 className="mt-1 text-2xl font-bold text-slate-950">
+            Sesión no encontrada
+          </h1>
+
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Para ver tus órdenes de trabajo necesitas iniciar sesión como
+            técnico.
+          </p>
+
+          <Link
+            href="/login"
+            className="mt-5 inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+          >
+            Ir a login
+          </Link>
+        </div>
       </main>
     );
   }
 
   if (!isTechnicianSession(session)) {
     return (
-      <main className="mx-auto max-w-6xl p-6">
-        <p>Redirigiendo…</p>
+      <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-3xl rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+          <p className="text-sm font-medium text-slate-500">
+            Panel técnico
+          </p>
+
+          <h1 className="mt-1 text-2xl font-bold text-slate-950">
+            Esta vista es para técnicos
+          </h1>
+
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Tu sesión actual no tiene rol técnico. Vuelve al panel principal.
+          </p>
+
+          <Link
+            href={homePath}
+            className="mt-5 inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+          >
+            Volver al dashboard
+          </Link>
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-7xl p-6">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-semibold">My Work Orders</h1>
-          <p className="mt-1 text-sm text-slate-400">
-            Solo se muestran las órdenes asignadas a tu usuario.
-          </p>
-        </div>
+    <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-500">
+                Panel técnico
+              </p>
 
-        <div className="flex gap-3">
-          <Link className="underline" href={dashboardHref}>
-            Dashboard técnico
-          </Link>
-        </div>
-      </div>
+              <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+                Mis órdenes de trabajo
+              </h1>
 
-      <div className="mb-6 rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="text-sm font-medium">Filtro status:</label>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                Aquí aparecen únicamente las órdenes asignadas a tu usuario
+                técnico.
+              </p>
+            </div>
 
-          <select
-            className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as StatusFilterValue)}
-          >
-            <option value="">Todos los estados</option>
-            <option value="OPEN">OPEN</option>
-            <option value="ASSIGNED">ASSIGNED</option>
-            <option value="IN_PROGRESS">IN_PROGRESS</option>
-            <option value="DONE">DONE</option>
-            <option value="CANCELLED">CANCELLED</option>
-          </select>
+            <Link
+              href="/technician/dashboard"
+              className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              Volver al panel técnico
+            </Link>
+          </div>
+        </section>
 
-          <button
-            className="rounded-xl border border-slate-700 px-4 py-2 hover:bg-slate-800"
-            type="button"
-            onClick={() => {
-              setStatusFilter('');
-              setActionMessage(null);
-            }}
-          >
-            Limpiar
-          </button>
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-sm font-medium text-slate-500">
+              Total asignadas
+            </p>
+            <p className="mt-3 text-3xl font-bold text-slate-950">
+              {workOrders.length}
+            </p>
+          </div>
 
-          <button
-            className="rounded-xl border border-slate-700 px-4 py-2 hover:bg-slate-800"
-            type="button"
-            onClick={() => setReloadKey((x) => x + 1)}
-          >
-            Actualizar
-          </button>
-        </div>
-      </div>
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-sm font-medium text-slate-500">Pendientes</p>
+            <p className="mt-3 text-3xl font-bold text-amber-700">
+              {pendingCount}
+            </p>
+          </div>
 
-      {actionMessage ? (
-        <div
-          className={`mb-6 rounded-2xl border p-4 ${
-            actionMessage.type === 'success'
-              ? 'border-emerald-800 bg-emerald-900/20 text-emerald-200'
-              : 'border-red-800 bg-red-900/20 text-red-200'
-          }`}
-        >
-          {actionMessage.text}
-        </div>
-      ) : null}
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-sm font-medium text-slate-500">En progreso</p>
+            <p className="mt-3 text-3xl font-bold text-blue-700">
+              {inProgressCount}
+            </p>
+          </div>
 
-      {state.status === 'loading' ? (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
-          Cargando…
-        </div>
-      ) : state.status === 'error' ? (
-        <div className="rounded-2xl border border-red-800 bg-red-900/20 p-4 text-red-200">
-          {state.error}
-        </div>
-      ) : state.data.length === 0 ? (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
-          No tienes work orders asignadas.
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {state.data.map((w) => {
-            const disabled = actingId === w.id;
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-sm font-medium text-slate-500">Finalizadas</p>
+            <p className="mt-3 text-3xl font-bold text-emerald-700">
+              {doneCount}
+            </p>
+          </div>
+        </section>
 
-            return (
-              <div
-                key={w.id}
-                className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-xl font-semibold">{w.title}</h2>
-                      <span className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-300">
-                        {formatStatus(w.status)}
-                      </span>
-                      <span className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-300">
-                        {formatPriority(w.priority)}
-                      </span>
+        {actionError ? (
+          <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700">
+            {actionError}
+          </div>
+        ) : null}
+
+        <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 p-4">
+            <h2 className="text-lg font-bold text-slate-950">
+              Órdenes asignadas
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {workOrders.length} orden{workOrders.length === 1 ? '' : 'es'} en
+              tu bandeja de trabajo.
+            </p>
+          </div>
+
+          {state.status === 'loading' ? (
+            <div className="p-8 text-center">
+              <p className="text-sm font-medium text-slate-500">
+                Cargando tus órdenes...
+              </p>
+            </div>
+          ) : state.status === 'error' ? (
+            <div className="p-6">
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+                {state.error}
+              </div>
+            </div>
+          ) : workOrders.length === 0 ? (
+            <div className="p-8 text-center">
+              <p className="text-sm font-semibold text-slate-700">
+                No tienes órdenes asignadas.
+              </p>
+              <p className="mt-1 text-sm text-slate-500">
+                Cuando el administrador te asigne una orden, aparecerá aquí.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 p-4 lg:grid-cols-2">
+              {workOrders.map((order) => (
+                <article
+                  key={order.id}
+                  className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300"
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-950">
+                        {order.title}
+                      </h3>
+
+                      <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">
+                        {order.description?.trim()
+                          ? order.description
+                          : 'Sin descripción registrada.'}
+                      </p>
                     </div>
 
-                    {w.description ? (
-                      <p className="max-w-3xl text-slate-300">{w.description}</p>
+                    <span
+                      className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-semibold ${statusBadgeClass(
+                        order.status,
+                      )}`}
+                    >
+                      {formatStatus(order.status)}
+                    </span>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
+                    <div className="rounded-2xl bg-slate-50 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Cliente
+                      </p>
+                      <p className="mt-1 font-semibold text-slate-800">
+                        {order.customer?.name ?? '—'}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl bg-slate-50 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Site
+                      </p>
+                      <p className="mt-1 font-semibold text-slate-800">
+                        {order.site?.name ?? '—'}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl bg-slate-50 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Activo
+                      </p>
+                      <p className="mt-1 font-semibold text-slate-800">
+                        {order.asset?.name ?? '—'}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl bg-slate-50 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Programado
+                      </p>
+                      <p className="mt-1 font-semibold text-slate-800">
+                        {formatDateTime(order.scheduledAt)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <span
+                      className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${priorityBadgeClass(
+                        order.priority,
+                      )}`}
+                    >
+                      Prioridad: {formatPriority(order.priority)}
+                    </span>
+
+                    {order.startedAt ? (
+                      <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                        Inicio: {formatDateTime(order.startedAt)}
+                      </span>
+                    ) : null}
+
+                    {order.completedAt ? (
+                      <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                        Cierre: {formatDateTime(order.completedAt)}
+                      </span>
                     ) : null}
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
+                  <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                     <Link
-                      href={`/work-orders/${w.id}`}
-                      className="rounded-xl border border-slate-700 px-4 py-2 hover:bg-slate-800"
+                      href={`/technician/dashboard/work-orders/${order.id}`}
+                      className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                     >
-                      Abrir
+                      Ver detalle
                     </Link>
 
-                    {(w.status === 'OPEN' || w.status === 'ASSIGNED') && (
+                    {canStart(order) ? (
                       <button
                         type="button"
-                        disabled={disabled}
-                        onClick={() => changeStatus(w.id, 'IN_PROGRESS')}
-                        className="rounded-xl bg-blue-600 px-4 py-2 text-white disabled:opacity-60"
+                        disabled={actionLoadingId === order.id}
+                        onClick={() => void handleAction(order.id, 'start')}
+                        className="inline-flex items-center justify-center rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
                       >
-                        {disabled ? 'Actualizando…' : 'Iniciar'}
+                        {actionLoadingId === order.id
+                          ? 'Actualizando...'
+                          : 'Iniciar'}
                       </button>
-                    )}
+                    ) : null}
 
-                    {w.status === 'IN_PROGRESS' && (
+                    {canMarkDone(order) ? (
                       <button
                         type="button"
-                        disabled={disabled}
-                        onClick={() => changeStatus(w.id, 'DONE')}
-                        className="rounded-xl bg-emerald-600 px-4 py-2 text-white disabled:opacity-60"
+                        disabled={actionLoadingId === order.id}
+                        onClick={() => void handleAction(order.id, 'done')}
+                        className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
                       >
-                        {disabled ? 'Actualizando…' : 'Marcar done'}
+                        {actionLoadingId === order.id
+                          ? 'Actualizando...'
+                          : 'Marcar finalizada'}
                       </button>
-                    )}
+                    ) : null}
 
-                    {w.status === 'DONE' && (
+                    {canReopen(order) ? (
                       <button
                         type="button"
-                        disabled={disabled}
-                        onClick={() => changeStatus(w.id, 'OPEN')}
-                        className="rounded-xl border border-slate-700 px-4 py-2 disabled:opacity-60"
+                        disabled={actionLoadingId === order.id}
+                        onClick={() => void handleAction(order.id, 'reopen')}
+                        className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
                       >
-                        {disabled ? 'Actualizando…' : 'Reabrir'}
+                        {actionLoadingId === order.id
+                          ? 'Actualizando...'
+                          : 'Reabrir'}
                       </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
-                    <div className="text-xs uppercase tracking-wide text-slate-500">Cliente</div>
-                    <div className="mt-1">{w.customer?.name ?? '—'}</div>
-                  </div>
-
-                  <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
-                    <div className="text-xs uppercase tracking-wide text-slate-500">Site</div>
-                    <div className="mt-1">{w.site?.name ?? '—'}</div>
-                    {w.site?.address ? (
-                      <div className="mt-1 text-sm text-slate-400">{w.site.address}</div>
                     ) : null}
                   </div>
-
-                  <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
-                    <div className="text-xs uppercase tracking-wide text-slate-500">Asset</div>
-                    <div className="mt-1">{w.asset?.name ?? '—'}</div>
-                  </div>
-
-                  <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
-                    <div className="text-xs uppercase tracking-wide text-slate-500">Fechas</div>
-                    <div className="mt-1 text-sm text-slate-300">
-                      <div>Programada: {formatDate(w.scheduledAt)}</div>
-                      <div>Inicio: {formatDate(w.startedAt)}</div>
-                      <div>Fin: {formatDate(w.completedAt)}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
     </main>
   );
 }

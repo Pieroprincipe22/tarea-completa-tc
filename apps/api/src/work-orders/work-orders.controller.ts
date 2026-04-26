@@ -2,87 +2,158 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
-  Headers,
   Param,
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
-
 import { WorkOrdersService } from './work-orders.service';
-
-import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { QueryWorkOrdersDto } from './dto/query-work-orders.dto';
+import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
-import { UpdateWorkOrderStatusDto } from './dto/update-work-order-status.dto';
 
-function requiredHeader(value: string | string[] | undefined, name: string): string {
-  const normalized = Array.isArray(value) ? value[0] : value;
+type RequestWithUser = {
+  user?: {
+    id?: string;
+    userId?: string;
+    companyId?: string;
+    company?: {
+      id?: string;
+    };
+    activeCompanyId?: string;
+  };
+  headers?: {
+    [key: string]: string | string[] | undefined;
+  };
+};
 
-  if (!normalized?.trim()) {
-    throw new BadRequestException(`Falta header ${name}`);
-  }
+type AssignWorkOrderBody = {
+  assignedToId?: string;
+};
 
-  return normalized.trim();
-}
+type UpdateStatusBody = {
+  status?: string;
+};
 
 @Controller('work-orders')
 export class WorkOrdersController {
-  constructor(private readonly service: WorkOrdersService) {}
+  constructor(private readonly workOrders: WorkOrdersService) {}
 
-  @Get()
-  list(
-    @Headers('x-company-id') companyIdHeader: string | undefined,
-    @Query() query: QueryWorkOrdersDto,
-  ) {
-    const companyId = requiredHeader(companyIdHeader, 'x-company-id');
-    return this.service.list(companyId, query);
+  private getCompanyId(req: RequestWithUser): string {
+    const headerCompanyId = req.headers?.['x-company-id'];
+    const normalizedHeaderCompanyId = Array.isArray(headerCompanyId)
+      ? headerCompanyId[0]
+      : headerCompanyId;
+
+    const companyId =
+      req.user?.companyId ??
+      req.user?.activeCompanyId ??
+      req.user?.company?.id ??
+      normalizedHeaderCompanyId;
+
+    if (!companyId) {
+      throw new BadRequestException(
+        'No se pudo resolver la empresa activa para esta operación',
+      );
+    }
+
+    return companyId;
   }
 
-  @Get('meta/technicians')
-  listTechnicians(@Headers('x-company-id') companyIdHeader: string | undefined) {
-    const companyId = requiredHeader(companyIdHeader, 'x-company-id');
-    return this.service.listTechnicians(companyId);
+  @Get()
+  list(@Req() req: RequestWithUser, @Query() query: QueryWorkOrdersDto) {
+    const companyId = this.getCompanyId(req);
+    return this.workOrders.list(companyId, query);
   }
 
   @Get(':id')
-  get(
-    @Headers('x-company-id') companyIdHeader: string | undefined,
-    @Param('id') id: string,
-  ) {
-    const companyId = requiredHeader(companyIdHeader, 'x-company-id');
-    return this.service.get(companyId, id);
+  get(@Req() req: RequestWithUser, @Param('id') id: string) {
+    const companyId = this.getCompanyId(req);
+    return this.workOrders.get(companyId, id);
   }
 
   @Post()
-  create(
-    @Headers('x-company-id') companyIdHeader: string | undefined,
-    @Headers('x-user-id') userIdHeader: string | undefined,
-    @Body() dto: CreateWorkOrderDto,
+  create(@Req() req: RequestWithUser, @Body() dto: CreateWorkOrderDto) {
+    const companyId = this.getCompanyId(req);
+    return this.workOrders.create(companyId, dto);
+  }
+
+  @Patch(':id/status')
+  updateStatus(
+    @Req() req: RequestWithUser,
+    @Param('id') id: string,
+    @Body() body: UpdateStatusBody,
   ) {
-    const companyId = requiredHeader(companyIdHeader, 'x-company-id');
-    const userId = requiredHeader(userIdHeader, 'x-user-id');
-    return this.service.create(companyId, userId, dto);
+    const companyId = this.getCompanyId(req);
+
+    if (!body.status) {
+      throw new BadRequestException('Falta el estado de la orden');
+    }
+
+    return this.workOrders.updateStatus(companyId, id, body.status);
+  }
+
+  @Patch(':id/assign')
+  assign(
+    @Req() req: RequestWithUser,
+    @Param('id') id: string,
+    @Body() body: AssignWorkOrderBody,
+  ) {
+    const companyId = this.getCompanyId(req);
+
+    if (!body.assignedToId) {
+      throw new BadRequestException('Falta el ID del técnico asignado');
+    }
+
+    return this.workOrders.assign(companyId, id, body.assignedToId);
+  }
+
+  @Patch(':id/start')
+  start(@Req() req: RequestWithUser, @Param('id') id: string) {
+    const companyId = this.getCompanyId(req);
+    return this.workOrders.start(companyId, id);
+  }
+
+  @Patch(':id/done')
+  markDone(@Req() req: RequestWithUser, @Param('id') id: string) {
+    const companyId = this.getCompanyId(req);
+    return this.workOrders.markDone(companyId, id);
+  }
+
+  @Patch(':id/mark-done')
+  markDoneAlias(@Req() req: RequestWithUser, @Param('id') id: string) {
+    const companyId = this.getCompanyId(req);
+    return this.workOrders.markDone(companyId, id);
+  }
+
+  @Patch(':id/reopen')
+  reopen(@Req() req: RequestWithUser, @Param('id') id: string) {
+    const companyId = this.getCompanyId(req);
+    return this.workOrders.reopen(companyId, id);
+  }
+
+  @Patch(':id/cancel')
+  cancel(@Req() req: RequestWithUser, @Param('id') id: string) {
+    const companyId = this.getCompanyId(req);
+    return this.workOrders.cancel(companyId, id);
   }
 
   @Patch(':id')
   update(
-    @Headers('x-company-id') companyIdHeader: string | undefined,
+    @Req() req: RequestWithUser,
     @Param('id') id: string,
     @Body() dto: UpdateWorkOrderDto,
   ) {
-    const companyId = requiredHeader(companyIdHeader, 'x-company-id');
-    return this.service.update(companyId, id, dto);
+    const companyId = this.getCompanyId(req);
+    return this.workOrders.update(companyId, id, dto);
   }
 
-  @Patch(':id/status')
-  setStatus(
-    @Headers('x-company-id') companyIdHeader: string | undefined,
-    @Param('id') id: string,
-    @Body() dto: UpdateWorkOrderStatusDto,
-  ) {
-    const companyId = requiredHeader(companyIdHeader, 'x-company-id');
-    return this.service.setStatus(companyId, id, dto.status);
+  @Delete(':id')
+  remove(@Req() req: RequestWithUser, @Param('id') id: string) {
+    const companyId = this.getCompanyId(req);
+    return this.workOrders.remove(companyId, id);
   }
 }
