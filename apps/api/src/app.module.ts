@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-
 import { AdminModule } from './admin/admin.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -8,6 +7,7 @@ import { AssetsModule } from './assets/assets.module';
 import { AttachmentsModule } from './attachments/attachments.module';
 import { AuthModule } from './auth/auth.module';
 import { CompaniesModule } from './companies/companies.module';
+import { CompanyUsersModule } from './company-users/company-users.module';
 import { ContactsModule } from './contacts/contacts.module';
 import { CustomersModule } from './customers/customers.module';
 import { DatabaseModule } from './database/database.module';
@@ -26,23 +26,20 @@ import { WorkOrdersModule } from './work-orders/work-orders.module';
       cache: true,
       expandVariables: true,
     }),
-
     DatabaseModule,
-
     AuthModule,
     TenantModule,
-
     CompaniesModule,
     CustomersModule,
     SitesModule,
     ContactsModule,
     AssetsModule,
     TechniciansModule,
+    CompanyUsersModule,
     MaintenanceTemplatesModule,
     MaintenanceReportsModule,
     WorkOrdersModule,
     AttachmentsModule,
-
     AdminModule,
   ],
   controllers: [AppController, HealthController],

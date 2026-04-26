@@ -13,6 +13,52 @@ type WorkOrderPlainObject = Record<string, unknown>;
 export class WorkOrdersService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private readonly workOrderInclude: Prisma.WorkOrderInclude = {
+    customer: {
+      select: {
+        id: true,
+        name: true,
+      },
+    },
+    site: {
+      select: {
+        id: true,
+        name: true,
+        address: true,
+      },
+    },
+    asset: {
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        serialNumber: true,
+        location: true,
+      },
+    },
+    createdBy: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    },
+    assignedTechnician: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    },
+    assignedTo: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    },
+  };
+
   private cleanUndefined(data: object): WorkOrderPlainObject {
     return Object.fromEntries(
       Object.entries(data).filter(([, value]) => value !== undefined),
@@ -73,53 +119,92 @@ export class WorkOrdersService {
     return priority;
   }
 
+  private normalizeDate(value: unknown): Date | undefined {
+    if (typeof value !== 'string' || !value.trim()) {
+      return undefined;
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      throw new BadRequestException(`Fecha inválida: ${value}`);
+    }
+
+    return date;
+  }
+
   private normalizeWorkOrderData(dto: object): WorkOrderPlainObject {
     const data = this.cleanUndefined(dto);
 
     /**
-     * Frontend: assignedToId
-     * Prisma actual: assignedToUserId
+     * Frontend puede enviar assignedToId.
+     * Prisma actual guarda ese dato en assignedToUserId.
      */
-    if (typeof data.assignedToId === 'string') {
+    if (typeof data.assignedToId === 'string' && data.assignedToId.trim()) {
       data.assignedToUserId = data.assignedToId;
+      data.assignedTechnicianId = data.assignedToId;
       delete data.assignedToId;
     }
 
     /**
-     * Evitamos enviar relación assignedTo porque tu Prisma actual
-     * no la acepta en create/update.
+     * Por seguridad eliminamos objetos de relación si llegan desde frontend.
      */
+    delete data.customer;
+    delete data.site;
+    delete data.asset;
     delete data.assignedTo;
+    delete data.assignedTechnician;
+    delete data.createdBy;
+    delete data.company;
 
     /**
-     * Frontend: scheduledAt
-     * Prisma actual: scheduledFor
+     * Fechas.
      */
-    if (typeof data.scheduledAt === 'string') {
-      data.scheduledFor = new Date(data.scheduledAt);
-      delete data.scheduledAt;
+    const scheduledAt = this.normalizeDate(data.scheduledAt);
+    const scheduledFor = this.normalizeDate(data.scheduledFor);
+
+    if (scheduledAt) {
+      data.scheduledAt = scheduledAt;
+      data.scheduledFor = scheduledAt;
+    }
+
+    if (scheduledFor) {
+      data.scheduledFor = scheduledFor;
+    }
+
+    const startedAt = this.normalizeDate(data.startedAt);
+    if (startedAt) {
+      data.startedAt = startedAt;
+    }
+
+    const completedAt = this.normalizeDate(data.completedAt);
+    if (completedAt) {
+      data.completedAt = completedAt;
     }
 
     /**
-     * Si en algún punto llega dueDate, lo eliminamos porque tu modelo
-     * WorkOrder actual no lo muestra como campo disponible.
+     * dueDate no existe en tu WorkOrder actual.
      */
     delete data.dueDate;
 
     /**
-     * Si el frontend manda priority pero el schema actual no tiene priority,
-     * lo quitamos para evitar PrismaClientValidationError.
-     */
-    delete data.priority;
-
-    /**
-     * Campos que estaban en DTO pero tu WorkOrder actual puede no tener.
-     * Los quitamos para que Prisma no falle.
+     * Campos auxiliares que no pertenecen al WorkOrder actual.
      */
     delete data.location;
     delete data.reference;
     delete data.notes;
     delete data.isActive;
+
+    /**
+     * Validación de enums.
+     */
+    if (typeof data.status === 'string') {
+      data.status = this.normalizeStatus(data.status);
+    }
+
+    if (typeof data.priority === 'string') {
+      data.priority = this.normalizePriority(data.priority);
+    }
 
     return data;
   }
@@ -134,12 +219,6 @@ export class WorkOrdersService {
       where.companyId = companyId;
     }
 
-    /**
-     * Frontend:
-     * /work-orders?assignedToId=ID_DEL_TECNICO&pageSize=100
-     *
-     * Prisma actual usa assignedToUserId.
-     */
     if (query.assignedToId) {
       where.assignedToUserId = query.assignedToId;
     }
@@ -148,11 +227,10 @@ export class WorkOrdersService {
       where.status = this.normalizeStatus(query.status);
     }
 
-    /**
-     * Solo aplicamos priority si el modelo la soporta.
-     * Como tu error de Prisma no muestra priority en WorkOrder,
-     * no filtramos por priority aquí.
-     */
+    const priority = this.normalizePriority(query.priority);
+    if (priority) {
+      where.priority = priority;
+    }
 
     if (query.customerId) {
       where.customerId = query.customerId;
@@ -198,6 +276,7 @@ export class WorkOrdersService {
         orderBy: {
           createdAt: 'desc',
         },
+        include: this.workOrderInclude,
       }),
       this.prisma.workOrder.count({
         where,
@@ -230,6 +309,7 @@ export class WorkOrdersService {
 
     const workOrder = await this.prisma.workOrder.findFirst({
       where,
+      include: this.workOrderInclude,
     });
 
     if (!workOrder) {
@@ -239,7 +319,7 @@ export class WorkOrdersService {
     return workOrder;
   }
 
-  async create(companyId: string, dto: object) {
+  async create(companyId: string, dto: object, createdById?: string) {
     if (!dto) {
       throw new BadRequestException('Faltan datos para crear la orden');
     }
@@ -248,8 +328,17 @@ export class WorkOrdersService {
 
     data.companyId = companyId;
 
+    /**
+     * Este campo hace que en el detalle salga:
+     * Creado por: Admin Demo / Encargado / Administración.
+     */
+    if (createdById) {
+      data.createdById = createdById;
+    }
+
     return this.prisma.workOrder.create({
       data: data as Prisma.WorkOrderUncheckedCreateInput,
+      include: this.workOrderInclude,
     });
   }
 
@@ -267,6 +356,7 @@ export class WorkOrdersService {
         id,
       },
       data: data as Prisma.WorkOrderUncheckedUpdateInput,
+      include: this.workOrderInclude,
     });
   }
 
@@ -284,6 +374,7 @@ export class WorkOrdersService {
       data: {
         status: this.normalizeStatus(status),
       },
+      include: this.workOrderInclude,
     });
   }
 
@@ -300,7 +391,9 @@ export class WorkOrdersService {
       },
       data: {
         assignedToUserId: assignedToId,
+        assignedTechnicianId: assignedToId,
       } as Prisma.WorkOrderUncheckedUpdateInput,
+      include: this.workOrderInclude,
     });
   }
 
@@ -324,6 +417,7 @@ export class WorkOrdersService {
         status,
         startedAt: new Date(),
       },
+      include: this.workOrderInclude,
     });
   }
 
@@ -347,6 +441,7 @@ export class WorkOrdersService {
         status,
         completedAt: new Date(),
       },
+      include: this.workOrderInclude,
     });
   }
 
@@ -365,6 +460,7 @@ export class WorkOrdersService {
         status,
         completedAt: null,
       },
+      include: this.workOrderInclude,
     });
   }
 
@@ -387,6 +483,7 @@ export class WorkOrdersService {
       data: {
         status,
       },
+      include: this.workOrderInclude,
     });
   }
 
@@ -399,6 +496,7 @@ export class WorkOrdersService {
       where: {
         id,
       },
+      include: this.workOrderInclude,
     });
   }
 }

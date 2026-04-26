@@ -16,6 +16,9 @@ import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 
 type RequestWithUser = {
+  companyId?: string;
+  userId?: string;
+  role?: string;
   user?: {
     id?: string;
     userId?: string;
@@ -42,17 +45,26 @@ type UpdateStatusBody = {
 export class WorkOrdersController {
   constructor(private readonly workOrders: WorkOrdersService) {}
 
-  private getCompanyId(req: RequestWithUser): string {
-    const headerCompanyId = req.headers?.['x-company-id'];
-    const normalizedHeaderCompanyId = Array.isArray(headerCompanyId)
-      ? headerCompanyId[0]
-      : headerCompanyId;
+  private getHeaderValue(
+    req: RequestWithUser,
+    headerName: string,
+  ): string | undefined {
+    const value = req.headers?.[headerName];
 
+    if (Array.isArray(value)) {
+      return value[0];
+    }
+
+    return value;
+  }
+
+  private getCompanyId(req: RequestWithUser): string {
     const companyId =
+      req.companyId ??
       req.user?.companyId ??
       req.user?.activeCompanyId ??
       req.user?.company?.id ??
-      normalizedHeaderCompanyId;
+      this.getHeaderValue(req, 'x-company-id');
 
     if (!companyId) {
       throw new BadRequestException(
@@ -63,22 +75,35 @@ export class WorkOrdersController {
     return companyId;
   }
 
+  private getCurrentUserId(req: RequestWithUser): string | undefined {
+    return (
+      req.user?.id ??
+      req.user?.userId ??
+      req.userId ??
+      this.getHeaderValue(req, 'x-user-id')
+    );
+  }
+
   @Get()
   list(@Req() req: RequestWithUser, @Query() query: QueryWorkOrdersDto) {
     const companyId = this.getCompanyId(req);
+
     return this.workOrders.list(companyId, query);
   }
 
   @Get(':id')
   get(@Req() req: RequestWithUser, @Param('id') id: string) {
     const companyId = this.getCompanyId(req);
+
     return this.workOrders.get(companyId, id);
   }
 
   @Post()
   create(@Req() req: RequestWithUser, @Body() dto: CreateWorkOrderDto) {
     const companyId = this.getCompanyId(req);
-    return this.workOrders.create(companyId, dto);
+    const createdById = this.getCurrentUserId(req);
+
+    return this.workOrders.create(companyId, dto, createdById);
   }
 
   @Patch(':id/status')
@@ -114,30 +139,35 @@ export class WorkOrdersController {
   @Patch(':id/start')
   start(@Req() req: RequestWithUser, @Param('id') id: string) {
     const companyId = this.getCompanyId(req);
+
     return this.workOrders.start(companyId, id);
   }
 
   @Patch(':id/done')
   markDone(@Req() req: RequestWithUser, @Param('id') id: string) {
     const companyId = this.getCompanyId(req);
+
     return this.workOrders.markDone(companyId, id);
   }
 
   @Patch(':id/mark-done')
   markDoneAlias(@Req() req: RequestWithUser, @Param('id') id: string) {
     const companyId = this.getCompanyId(req);
+
     return this.workOrders.markDone(companyId, id);
   }
 
   @Patch(':id/reopen')
   reopen(@Req() req: RequestWithUser, @Param('id') id: string) {
     const companyId = this.getCompanyId(req);
+
     return this.workOrders.reopen(companyId, id);
   }
 
   @Patch(':id/cancel')
   cancel(@Req() req: RequestWithUser, @Param('id') id: string) {
     const companyId = this.getCompanyId(req);
+
     return this.workOrders.cancel(companyId, id);
   }
 
@@ -148,12 +178,14 @@ export class WorkOrdersController {
     @Body() dto: UpdateWorkOrderDto,
   ) {
     const companyId = this.getCompanyId(req);
+
     return this.workOrders.update(companyId, id, dto);
   }
 
   @Delete(':id')
   remove(@Req() req: RequestWithUser, @Param('id') id: string) {
     const companyId = this.getCompanyId(req);
+
     return this.workOrders.remove(companyId, id);
   }
 }
