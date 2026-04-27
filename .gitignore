@@ -1,34 +1,34 @@
-# deps
+﻿# Dependencies
 node_modules/
 .pnpm-store/
 
-# builds
+# Builds
 dist/
 build/
 .next/
 out/
+.turbo/
+coverage/
 
-# logs
+# TypeScript cache
+*.tsbuildinfo
+
+# Logs
 *.log
+logs/
 
-# env / secrets
+# Environment / secrets
 .env
 .env.*
+!.env.example
 *.pem
 *.key
 
-# OS/Editor
+# OS / editor
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
 
-# prisma
-# (NO ignores migrations, porque sí quieres subirlas)
-
-.turbo/
-.next/
-node_modules/
-dist/
-coverage/
-*.log
+# Prisma
+# No ignoramos migrations porque sí deben subirse al repo.
