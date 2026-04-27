@@ -1,17 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { readTcSession, type TcSession } from '@/lib/tc/session';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   errMsg,
   isRecord,
   resolveCorePaths,
   tcGet,
-  tcPatch,
   tcPost,
 } from '@/lib/tc/api';
+import { readTcSession, type TcSession } from '@/lib/tc/session';
 
 type LoadState<T> =
   | { status: 'loading' }
@@ -25,6 +24,7 @@ type ActionState =
   | { status: 'error'; message: string };
 
 type ReportItemStatusValue = 'PENDING' | 'OK' | 'FAIL' | 'NA';
+
 type ItemType =
   | 'TEXT'
   | 'LONG_TEXT'
@@ -56,8 +56,6 @@ type ReportItem = {
   type: ItemType;
   required: boolean;
   unit?: string | null;
-  helpText?: string | null;
-  placeholder?: string | null;
   valueText: string;
   valueNumber: string;
   valueBoolean: 'true' | 'false' | '';
@@ -69,74 +67,118 @@ type ReportItem = {
 type ReportDetail = {
   id: string;
   workOrderId?: string | null;
+  workOrderCode?: string | null;
+  workOrderTitle?: string | null;
+  workOrderStatus?: string | null;
   performedAt?: string | null;
+  startedAt?: string | null;
+  submittedAt?: string | null;
+  completedAt?: string | null;
+  reviewedAt?: string | null;
   state?: string | null;
   status?: string | null;
   templateName?: string | null;
   templateDesc?: string | null;
+  title?: string | null;
+  description?: string | null;
   summary?: string | null;
   notes?: string | null;
+  diagnosis?: string | null;
   workPerformed?: string | null;
+  recommendations?: string | null;
   observations?: string | null;
   technicianNotes?: string | null;
+  reviewNotes?: string | null;
   laborHours?: string | null;
   customerName?: string | null;
+  customerEmail?: string | null;
+  customerPhone?: string | null;
   siteName?: string | null;
   siteAddress?: string | null;
   assetName?: string | null;
+  assetCode?: string | null;
+  assetBrand?: string | null;
+  assetModel?: string | null;
+  assetSerialNumber?: string | null;
+  assetLocation?: string | null;
   technicianName?: string | null;
+  technicianEmail?: string | null;
   items: ReportItem[];
   materials: MaterialRow[];
 };
 
-function formatDate(input?: string | null) {
+function asStr(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value : fallback;
+}
+
+function asNullableStr(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
+function asNumber(value: unknown, fallback = 0): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  return fallback;
+}
+
+function formatDate(input?: string | null): string {
   if (!input) return '—';
-  const d = new Date(input);
-  return Number.isNaN(d.getTime()) ? input : d.toLocaleString('es-ES');
+
+  const date = new Date(input);
+
+  if (Number.isNaN(date.getTime())) {
+    return input;
+  }
+
+  return new Intl.DateTimeFormat('es-ES', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
 }
 
-function asStr(v: unknown, fallback = ''): string {
-  return typeof v === 'string' ? v : fallback;
-}
-
-function asNullableStr(v: unknown): string | null {
-  return typeof v === 'string' ? v : null;
-}
-
-function asNum(v: unknown, fallback = 0): number {
-  return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
-}
-
-function normalizeDateInput(value?: string | null) {
+function normalizeDateInput(value?: string | null): string {
   if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toISOString().slice(0, 10);
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return '';
+
+  return date.toISOString().slice(0, 10);
 }
 
-function checklistToText(valueJson: unknown, fallback?: string | null) {
+function checklistToText(valueJson: unknown, fallback?: string | null): string {
   if (Array.isArray(valueJson)) {
     return valueJson
       .map((row) => {
         if (typeof row === 'string') return row;
+
         if (isRecord(row)) {
           const label = asStr(row.label);
           const checked =
             typeof row.checked === 'boolean'
               ? row.checked
-                ? 'true'
-                : 'false'
+                ? 'sí'
+                : 'no'
               : '';
+
           return label ? `${label}${checked ? ` | ${checked}` : ''}` : '';
         }
+
         return '';
       })
       .filter(Boolean)
       .join('\n');
   }
 
-  if (typeof fallback === 'string') return fallback;
-  return '';
+  return typeof fallback === 'string' ? fallback : '';
 }
 
 function getApiError(json: unknown, code: number): string {
@@ -149,12 +191,14 @@ function getApiError(json: unknown, code: number): string {
 
     if (Array.isArray(message)) {
       const joined = message
-        .filter((x): x is string => typeof x === 'string')
+        .filter((item): item is string => typeof item === 'string')
         .join(', ');
+
       if (joined) return joined;
     }
 
     const error = json.error;
+
     if (typeof error === 'string' && error.trim()) {
       return `${error} (HTTP ${code})`;
     }
@@ -163,73 +207,103 @@ function getApiError(json: unknown, code: number): string {
   return `HTTP ${code}`;
 }
 
-function resolveReportVisual(detail: ReportDetail) {
-  const status = String(detail.status ?? '').toUpperCase();
-  const state = String(detail.state ?? '').toUpperCase();
-
-  if (status === 'APPROVED') {
-    return {
-      label: 'Aprobado',
-      className:
-        'border-emerald-500/40 bg-emerald-500/10 text-emerald-300',
-    };
+function statusLabel(status?: string | null): string {
+  switch (String(status ?? '').toUpperCase()) {
+    case 'DRAFT':
+      return 'Borrador';
+    case 'ASSIGNED':
+      return 'Asignado';
+    case 'IN_PROGRESS':
+      return 'En progreso';
+    case 'SUBMITTED':
+      return 'Enviado al admin';
+    case 'APPROVED':
+      return 'Aprobado';
+    case 'REJECTED':
+      return 'Rechazado';
+    case 'COMPLETED':
+      return 'Completado';
+    case 'CANCELLED':
+      return 'Cancelado';
+    default:
+      return status || '—';
   }
+}
 
-  if (status === 'REJECTED') {
-    return {
-      label: 'Rechazado',
-      className: 'border-rose-500/40 bg-rose-500/10 text-rose-300',
-    };
+function workOrderStatusLabel(status?: string | null): string {
+  switch (String(status ?? '').toUpperCase()) {
+    case 'OPEN':
+      return 'Abierta';
+    case 'ASSIGNED':
+      return 'Asignada';
+    case 'PENDING':
+      return 'Pendiente de revisión';
+    case 'IN_PROGRESS':
+      return 'En progreso';
+    case 'DONE':
+      return 'Finalizada';
+    case 'CANCELLED':
+    case 'CANCELED':
+      return 'Cancelada';
+    default:
+      return status || '—';
   }
+}
 
-  if (status === 'SUBMITTED') {
-    return {
-      label: 'Enviado',
-      className: 'border-sky-500/40 bg-sky-500/10 text-sky-300',
-    };
+function finalStatusLabel(status?: string | null): string {
+  switch (String(status ?? '').toUpperCase()) {
+    case 'OPERATIVO':
+      return 'Equipo operativo';
+    case 'OPERATIVO_CON_OBSERVACIONES':
+      return 'Operativo con observaciones';
+    case 'PENDIENTE_REVISION':
+      return 'Pendiente de revisión';
+    case 'NO_OPERATIVO':
+      return 'No operativo';
+    default:
+      return status || '—';
   }
+}
 
-  if (status === 'IN_PROGRESS') {
-    return {
-      label: 'En progreso',
-      className: 'border-blue-500/40 bg-blue-500/10 text-blue-300',
-    };
+function reportBadgeClass(status?: string | null): string {
+  switch (String(status ?? '').toUpperCase()) {
+    case 'APPROVED':
+      return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
+    case 'REJECTED':
+      return 'border-rose-500/40 bg-rose-500/10 text-rose-300';
+    case 'SUBMITTED':
+      return 'border-sky-500/40 bg-sky-500/10 text-sky-300';
+    case 'IN_PROGRESS':
+      return 'border-blue-500/40 bg-blue-500/10 text-blue-300';
+    case 'ASSIGNED':
+      return 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300';
+    case 'CANCELLED':
+      return 'border-rose-500/40 bg-rose-500/10 text-rose-300';
+    default:
+      return 'border-yellow-500/40 bg-yellow-500/10 text-yellow-300';
   }
+}
 
-  if (status === 'ASSIGNED') {
-    return {
-      label: 'Asignado',
-      className: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300',
-    };
+function workOrderBadgeClass(status?: string | null): string {
+  switch (String(status ?? '').toUpperCase()) {
+    case 'PENDING':
+      return 'border-purple-500/40 bg-purple-500/10 text-purple-300';
+    case 'DONE':
+      return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
+    case 'IN_PROGRESS':
+      return 'border-blue-500/40 bg-blue-500/10 text-blue-300';
+    case 'CANCELLED':
+    case 'CANCELED':
+      return 'border-rose-500/40 bg-rose-500/10 text-rose-300';
+    default:
+      return 'border-slate-700 bg-slate-800 text-slate-200';
   }
-
-  if (status === 'CANCELLED') {
-    return {
-      label: 'Cancelado',
-      className: 'border-rose-500/40 bg-rose-500/10 text-rose-300',
-    };
-  }
-
-  if (state === 'FINAL') {
-    return {
-      label: 'Final',
-      className:
-        'border-emerald-500/40 bg-emerald-500/10 text-emerald-300',
-    };
-  }
-
-  return {
-    label: 'Borrador',
-    className:
-      'border-yellow-500/40 bg-yellow-500/10 text-yellow-300',
-  };
 }
 
 function parseItem(value: unknown): ReportItem | null {
   if (!isRecord(value)) return null;
 
   const templateItem = isRecord(value.templateItem) ? value.templateItem : null;
-
   const id = asStr(value.id);
   const title =
     asStr(value.title) ||
@@ -240,7 +314,10 @@ function parseItem(value: unknown): ReportItem | null {
   if (!id || !title) return null;
 
   const rawStatus = asStr(value.status, 'PENDING').toUpperCase();
-  const rawType = asStr(value.type, asStr(templateItem?.type, 'TEXT')).toUpperCase();
+  const rawType = asStr(
+    value.type,
+    asStr(templateItem?.type, 'TEXT'),
+  ).toUpperCase();
 
   const status: ReportItemStatusValue =
     rawStatus === 'OK' || rawStatus === 'FAIL' || rawStatus === 'NA'
@@ -259,20 +336,14 @@ function parseItem(value: unknown): ReportItem | null {
 
   return {
     id,
-    sortOrder: asNum(value.sortOrder, asNum(value.itemOrder, 0)),
+    sortOrder: asNumber(value.sortOrder, asNumber(value.itemOrder, 0)),
     title,
     description:
-      asNullableStr(value.description) ??
-      asNullableStr(templateItem?.description),
+      asNullableStr(value.description) ?? asNullableStr(templateItem?.description),
     status,
     type: rawType || 'TEXT',
     required: Boolean(value.required ?? templateItem?.required),
     unit: asNullableStr(value.unit) ?? asNullableStr(templateItem?.unit),
-    helpText:
-      asNullableStr(value.helpText) ?? asNullableStr(templateItem?.helpText),
-    placeholder:
-      asNullableStr(value.placeholder) ??
-      asNullableStr(templateItem?.placeholder),
     valueText: asNullableStr(value.valueText) ?? asNullableStr(value.value) ?? '',
     valueNumber,
     valueBoolean,
@@ -306,9 +377,11 @@ function parseDetail(value: unknown, fallbackId: string): ReportDetail | null {
 
   const itemsRaw = Array.isArray(value.items) ? value.items : [];
   const materialsRaw = Array.isArray(value.materials) ? value.materials : [];
+
   const customer = isRecord(value.customer) ? value.customer : null;
   const site = isRecord(value.site) ? value.site : null;
   const asset = isRecord(value.asset) ? value.asset : null;
+  const workOrder = isRecord(value.workOrder) ? value.workOrder : null;
   const assignedTechnician = isRecord(value.assignedTechnician)
     ? value.assignedTechnician
     : null;
@@ -320,96 +393,153 @@ function parseDetail(value: unknown, fallbackId: string): ReportDetail | null {
 
   const materials = materialsRaw
     .map(parseMaterial)
-    .filter((item): item is MaterialRow => !!item);
+    .filter((material): material is MaterialRow => !!material);
 
   return {
     id: asStr(value.id, fallbackId),
     workOrderId: asNullableStr(value.workOrderId),
+    workOrderCode: asNullableStr(workOrder?.code),
+    workOrderTitle: asNullableStr(workOrder?.title),
+    workOrderStatus: asNullableStr(workOrder?.status),
     performedAt:
-      asNullableStr(value.performedAt) ?? asNullableStr(value.completedAt),
+      asNullableStr(value.performedAt) ??
+      asNullableStr(value.completedAt) ??
+      asNullableStr(value.startedAt) ??
+      asNullableStr(value.createdAt),
+    startedAt: asNullableStr(value.startedAt),
+    submittedAt: asNullableStr(value.submittedAt),
+    completedAt: asNullableStr(value.completedAt),
+    reviewedAt: asNullableStr(value.reviewedAt),
     state: asNullableStr(value.state),
     status: asNullableStr(value.status),
     templateName:
-      asNullableStr(value.templateName) ?? asNullableStr(value.title),
+      asNullableStr(value.templateName) ??
+      asNullableStr(value.title) ??
+      'Parte de trabajo',
     templateDesc:
       asNullableStr(value.templateDesc) ?? asNullableStr(value.description),
+    title: asNullableStr(value.title),
+    description: asNullableStr(value.description),
     summary: asNullableStr(value.summary),
     notes: asNullableStr(value.notes),
+    diagnosis: asNullableStr(value.diagnosis),
     workPerformed: asNullableStr(value.workPerformed),
+    recommendations: asNullableStr(value.recommendations),
     observations: asNullableStr(value.observations),
     technicianNotes: asNullableStr(value.technicianNotes),
+    reviewNotes: asNullableStr(value.reviewNotes),
     laborHours:
       value.laborHours === null || value.laborHours === undefined
         ? ''
         : String(value.laborHours),
+
     customerName: asNullableStr(customer?.name),
+    customerEmail: asNullableStr(customer?.email),
+    customerPhone: asNullableStr(customer?.phone),
+
     siteName: asNullableStr(site?.name),
     siteAddress: asNullableStr(site?.address),
+
     assetName: asNullableStr(asset?.name),
+    assetCode: asNullableStr(asset?.code) ?? asNullableStr(asset?.internalCode),
+    assetBrand: asNullableStr(asset?.brand),
+    assetModel: asNullableStr(asset?.model),
+    assetSerialNumber: asNullableStr(asset?.serialNumber),
+    assetLocation: asNullableStr(asset?.location),
+
     technicianName: asNullableStr(assignedTechnician?.name),
+    technicianEmail: asNullableStr(assignedTechnician?.email),
+
     items,
     materials,
   };
 }
 
-function buildItemPayload(item: ReportItem) {
-  const base = {
-    status: item.status,
-    notes: item.notes.trim() || null,
-  };
-
+function valueForItem(item: ReportItem): string {
   switch (item.type) {
     case 'NUMBER':
-      return {
-        ...base,
-        valueNumber: item.valueNumber.trim() === '' ? null : Number(item.valueNumber),
-      };
-
+      return item.valueNumber || '—';
     case 'BOOLEAN':
     case 'CHECKBOX':
-      return {
-        ...base,
-        valueBoolean:
-          item.valueBoolean === ''
-            ? null
-            : item.valueBoolean === 'true',
-      };
-
+      if (item.valueBoolean === 'true') return 'Sí';
+      if (item.valueBoolean === 'false') return 'No';
+      return '—';
     case 'DATE':
-      return {
-        ...base,
-        valueDate: item.valueDate || null,
-      };
-
-    case 'CHECKLIST': {
-      const rows = item.valueChecklistText
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean);
-
-      return {
-        ...base,
-        valueJson: rows,
-        valueText: rows.length ? rows.join('\n') : null,
-      };
-    }
-
+      return item.valueDate || '—';
+    case 'CHECKLIST':
+      return item.valueChecklistText || '—';
     default:
-      return {
-        ...base,
-        valueText: item.valueText.trim() || null,
-      };
+      return item.valueText || '—';
   }
 }
 
-function emptyMaterial(): MaterialRow {
-  return {
-    name: '',
-    quantity: '1',
-    unit: '',
-    description: '',
-    notes: '',
-  };
+function StatusPill({
+  label,
+  className,
+}: {
+  label: string;
+  className: string;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${className}`}
+    >
+      {label}
+    </span>
+  );
+}
+
+function InfoBox({
+  label,
+  value,
+  emphasis = false,
+}: {
+  label: string;
+  value?: string | null;
+  emphasis?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+      <p
+        className={`mt-2 whitespace-pre-wrap text-sm ${
+          emphasis ? 'font-semibold text-white' : 'text-slate-200'
+        }`}
+      >
+        {value?.trim() ? value : '—'}
+      </p>
+    </div>
+  );
+}
+
+function TextSection({
+  title,
+  value,
+  accent,
+}: {
+  title: string;
+  value?: string | null;
+  accent?: 'danger' | 'warning' | 'success';
+}) {
+  const accentClass =
+    accent === 'danger'
+      ? 'border-rose-500/30 bg-rose-500/10'
+      : accent === 'warning'
+        ? 'border-amber-500/30 bg-amber-500/10'
+        : accent === 'success'
+          ? 'border-emerald-500/30 bg-emerald-500/10'
+          : 'border-white/10 bg-slate-950/40';
+
+  return (
+    <section className={`rounded-2xl border p-5 ${accentClass}`}>
+      <h2 className="text-lg font-black text-white">{title}</h2>
+      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-200">
+        {value?.trim() ? value : '—'}
+      </p>
+    </section>
+  );
 }
 
 export default function MaintenanceReportDetailPage() {
@@ -425,8 +555,10 @@ export default function MaintenanceReportDetailPage() {
   const [actionState, setActionState] = useState<ActionState>({
     status: 'idle',
   });
-  const [savingItemId, setSavingItemId] = useState<string | null>(null);
-  const [savingReport, setSavingReport] = useState(false);
+  const [reviewNotes, setReviewNotes] = useState('');
+  const [reviewLoading, setReviewLoading] = useState<'approve' | 'reject' | null>(
+    null,
+  );
 
   const paths = useMemo(() => resolveCorePaths(session), [session]);
 
@@ -440,25 +572,28 @@ export default function MaintenanceReportDetailPage() {
       setState({ status: 'loading' });
 
       const currentPaths = resolveCorePaths(currentSession);
-      const r = await tcGet(currentSession, `${currentPaths.reports}/${currentId}`);
+      const response = await tcGet(
+        currentSession,
+        `${currentPaths.reports}/${currentId}`,
+      );
 
-      if (r.code === 404) {
+      if (response.code === 404) {
         setState({
           status: 'error',
-          error: 'Reporte no encontrado.',
+          error: 'Parte de trabajo no encontrado.',
         });
         return;
       }
 
-      if (r.code < 200 || r.code >= 300) {
+      if (response.code < 200 || response.code >= 300) {
         setState({
           status: 'error',
-          error: getApiError(r.json, r.code),
+          error: getApiError(response.json, response.code),
         });
         return;
       }
 
-      const parsed = parseDetail(r.json, currentId);
+      const parsed = parseDetail(response.json, currentId);
 
       if (!parsed) {
         setState({
@@ -468,6 +603,7 @@ export default function MaintenanceReportDetailPage() {
         return;
       }
 
+      setReviewNotes(parsed.reviewNotes ?? '');
       setState({
         status: 'ok',
         data: parsed,
@@ -478,326 +614,98 @@ export default function MaintenanceReportDetailPage() {
 
   useEffect(() => {
     if (!mounted) return;
-    if (!session) return;
-    if (!id) {
-      setState({ status: 'error', error: 'ID de reporte inválido.' });
+
+    if (!session) {
+      setState({
+        status: 'error',
+        error: 'Sesión no encontrada. Inicia sesión otra vez.',
+      });
       return;
     }
 
+    if (!id) {
+      setState({
+        status: 'error',
+        error: 'ID de parte inválido.',
+      });
+      return;
+    }
+
+    const activeSession = session;
+    const activeId = id;
+
     let cancelled = false;
 
-    (async () => {
+    async function run() {
       try {
-        await loadDetail(session, id);
-      } catch (e) {
+        await loadDetail(activeSession, activeId);
+      } catch (error) {
         if (!cancelled) {
-          setState({ status: 'error', error: errMsg(e) });
+          setState({
+            status: 'error',
+            error: errMsg(error),
+          });
         }
       }
-    })();
+    }
+
+    void run();
 
     return () => {
       cancelled = true;
     };
-  }, [mounted, session, id, loadDetail]);
+  }, [id, loadDetail, mounted, session]);
 
-  const backHref =
-    state.status === 'ok' && state.data.workOrderId
-      ? `/work-orders/${state.data.workOrderId}`
-      : '/maintenance-reports';
+  const report = state.status === 'ok' ? state.data : null;
 
-  const visual =
-    state.status === 'ok' ? resolveReportVisual(state.data) : null;
+  const backHref = report?.workOrderId
+    ? `/work-orders/${report.workOrderId}`
+    : '/maintenance-reports';
 
-  const isEditable =
-    state.status === 'ok' &&
-    String(state.data.state ?? '').toUpperCase() !== 'FINAL' &&
-    !['APPROVED', 'CANCELLED', 'SUBMITTED'].includes(
-      String(state.data.status ?? '').toUpperCase(),
-    );
-
-  const visualItems = useMemo(() => {
-    if (state.status !== 'ok') return [];
-    return state.data.items.filter(
-      (item) => item.type === 'PHOTO' || item.type === 'SIGNATURE',
-    );
-  }, [state]);
+  const canReview =
+    report && String(report.status ?? '').toUpperCase() === 'SUBMITTED';
 
   const checklistItems = useMemo(() => {
-    if (state.status !== 'ok') return [];
-    return state.data.items.filter(
+    if (!report) return [];
+
+    return report.items.filter(
       (item) => item.type !== 'PHOTO' && item.type !== 'SIGNATURE',
     );
-  }, [state]);
+  }, [report]);
 
-  function updateDetail(
-    patch: Partial<
-      Pick<
-        ReportDetail,
-        | 'summary'
-        | 'workPerformed'
-        | 'observations'
-        | 'technicianNotes'
-        | 'laborHours'
-        | 'materials'
-      >
-    >,
-  ) {
-    setState((prev) => {
-      if (prev.status !== 'ok') return prev;
-      return {
-        status: 'ok',
-        data: {
-          ...prev.data,
-          ...patch,
-        },
-      };
-    });
-  }
+  const visualItems = useMemo(() => {
+    if (!report) return [];
 
-  function updateLocalItem(
-    itemId: string,
-    patch: Partial<
-      Pick<
-        ReportItem,
-        | 'status'
-        | 'valueText'
-        | 'valueNumber'
-        | 'valueBoolean'
-        | 'valueDate'
-        | 'valueChecklistText'
-        | 'notes'
-      >
-    >,
-  ) {
-    setState((prev) => {
-      if (prev.status !== 'ok') return prev;
+    return report.items.filter(
+      (item) => item.type === 'PHOTO' || item.type === 'SIGNATURE',
+    );
+  }, [report]);
 
-      return {
-        status: 'ok',
-        data: {
-          ...prev.data,
-          items: prev.data.items.map((item) =>
-            item.id === itemId ? { ...item, ...patch } : item,
-          ),
-        },
-      };
-    });
-  }
-
-  function updateMaterial(
-    index: number,
-    patch: Partial<MaterialRow>,
-  ) {
-    setState((prev) => {
-      if (prev.status !== 'ok') return prev;
-
-      const nextMaterials = [...prev.data.materials];
-      nextMaterials[index] = {
-        ...nextMaterials[index],
-        ...patch,
-      };
-
-      return {
-        status: 'ok',
-        data: {
-          ...prev.data,
-          materials: nextMaterials,
-        },
-      };
-    });
-  }
-
-  function addMaterialRow() {
-    setState((prev) => {
-      if (prev.status !== 'ok') return prev;
-
-      return {
-        status: 'ok',
-        data: {
-          ...prev.data,
-          materials: [...prev.data.materials, emptyMaterial()],
-        },
-      };
-    });
-  }
-
-  function removeMaterialRow(index: number) {
-    setState((prev) => {
-      if (prev.status !== 'ok') return prev;
-
-      const nextMaterials = prev.data.materials.filter((_, i) => i !== index);
-
-      return {
-        status: 'ok',
-        data: {
-          ...prev.data,
-          materials: nextMaterials,
-        },
-      };
-    });
-  }
-
-  async function saveReportData(showSuccess = true): Promise<boolean> {
-    if (!session || !id) return false;
-    if (state.status !== 'ok') return false;
-
-    try {
-      setSavingReport(true);
-      setActionState({
-        status: 'saving',
-        message: 'Guardando datos del parte...',
-      });
-
-      const payload = {
-        summary: state.data.summary?.trim() || null,
-        workPerformed: state.data.workPerformed?.trim() || null,
-        observations: state.data.observations?.trim() || null,
-        technicianNotes: state.data.technicianNotes?.trim() || null,
-        laborHours:
-          state.data.laborHours && state.data.laborHours.trim() !== ''
-            ? Number(state.data.laborHours)
-            : null,
-        materials: state.data.materials
-          .map((material, index) => ({
-            name: material.name.trim(),
-            quantity:
-              material.quantity.trim() === ''
-                ? 1
-                : Number(material.quantity),
-            unit: material.unit.trim() || null,
-            description: material.description.trim() || null,
-            notes: material.notes.trim() || null,
-            sortOrder: index + 1,
-          }))
-          .filter((material) => material.name),
-      };
-
-      const r = await tcPatch(session, `${paths.reports}/${id}`, payload);
-
-      if (r.code < 200 || r.code >= 300) {
-        setActionState({
-          status: 'error',
-          message: getApiError(r.json, r.code),
-        });
-        return false;
-      }
-
-      const parsed = parseDetail(r.json, id);
-      if (parsed) {
-        setState({
-          status: 'ok',
-          data: {
-            ...parsed,
-            items:
-              state.status === 'ok' ? state.data.items : parsed.items,
-          },
-        });
-      }
-
-      if (showSuccess) {
-        setActionState({
-          status: 'success',
-          message: 'Parte guardado correctamente.',
-        });
-      }
-
-      return true;
-    } catch (e) {
-      setActionState({
-        status: 'error',
-        message: errMsg(e),
-      });
-      return false;
-    } finally {
-      setSavingReport(false);
-    }
-  }
-
-  async function saveItem(item: ReportItem) {
+  async function reviewReport(approved: boolean) {
     if (!session || !id) return;
 
     try {
-      setSavingItemId(item.id);
+      setReviewLoading(approved ? 'approve' : 'reject');
       setActionState({
         status: 'saving',
-        message: `Guardando item ${item.sortOrder}...`,
+        message: approved ? 'Aprobando parte...' : 'Rechazando parte...',
       });
 
-      const r = await tcPatch(
-        session,
-        `${paths.reports}/${id}/items/${item.id}`,
-        buildItemPayload(item),
-      );
+      const response = await tcPost(session, `${paths.reports}/${id}/review`, {
+        approved,
+        reviewNotes: reviewNotes.trim() || undefined,
+      });
 
-      if (r.code < 200 || r.code >= 300) {
+      if (response.code < 200 || response.code >= 300) {
         setActionState({
           status: 'error',
-          message: getApiError(r.json, r.code),
+          message: getApiError(response.json, response.code),
         });
         return;
       }
 
-      const updated = parseItem(r.json);
-      if (updated) {
-        updateLocalItem(item.id, {
-          status: updated.status,
-          valueText: updated.valueText,
-          valueNumber: updated.valueNumber,
-          valueBoolean: updated.valueBoolean,
-          valueDate: updated.valueDate,
-          valueChecklistText: updated.valueChecklistText,
-          notes: updated.notes,
-        });
-      }
+      const parsed = parseDetail(response.json, id);
 
-      setActionState({
-        status: 'success',
-        message: `Item ${item.sortOrder} guardado correctamente.`,
-      });
-    } catch (e) {
-      setActionState({
-        status: 'error',
-        message: errMsg(e),
-      });
-    } finally {
-      setSavingItemId(null);
-    }
-  }
-
-  async function finalizeReport() {
-    if (!session || !id) return;
-    if (state.status !== 'ok') return;
-
-    const hasPending = state.data.items.some((item) => item.status === 'PENDING');
-    if (hasPending) {
-      setActionState({
-        status: 'error',
-        message: 'No puedes finalizar mientras haya ítems en PENDING.',
-      });
-      return;
-    }
-
-    const saved = await saveReportData(false);
-    if (!saved) return;
-
-    try {
-      setActionState({
-        status: 'saving',
-        message: 'Enviando parte realizado por técnico...',
-      });
-
-      const r = await tcPost(session, `${paths.reports}/${id}/finalize`);
-
-      if (r.code < 200 || r.code >= 300) {
-        setActionState({
-          status: 'error',
-          message: getApiError(r.json, r.code),
-        });
-        return;
-      }
-
-      const parsed = parseDetail(r.json, id);
       if (parsed) {
         setState({
           status: 'ok',
@@ -809,752 +717,451 @@ export default function MaintenanceReportDetailPage() {
 
       setActionState({
         status: 'success',
-        message: 'Parte realizado por técnico y enviado correctamente.',
+        message: approved
+          ? 'Parte aprobado. La orden quedó finalizada.'
+          : 'Parte rechazado. La orden vuelve al técnico.',
       });
-    } catch (e) {
+    } catch (error) {
       setActionState({
         status: 'error',
-        message: errMsg(e),
+        message: errMsg(error),
       });
+    } finally {
+      setReviewLoading(null);
     }
-  }
-
-  function renderValueField(item: ReportItem, disabled: boolean) {
-    switch (item.type) {
-      case 'NUMBER':
-        return (
-          <input
-            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
-            type="number"
-            value={item.valueNumber}
-            onChange={(e) =>
-              updateLocalItem(item.id, { valueNumber: e.target.value })
-            }
-            placeholder={item.placeholder ?? 'Ej: 3.5'}
-            disabled={disabled}
-          />
-        );
-
-      case 'BOOLEAN':
-      case 'CHECKBOX':
-        return (
-          <select
-            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
-            value={item.valueBoolean}
-            onChange={(e) =>
-              updateLocalItem(item.id, {
-                valueBoolean: e.target.value as 'true' | 'false' | '',
-              })
-            }
-            disabled={disabled}
-          >
-            <option value="">Sin responder</option>
-            <option value="true">Sí</option>
-            <option value="false">No</option>
-          </select>
-        );
-
-      case 'DATE':
-        return (
-          <input
-            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
-            type="date"
-            value={item.valueDate}
-            onChange={(e) =>
-              updateLocalItem(item.id, { valueDate: e.target.value })
-            }
-            disabled={disabled}
-          />
-        );
-
-      case 'CHECKLIST':
-        return (
-          <textarea
-            className="min-h-[110px] w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
-            value={item.valueChecklistText}
-            onChange={(e) =>
-              updateLocalItem(item.id, {
-                valueChecklistText: e.target.value,
-              })
-            }
-            placeholder="Una línea por elemento"
-            disabled={disabled}
-          />
-        );
-
-      case 'LONG_TEXT':
-      case 'TEXTAREA':
-      default:
-        return (
-          <textarea
-            className="min-h-[110px] w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
-            value={item.valueText}
-            onChange={(e) =>
-              updateLocalItem(item.id, { valueText: e.target.value })
-            }
-            placeholder={item.placeholder ?? 'Escribe el resultado'}
-            disabled={disabled}
-          />
-        );
-    }
-  }
-
-  function renderEvidenceField(item: ReportItem, disabled: boolean) {
-    const label =
-      item.type === 'SIGNATURE'
-        ? 'Firma / confirmación del cliente'
-        : 'Referencia de foto o evidencia visual';
-
-    return (
-      <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="text-base font-semibold text-white">{item.title}</div>
-            {item.description ? (
-              <div className="mt-1 text-sm text-slate-400">{item.description}</div>
-            ) : null}
-          </div>
-
-          <select
-            className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
-            value={item.status}
-            onChange={(e) =>
-              updateLocalItem(item.id, {
-                status: e.target.value as ReportItemStatusValue,
-              })
-            }
-            disabled={disabled}
-          >
-            <option value="PENDING">PENDING</option>
-            <option value="OK">OK</option>
-            <option value="FAIL">FAIL</option>
-            <option value="NA">NA</option>
-          </select>
-        </div>
-
-        <label className="mb-2 block text-sm text-slate-300">{label}</label>
-        <textarea
-          className="min-h-[110px] w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
-          value={item.valueText}
-          onChange={(e) =>
-            updateLocalItem(item.id, { valueText: e.target.value })
-          }
-          placeholder={
-            item.type === 'SIGNATURE'
-              ? 'Ej: Firma recogida en tablet / cliente conforme'
-              : 'Ej: Foto antes, foto después, referencia de archivo o evidencia'
-          }
-          disabled={disabled}
-        />
-
-        <label className="mb-2 mt-4 block text-sm text-slate-300">Notas</label>
-        <textarea
-          className="min-h-[90px] w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
-          value={item.notes}
-          onChange={(e) =>
-            updateLocalItem(item.id, { notes: e.target.value })
-          }
-          placeholder="Notas de evidencia"
-          disabled={disabled}
-        />
-
-        {isEditable ? (
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={() => saveItem(item)}
-              disabled={savingItemId === item.id}
-              className="rounded-xl border border-slate-700 px-4 py-2 text-sm hover:bg-slate-800 disabled:opacity-60"
-            >
-              {savingItemId === item.id ? 'Guardando…' : 'Guardar evidencia'}
-            </button>
-          </div>
-        ) : null}
-      </div>
-    );
   }
 
   if (!mounted) {
     return (
-      <div className="mx-auto max-w-7xl p-6">
-        <div className="rounded-2xl bg-slate-900/60 p-4 text-sm text-slate-400 ring-1 ring-white/10">
-          Cargando sesión…
-        </div>
-      </div>
+      <main className="min-h-screen bg-slate-950 p-6 text-white">
+        Cargando sesión...
+      </main>
     );
   }
 
   if (!session) {
     return (
-      <div className="mx-auto max-w-7xl p-6">
-        <div className="text-sm text-red-200">
-          Sin sesión tenant. Ve a{' '}
-          <Link className="text-white underline" href="/login">
+      <main className="min-h-screen bg-slate-950 p-6 text-white">
+        <div className="mx-auto max-w-7xl rounded-3xl border border-rose-500/30 bg-rose-500/10 p-6 text-rose-200">
+          Sesión no encontrada. Ve a{' '}
+          <Link href="/login" className="font-bold underline">
             /login
           </Link>
           .
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="mx-auto max-w-7xl p-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold text-white">Detalle del trabajo</h1>
-          <p className="mt-1 text-sm text-slate-400">
-            Parte técnico operativo para rellenar, guardar y finalizar.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <Link
-            href={backHref}
-            className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800"
-          >
-            ← Volver
-          </Link>
-        </div>
-      </div>
-
-      <div className="mt-6 rounded-3xl bg-slate-900/60 p-6 ring-1 ring-white/10">
-        {state.status === 'loading' ? (
-          <div className="text-sm text-slate-400">Cargando…</div>
-        ) : state.status === 'error' ? (
-          <div className="text-sm text-red-200">{state.error}</div>
-        ) : (
-          <>
-            <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <div className="text-2xl font-semibold text-white">
-                  {state.data.templateName ?? 'Parte de trabajo'}
-                </div>
-                <div className="mt-2 text-sm text-slate-400">
-                  ID: <span className="text-slate-200">{state.data.id}</span>
-                </div>
-              </div>
-
-              <span
-                className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${visual?.className ?? 'border-slate-700 bg-slate-800 text-slate-200'}`}
-              >
-                {visual?.label ?? '—'}
-              </span>
+    <main className="min-h-screen bg-slate-950 p-4 text-white md:p-8">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <header className="rounded-3xl border border-white/10 bg-slate-900/80 p-6 shadow-sm">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-400">
+                Administración / Revisión de parte
+              </p>
+              <h1 className="mt-2 text-3xl font-black tracking-tight">
+                Detalle del parte de trabajo
+              </h1>
+              <p className="mt-2 max-w-3xl text-sm text-slate-400">
+                Aquí administración revisa el diagnóstico, incidencias,
+                recomendaciones, piezas a pedir y horas trabajadas por el técnico.
+              </p>
             </div>
 
-            <div className="space-y-6">
-              <section className="rounded-2xl border border-white/10 bg-slate-950/40 p-5">
-                <h2 className="text-lg font-semibold text-white">Datos generales</h2>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href={backHref}
+                className="inline-flex items-center justify-center rounded-2xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800"
+              >
+                Volver
+              </Link>
 
-                <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                  <div>
-                    <div className="text-xs uppercase tracking-wide text-slate-500">
-                      Cliente
-                    </div>
-                    <div className="mt-1 text-sm text-slate-100">
-                      {state.data.customerName || '—'}
-                    </div>
-                  </div>
+              <Link
+                href="/maintenance-reports"
+                className="inline-flex items-center justify-center rounded-2xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800"
+              >
+                Lista de partes
+              </Link>
+            </div>
+          </div>
+        </header>
 
-                  <div>
-                    <div className="text-xs uppercase tracking-wide text-slate-500">
-                      Site
-                    </div>
-                    <div className="mt-1 text-sm text-slate-100">
-                      {state.data.siteName || '—'}
-                    </div>
-                    {state.data.siteAddress ? (
-                      <div className="mt-1 text-xs text-slate-400">
-                        {state.data.siteAddress}
-                      </div>
-                    ) : null}
-                  </div>
+        {state.status === 'loading' ? (
+          <section className="rounded-3xl border border-white/10 bg-slate-900/80 p-6 text-slate-300">
+            Cargando parte...
+          </section>
+        ) : state.status === 'error' ? (
+          <section className="rounded-3xl border border-rose-500/30 bg-rose-500/10 p-6 text-rose-200">
+            {state.error}
+          </section>
+        ) : report ? (
+          <>
+            <section className="rounded-3xl border border-white/10 bg-slate-900/80 p-6">
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <div className="flex flex-wrap gap-2">
+                    <StatusPill
+                      label={`Parte: ${statusLabel(report.status)}`}
+                      className={reportBadgeClass(report.status)}
+                    />
 
-                  <div>
-                    <div className="text-xs uppercase tracking-wide text-slate-500">
-                      Activo
-                    </div>
-                    <div className="mt-1 text-sm text-slate-100">
-                      {state.data.assetName || '—'}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="text-xs uppercase tracking-wide text-slate-500">
-                      Técnico asignado
-                    </div>
-                    <div className="mt-1 text-sm text-slate-100">
-                      {state.data.technicianName || '—'}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="text-xs uppercase tracking-wide text-slate-500">
-                      Fecha útil
-                    </div>
-                    <div className="mt-1 text-sm text-slate-100">
-                      {formatDate(state.data.performedAt)}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="text-xs uppercase tracking-wide text-slate-500">
-                      Work order
-                    </div>
-                    <div className="mt-1 text-sm text-slate-100">
-                      {state.data.workOrderId ? (
-                        <Link
-                          href={`/work-orders/${state.data.workOrderId}`}
-                          className="underline"
-                        >
-                          {state.data.workOrderId}
-                        </Link>
-                      ) : (
-                        '—'
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <section className="rounded-2xl border border-white/10 bg-slate-950/40 p-5">
-                <h2 className="text-lg font-semibold text-white">
-                  Detalles de asistencia
-                </h2>
-
-                <div className="mt-4 grid gap-4">
-                  <div>
-                    <label className="mb-2 block text-sm text-slate-300">
-                      Resumen del trabajo
-                    </label>
-                    <input
-                      className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
-                      value={state.data.summary ?? ''}
-                      onChange={(e) =>
-                        updateDetail({ summary: e.target.value })
-                      }
-                      placeholder="Ej: Cambio de pieza / limpieza / ajuste / reparación"
-                      disabled={!isEditable || savingReport}
+                    <StatusPill
+                      label={`Orden: ${workOrderStatusLabel(
+                        report.workOrderStatus,
+                      )}`}
+                      className={workOrderBadgeClass(report.workOrderStatus)}
                     />
                   </div>
 
-                  <div>
-                    <label className="mb-2 block text-sm text-slate-300">
-                      Descripción de cómo quedó el trabajo
-                    </label>
-                    <textarea
-                      className="min-h-[130px] w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
-                      value={state.data.workPerformed ?? ''}
-                      onChange={(e) =>
-                        updateDetail({ workPerformed: e.target.value })
-                      }
-                      placeholder="Describe el trabajo realizado, resultado final y situación en la que quedó la instalación o máquina."
-                      disabled={!isEditable || savingReport}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm text-slate-300">
-                      Observaciones del trabajo
-                    </label>
-                    <textarea
-                      className="min-h-[110px] w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
-                      value={state.data.observations ?? ''}
-                      onChange={(e) =>
-                        updateDetail({ observations: e.target.value })
-                      }
-                      placeholder="Observaciones adicionales, incidencias detectadas o recomendaciones."
-                      disabled={!isEditable || savingReport}
-                    />
-                  </div>
-                </div>
-              </section>
-
-              <section className="rounded-2xl border border-white/10 bg-slate-950/40 p-5">
-                <h2 className="text-lg font-semibold text-white">
-                  Recursos y tiempos
-                </h2>
-
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="mb-2 block text-sm text-slate-300">
-                      Técnico asignado
-                    </label>
-                    <input
-                      className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-300 outline-none"
-                      value={state.data.technicianName ?? ''}
-                      readOnly
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm text-slate-300">
-                      Horas de mano de obra
-                    </label>
-                    <input
-                      className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
-                      type="number"
-                      step="0.25"
-                      min="0"
-                      value={state.data.laborHours ?? ''}
-                      onChange={(e) =>
-                        updateDetail({ laborHours: e.target.value })
-                      }
-                      placeholder="Ej: 3.5"
-                      disabled={!isEditable || savingReport}
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="mb-2 block text-sm text-slate-300">
-                      Notas técnicas del técnico
-                    </label>
-                    <textarea
-                      className="min-h-[110px] w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
-                      value={state.data.technicianNotes ?? ''}
-                      onChange={(e) =>
-                        updateDetail({ technicianNotes: e.target.value })
-                      }
-                      placeholder="Detalle técnico interno del trabajo realizado."
-                      disabled={!isEditable || savingReport}
-                    />
-                  </div>
-                </div>
-              </section>
-
-              <section className="rounded-2xl border border-white/10 bg-slate-950/40 p-5">
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                  <h2 className="text-lg font-semibold text-white">
-                    Materiales usados
+                  <h2 className="mt-4 text-2xl font-black text-white">
+                    {report.templateName ?? report.title ?? 'Parte de trabajo'}
                   </h2>
 
-                  {isEditable ? (
-                    <button
-                      type="button"
-                      onClick={addMaterialRow}
-                      className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800"
-                    >
-                      + Añadir material
-                    </button>
-                  ) : null}
+                  <p className="mt-2 text-sm text-slate-400">
+                    {report.templateDesc ?? report.description ?? 'Sin descripción.'}
+                  </p>
                 </div>
 
-                {state.data.materials.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-white/10 px-4 py-4 text-sm text-slate-500">
-                    No hay materiales añadidos todavía.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {state.data.materials.map((material, index) => (
-                      <div
-                        key={material.id ?? `material-${index}`}
-                        className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4"
-                      >
-                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-                          <div className="xl:col-span-2">
-                            <label className="mb-2 block text-sm text-slate-300">
-                              Material / repuesto
-                            </label>
-                            <input
-                              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
-                              value={material.name}
-                              onChange={(e) =>
-                                updateMaterial(index, { name: e.target.value })
-                              }
-                              placeholder="Ej: Compresor AC / filtro / válvula / cable"
-                              disabled={!isEditable || savingReport}
-                            />
-                          </div>
-
-                          <div>
-                            <label className="mb-2 block text-sm text-slate-300">
-                              Cantidad
-                            </label>
-                            <input
-                              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
-                              type="number"
-                              min="0"
-                              step="1"
-                              value={material.quantity}
-                              onChange={(e) =>
-                                updateMaterial(index, {
-                                  quantity: e.target.value,
-                                })
-                              }
-                              disabled={!isEditable || savingReport}
-                            />
-                          </div>
-
-                          <div>
-                            <label className="mb-2 block text-sm text-slate-300">
-                              Unidad
-                            </label>
-                            <input
-                              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
-                              value={material.unit}
-                              onChange={(e) =>
-                                updateMaterial(index, { unit: e.target.value })
-                              }
-                              placeholder="Ud / m / kg"
-                              disabled={!isEditable || savingReport}
-                            />
-                          </div>
-
-                          <div className="flex items-end">
-                            {isEditable ? (
-                              <button
-                                type="button"
-                                onClick={() => removeMaterialRow(index)}
-                                className="w-full rounded-xl border border-rose-700 px-4 py-2 text-sm text-rose-200 hover:bg-rose-900/20"
-                              >
-                                Quitar
-                              </button>
-                            ) : null}
-                          </div>
-
-                          <div className="md:col-span-2 xl:col-span-3">
-                            <label className="mb-2 block text-sm text-slate-300">
-                              Descripción
-                            </label>
-                            <input
-                              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
-                              value={material.description}
-                              onChange={(e) =>
-                                updateMaterial(index, {
-                                  description: e.target.value,
-                                })
-                              }
-                              placeholder="Descripción breve del material"
-                              disabled={!isEditable || savingReport}
-                            />
-                          </div>
-
-                          <div className="md:col-span-2 xl:col-span-2">
-                            <label className="mb-2 block text-sm text-slate-300">
-                              Notas
-                            </label>
-                            <input
-                              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
-                              value={material.notes}
-                              onChange={(e) =>
-                                updateMaterial(index, { notes: e.target.value })
-                              }
-                              placeholder="Observaciones"
-                              disabled={!isEditable || savingReport}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
-
-              <section className="rounded-2xl border border-white/10 bg-slate-950/40 p-5">
-                <h2 className="text-lg font-semibold text-white">
-                  Evidencia visual
-                </h2>
-
-                <div className="mt-4">
-                  {visualItems.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-white/10 px-4 py-4 text-sm text-slate-500">
-                      Este parte no trae items de foto o firma en la plantilla actual.
-                    </div>
-                  ) : (
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      {visualItems.map((item) =>
-                        renderEvidenceField(item, !isEditable || savingReport),
-                      )}
-                    </div>
-                  )}
+                <div className="text-sm text-slate-400">
+                  <p>
+                    ID parte:{' '}
+                    <span className="font-semibold text-slate-200">
+                      {report.id}
+                    </span>
+                  </p>
+                  <p className="mt-1">
+                    Orden:{' '}
+                    <span className="font-semibold text-slate-200">
+                      {report.workOrderCode ??
+                        report.workOrderTitle ??
+                        report.workOrderId ??
+                        '—'}
+                    </span>
+                  </p>
                 </div>
+              </div>
+            </section>
+
+            {actionState.status !== 'idle' ? (
+              <section
+                className={`rounded-3xl border p-5 text-sm font-semibold ${
+                  actionState.status === 'error'
+                    ? 'border-rose-500/30 bg-rose-500/10 text-rose-200'
+                    : actionState.status === 'success'
+                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                      : 'border-sky-500/30 bg-sky-500/10 text-sky-200'
+                }`}
+              >
+                {actionState.message}
               </section>
+            ) : null}
 
-              <section className="rounded-2xl border border-white/10 bg-slate-950/40 p-5">
-                <h2 className="text-lg font-semibold text-white">
-                  Checklist técnico
-                </h2>
+            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <InfoBox label="Cliente" value={report.customerName} emphasis />
+              <InfoBox label="Email cliente" value={report.customerEmail} />
+              <InfoBox label="Teléfono cliente" value={report.customerPhone} />
+              <InfoBox label="Técnico" value={report.technicianName} emphasis />
+              <InfoBox label="Site" value={report.siteName} emphasis />
+              <InfoBox label="Dirección" value={report.siteAddress} />
+              <InfoBox label="Activo / máquina" value={report.assetName} emphasis />
+              <InfoBox label="Ubicación activo" value={report.assetLocation} />
+              <InfoBox label="Marca" value={report.assetBrand} />
+              <InfoBox label="Modelo" value={report.assetModel} />
+              <InfoBox label="Código activo" value={report.assetCode} />
+              <InfoBox label="Nº serie" value={report.assetSerialNumber} />
+            </section>
 
-                {checklistItems.length === 0 ? (
-                  <div className="mt-4 rounded-xl border border-dashed border-white/10 px-4 py-4 text-sm text-slate-500">
-                    No hay items de checklist en este parte.
-                  </div>
-                ) : (
-                  <div className="mt-4 space-y-4">
-                    {checklistItems.map((item) => {
-                      const isSaving = savingItemId === item.id;
+            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <InfoBox label="Fecha inicio" value={formatDate(report.startedAt)} />
+              <InfoBox label="Fecha envío" value={formatDate(report.submittedAt)} />
+              <InfoBox label="Fecha cierre" value={formatDate(report.completedAt)} />
+              <InfoBox
+                label="Horas trabajadas"
+                value={report.laborHours || '—'}
+                emphasis
+              />
+            </section>
 
-                      return (
-                        <div
-                          key={item.id}
-                          className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4"
+            <section className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-6">
+              <h2 className="text-xl font-black text-amber-100">
+                Acción para administración
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-amber-50">
+                Revisa especialmente <strong>diagnóstico</strong>,{' '}
+                <strong>incidencias</strong> y{' '}
+                <strong>recomendaciones / pieza a pedir</strong>. Esa información
+                es la que sirve para pedir repuestos, preparar presupuesto o
+                devolver la orden al técnico.
+              </p>
+            </section>
+
+            <section className="grid gap-5 lg:grid-cols-2">
+              <TextSection
+                title="Estado final del equipo"
+                value={finalStatusLabel(report.summary)}
+                accent={
+                  String(report.summary ?? '').toUpperCase() === 'NO_OPERATIVO'
+                    ? 'danger'
+                    : 'success'
+                }
+              />
+
+              <TextSection
+                title="Diagnóstico técnico"
+                value={report.diagnosis}
+                accent="warning"
+              />
+
+              <TextSection
+                title="Trabajo realizado"
+                value={report.workPerformed}
+              />
+
+              <TextSection
+                title="Incidencias encontradas"
+                value={report.observations}
+                accent="danger"
+              />
+
+              <div className="lg:col-span-2">
+                <TextSection
+                  title="Recomendaciones / pieza a pedir"
+                  value={report.recommendations}
+                  accent="warning"
+                />
+              </div>
+
+              <div className="lg:col-span-2">
+                <TextSection
+                  title="Notas internas del técnico"
+                  value={report.technicianNotes}
+                />
+              </div>
+            </section>
+
+            <section className="rounded-3xl border border-white/10 bg-slate-900/80 p-6">
+              <h2 className="text-xl font-black text-white">Materiales usados</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                Materiales que el técnico ya utilizó en esta intervención.
+              </p>
+
+              {report.materials.length === 0 ? (
+                <div className="mt-5 rounded-2xl border border-dashed border-white/10 p-5 text-sm text-slate-500">
+                  No hay materiales añadidos.
+                </div>
+              ) : (
+                <div className="mt-5 overflow-x-auto">
+                  <table className="w-full min-w-[720px] text-left text-sm">
+                    <thead className="text-xs uppercase text-slate-500">
+                      <tr className="border-b border-white/10">
+                        <th className="py-3 pr-4">Material</th>
+                        <th className="py-3 pr-4">Cantidad</th>
+                        <th className="py-3 pr-4">Unidad</th>
+                        <th className="py-3 pr-4">Descripción</th>
+                        <th className="py-3 pr-4">Notas</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {report.materials.map((material, index) => (
+                        <tr
+                          key={material.id ?? `${material.name}-${index}`}
+                          className="border-b border-white/10"
                         >
-                          <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <div className="text-base font-semibold text-white">
-                                  {item.title}
-                                </div>
+                          <td className="py-3 pr-4 font-semibold text-white">
+                            {material.name || '—'}
+                          </td>
+                          <td className="py-3 pr-4 text-slate-200">
+                            {material.quantity || '—'}
+                          </td>
+                          <td className="py-3 pr-4 text-slate-200">
+                            {material.unit || '—'}
+                          </td>
+                          <td className="py-3 pr-4 text-slate-300">
+                            {material.description || '—'}
+                          </td>
+                          <td className="py-3 pr-4 text-slate-300">
+                            {material.notes || '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
 
-                                <span className="rounded-full border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300">
-                                  {item.type}
-                                </span>
+            <section className="rounded-3xl border border-white/10 bg-slate-900/80 p-6">
+              <h2 className="text-xl font-black text-white">Checklist técnico</h2>
 
-                                {item.required ? (
-                                  <span className="rounded-full border border-amber-500/30 px-2 py-0.5 text-[11px] text-amber-300">
-                                    requerido
-                                  </span>
-                                ) : null}
-
-                                {item.unit ? (
-                                  <span className="rounded-full border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300">
-                                    {item.unit}
-                                  </span>
-                                ) : null}
-                              </div>
-
-                              {item.description ? (
-                                <div className="mt-1 text-sm text-slate-400">
-                                  {item.description}
-                                </div>
-                              ) : null}
-
-                              {item.helpText ? (
-                                <div className="mt-1 text-xs text-slate-500">
-                                  {item.helpText}
-                                </div>
-                              ) : null}
-                            </div>
-
-                            <div className="w-full md:w-[180px]">
-                              <label className="mb-2 block text-sm text-slate-300">
-                                Estado
-                              </label>
-                              <select
-                                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
-                                value={item.status}
-                                onChange={(e) =>
-                                  updateLocalItem(item.id, {
-                                    status: e.target.value as ReportItemStatusValue,
-                                  })
-                                }
-                                disabled={!isEditable || isSaving}
-                              >
-                                <option value="PENDING">PENDING</option>
-                                <option value="OK">OK</option>
-                                <option value="FAIL">FAIL</option>
-                                <option value="NA">NA</option>
-                              </select>
-                            </div>
-                          </div>
-
-                          <div className="grid gap-4">
-                            <div>
-                              <label className="mb-2 block text-sm text-slate-300">
-                                Valor / resultado
-                              </label>
-                              {renderValueField(item, !isEditable || isSaving)}
-                            </div>
-
-                            <div>
-                              <label className="mb-2 block text-sm text-slate-300">
-                                Notas
-                              </label>
-                              <textarea
-                                className="min-h-[100px] w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
-                                value={item.notes}
-                                onChange={(e) =>
-                                  updateLocalItem(item.id, {
-                                    notes: e.target.value,
-                                  })
-                                }
-                                placeholder="Detalle técnico del resultado"
-                                disabled={!isEditable || isSaving}
-                              />
-                            </div>
-                          </div>
-
-                          {isEditable ? (
-                            <div className="mt-4">
-                              <button
-                                type="button"
-                                onClick={() => saveItem(item)}
-                                disabled={isSaving}
-                                className="rounded-xl border border-slate-700 px-4 py-2 text-sm hover:bg-slate-800 disabled:opacity-60"
-                              >
-                                {isSaving ? 'Guardando…' : 'Guardar item'}
-                              </button>
-                            </div>
+              {checklistItems.length === 0 ? (
+                <div className="mt-5 rounded-2xl border border-dashed border-white/10 p-5 text-sm text-slate-500">
+                  No hay ítems de checklist en este parte.
+                </div>
+              ) : (
+                <div className="mt-5 grid gap-4">
+                  {checklistItems.map((item) => (
+                    <article
+                      key={item.id}
+                      className="rounded-2xl border border-white/10 bg-slate-950/40 p-4"
+                    >
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div>
+                          <p className="text-sm font-black text-white">
+                            {item.sortOrder ? `${item.sortOrder}. ` : ''}
+                            {item.title}
+                          </p>
+                          {item.description ? (
+                            <p className="mt-1 text-sm text-slate-400">
+                              {item.description}
+                            </p>
                           ) : null}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
 
-              <div className="flex flex-wrap items-center gap-3">
-                {isEditable ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => void saveReportData(true)}
-                      disabled={savingReport || actionState.status === 'saving'}
-                      className="rounded-xl border border-slate-700 px-5 py-3 text-sm font-medium text-slate-100 hover:bg-slate-800 disabled:opacity-60"
+                        <StatusPill
+                          label={item.status}
+                          className={
+                            item.status === 'OK'
+                              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                              : item.status === 'FAIL'
+                                ? 'border-rose-500/40 bg-rose-500/10 text-rose-300'
+                                : item.status === 'NA'
+                                  ? 'border-slate-500/40 bg-slate-500/10 text-slate-300'
+                                  : 'border-yellow-500/40 bg-yellow-500/10 text-yellow-300'
+                          }
+                        />
+                      </div>
+
+                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        <InfoBox label="Resultado" value={valueForItem(item)} />
+                        <InfoBox label="Notas" value={item.notes} />
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-3xl border border-white/10 bg-slate-900/80 p-6">
+              <h2 className="text-xl font-black text-white">Evidencia visual</h2>
+
+              {visualItems.length === 0 ? (
+                <div className="mt-5 rounded-2xl border border-dashed border-white/10 p-5 text-sm text-slate-500">
+                  Este parte no trae ítems de foto o firma en la plantilla actual.
+                </div>
+              ) : (
+                <div className="mt-5 grid gap-4">
+                  {visualItems.map((item) => (
+                    <article
+                      key={item.id}
+                      className="rounded-2xl border border-white/10 bg-slate-950/40 p-4"
                     >
-                      {savingReport ? 'Guardando…' : 'Guardar parte'}
-                    </button>
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div>
+                          <p className="text-sm font-black text-white">
+                            {item.title}
+                          </p>
+                          {item.description ? (
+                            <p className="mt-1 text-sm text-slate-400">
+                              {item.description}
+                            </p>
+                          ) : null}
+                        </div>
 
-                    <button
-                      type="button"
-                      onClick={finalizeReport}
-                      disabled={
-                        savingReport ||
-                        actionState.status === 'saving' ||
-                        state.data.items.length === 0
-                      }
-                      className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-60"
-                    >
-                      Parte realizada por técnico
-                    </button>
-                  </>
-                ) : null}
+                        <StatusPill
+                          label={item.status}
+                          className={
+                            item.status === 'OK'
+                              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                              : item.status === 'FAIL'
+                                ? 'border-rose-500/40 bg-rose-500/10 text-rose-300'
+                                : item.status === 'NA'
+                                  ? 'border-slate-500/40 bg-slate-500/10 text-slate-300'
+                                  : 'border-yellow-500/40 bg-yellow-500/10 text-yellow-300'
+                          }
+                        />
+                      </div>
 
-                <Link
-                  href={backHref}
-                  className="rounded-xl border border-slate-700 px-5 py-3 text-sm text-slate-200 hover:bg-slate-800"
-                >
-                  Volver
-                </Link>
-              </div>
+                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        <InfoBox label="Referencia" value={valueForItem(item)} />
+                        <InfoBox label="Notas" value={item.notes} />
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
 
-              <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
-                <h3 className="text-sm font-semibold text-white">
-                  Estado de operación
-                </h3>
+            <section className="rounded-3xl border border-white/10 bg-slate-900/80 p-6">
+              <h2 className="text-xl font-black text-white">Revisión del admin</h2>
 
-                {actionState.status === 'idle' ? (
-                  <p className="mt-2 text-sm text-slate-400">
-                    Sin acciones pendientes.
+              <label className="mt-5 block">
+                <span className="text-sm font-bold text-slate-300">
+                  Nota de revisión
+                </span>
+                <textarea
+                  value={reviewNotes}
+                  onChange={(event) => setReviewNotes(event.target.value)}
+                  disabled={!canReview || reviewLoading !== null}
+                  rows={4}
+                  className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 disabled:opacity-60"
+                  placeholder="Ejemplo: Aprobado. Pedir compresor Mitsubishi MOD. NN33NAAMT y preparar presupuesto."
+                />
+              </label>
+
+              {canReview ? (
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => void reviewReport(true)}
+                    disabled={reviewLoading !== null}
+                    className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-600"
+                  >
+                    {reviewLoading === 'approve'
+                      ? 'Aprobando...'
+                      : 'Aprobar parte'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => void reviewReport(false)}
+                    disabled={reviewLoading !== null}
+                    className="inline-flex items-center justify-center rounded-2xl bg-rose-600 px-5 py-3 text-sm font-black text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-600"
+                  >
+                    {reviewLoading === 'reject'
+                      ? 'Rechazando...'
+                      : 'Rechazar y devolver al técnico'}
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/40 p-4 text-sm text-slate-400">
+                  Este parte no está pendiente de revisión. Estado actual:{' '}
+                  <span className="font-bold text-slate-200">
+                    {statusLabel(report.status)}
+                  </span>
+                  .
+                </div>
+              )}
+
+              {report.reviewNotes ? (
+                <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Última nota de revisión
                   </p>
-                ) : actionState.status === 'saving' ? (
-                  <p className="mt-2 text-sm text-amber-300">
-                    {actionState.message}
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-slate-200">
+                    {report.reviewNotes}
                   </p>
-                ) : actionState.status === 'success' ? (
-                  <p className="mt-2 text-sm text-emerald-300">
-                    {actionState.message}
+                  <p className="mt-3 text-xs text-slate-500">
+                    Revisado: {formatDate(report.reviewedAt)}
                   </p>
-                ) : (
-                  <p className="mt-2 text-sm text-rose-300">
-                    {actionState.message}
-                  </p>
-                )}
-              </div>
-            </div>
+                </div>
+              ) : null}
+            </section>
           </>
-        )}
+        ) : null}
       </div>
-    </div>
+    </main>
   );
 }

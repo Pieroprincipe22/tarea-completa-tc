@@ -54,6 +54,7 @@ function isAllowedForRole(
 ): boolean {
   if (!roles || roles.length === 0) return true;
   if (!role) return false;
+
   return roles.includes(role);
 }
 
@@ -155,8 +156,7 @@ const ADMIN_SECTIONS: TcNavSection[] = [
             description: 'Equipos instalados en clientes y sites.',
           }),
           leaf('sites', 'Sites / ubicaciones', '/sites', {
-            description:
-              'Centros, plantas, edificios o ubicaciones de servicio.',
+            description: 'Centros, plantas, edificios o ubicaciones de servicio.',
           }),
         ],
       },
@@ -175,11 +175,14 @@ const ADMIN_SECTIONS: TcNavSection[] = [
           leaf('team-home', 'Resumen de personal', '/team', {
             description: 'Entrada principal del módulo de personal.',
           }),
-          leaf('technicians', 'Técnicos', '/technicians', {
-            description: 'Gestión del equipo técnico.',
+          leaf('team-technicians', 'Técnicos', '/team/technicians', {
+            description: 'Lista completa del equipo técnico.',
           }),
-          leaf('users', 'Usuarios', '/users', {
+          leaf('team-users', 'Usuarios', '/team/users', {
             description: 'Usuarios internos y permisos.',
+          }),
+          leaf('team-new-user', 'Dar de alta usuario', '/team/users/new', {
+            description: 'Crear técnico o administrador.',
           }),
         ],
       },
@@ -272,7 +275,6 @@ export function getNavigationSections(
   role?: string | null,
 ): TcNavSection[] {
   const normalizedRole = normalizeRole(role);
-
   const base =
     normalizedRole === 'TECHNICIAN' ? TECHNICIAN_SECTIONS : ADMIN_SECTIONS;
 
@@ -330,9 +332,7 @@ export function getSidebarGroupsForPath(
         section.groups.some((group) =>
           group.items.some((item) => isPathActive(pathname, item.path)),
         ) ||
-        (section.sectionPath
-          ? isPathActive(pathname, section.sectionPath)
-          : false),
+        (section.sectionPath ? isPathActive(pathname, section.sectionPath) : false),
     ) ?? sections[0];
 
   return matchedSection?.groups ?? [];
@@ -349,9 +349,7 @@ export function getCurrentSectionKey(
       section.groups.some((group) =>
         group.items.some((item) => isPathActive(pathname, item.path)),
       ) ||
-      (section.sectionPath
-        ? isPathActive(pathname, section.sectionPath)
-        : false),
+      (section.sectionPath ? isPathActive(pathname, section.sectionPath) : false),
   );
 
   return matchedSection?.key ?? null;
@@ -359,5 +357,6 @@ export function getCurrentSectionKey(
 
 export function isPathActive(pathname: string, href: string): boolean {
   if (pathname === href) return true;
+
   return pathname.startsWith(`${href}/`);
 }

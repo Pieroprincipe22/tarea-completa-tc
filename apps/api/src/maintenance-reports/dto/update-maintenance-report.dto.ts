@@ -99,6 +99,10 @@ export class UpdateMaintenanceReportDto {
   completedAt?: string;
 
   @IsOptional()
+  @IsDateString()
+  performedAt?: string;
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => UpdateMaintenanceReportMaterialDto)

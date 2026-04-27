@@ -6,24 +6,17 @@ import {
 } from '@nestjs/common';
 import {
   MaintenanceItemStatus,
-  MaintenanceItemType,
-  MaintenanceReportStatus,
   MaintenanceReportState,
+  MaintenanceReportStatus,
   Prisma,
   UserRole,
   WorkOrderStatus,
 } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { CreateMaintenanceReportDto } from './dto/create-maintenance-report.dto';
+import { ReviewMaintenanceReportDto } from './dto/review-maintenance-report.dto';
 import { UpdateMaintenanceReportItemDto } from './dto/update-maintenance-report-items.dto';
 import { UpdateMaintenanceReportDto } from './dto/update-maintenance-report.dto';
-import { ReviewMaintenanceReportDto } from './dto/review-maintenance-report.dto';
-
-const userSelect = {
-  id: true,
-  email: true,
-  name: true,
-} as const;
 
 const reportInclude = {
   template: {
@@ -32,14 +25,25 @@ const reportInclude = {
       name: true,
       title: true,
       description: true,
-      isActive: true,
     },
   },
   customer: {
-    select: { id: true, name: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      address: true,
+    },
   },
   site: {
-    select: { id: true, name: true, address: true, city: true, country: true },
+    select: {
+      id: true,
+      name: true,
+      address: true,
+      city: true,
+      country: true,
+    },
   },
   asset: {
     select: {
@@ -47,9 +51,11 @@ const reportInclude = {
       name: true,
       code: true,
       internalCode: true,
+      category: true,
       brand: true,
       model: true,
       serialNumber: true,
+      location: true,
     },
   },
   workOrder: {
@@ -60,51 +66,60 @@ const reportInclude = {
       description: true,
       status: true,
       priority: true,
-      customerId: true,
-      siteId: true,
-      assetId: true,
-      assignedTechnicianId: true,
-      assignedToUserId: true,
+      startedAt: true,
+      completedAt: true,
     },
   },
   createdBy: {
-    select: userSelect,
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+    },
   },
   createdByUser: {
-    select: userSelect,
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+    },
   },
   completedByUser: {
-    select: userSelect,
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+    },
   },
   assignedTechnician: {
-    select: userSelect,
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+    },
   },
   submittedBy: {
-    select: userSelect,
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+    },
   },
   reviewedBy: {
-    select: userSelect,
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+    },
   },
   items: {
-    orderBy: [{ sortOrder: 'asc' }, { itemOrder: 'asc' }, { createdAt: 'asc' }],
-    include: {
-      templateItem: {
-        select: {
-          id: true,
-          label: true,
-          title: true,
-          description: true,
-          type: true,
-          valueType: true,
-          required: true,
-          sortOrder: true,
-          itemOrder: true,
-          unit: true,
-          helpText: true,
-          placeholder: true,
-        },
-      },
-    },
+    orderBy: [{ sortOrder: 'asc' }, { itemOrder: 'asc' }],
   },
   materials: {
     orderBy: { sortOrder: 'asc' },
@@ -116,118 +131,177 @@ type ReportWithRelations = Prisma.MaintenanceReportGetPayload<{
 }>;
 
 type ReportItemEntity = ReportWithRelations['items'][number];
+type ReportMaterialEntity = ReportWithRelations['materials'][number];
 
-type CompanyUserActor = {
+type Actor = {
   id: string;
-  companyId: string | null;
-  role: UserRole | null;
-  memberships: Array<{
-    role: UserRole;
+  email: string;
+  name: string | null;
+  userRole: UserRole | null;
+  companyRole: UserRole;
+};
+
+type UpdateReportPayload = UpdateMaintenanceReportDto & {
+  title?: string | null;
+  description?: string | null;
+  notes?: string | null;
+  summary?: string | null;
+  diagnosis?: string | null;
+  workPerformed?: string | null;
+  recommendations?: string | null;
+  observations?: string | null;
+  technicianNotes?: string | null;
+  laborHours?: number | string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  performedAt?: string | null;
+  materials?: Array<{
+    name?: string | null;
+    description?: string | null;
+    quantity?: number | string | null;
+    unit?: string | null;
+    notes?: string | null;
+    sortOrder?: number | null;
   }>;
 };
 
-function isAdminRole(role?: UserRole | null): boolean {
-  return role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN;
-}
+function normalizeCompanyId(companyId: string | undefined): string {
+  const value = companyId?.trim();
 
-function isTechnicianRole(role?: UserRole | null): boolean {
-  return role === UserRole.TECHNICIAN;
-}
-
-function hasOwn<T extends object>(obj: T, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(obj, key);
-}
-
-function normalizeCompanyId(companyId?: string): string {
-  const normalized = companyId?.trim();
-
-  if (!normalized) {
+  if (!value) {
     throw new BadRequestException('Falta header x-company-id');
   }
 
-  return normalized;
+  return value;
 }
 
-function stringifyLegacyValue(value: unknown): string | null {
-  if (value === undefined) return null;
-  if (value === null) return null;
-  if (value instanceof Date) return value.toISOString();
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+function normalizeUserId(userId: string | undefined): string {
+  const value = userId?.trim();
 
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
+  if (!value) {
+    throw new BadRequestException('Falta header x-user-id');
   }
+
+  return value;
 }
 
-function toDateOrNull(value?: string | Date | null): Date | null {
-  if (value === undefined || value === null || value === '') return null;
-  const parsed = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+function hasOwn<T extends object>(obj: T, key: PropertyKey): boolean {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+function cleanString(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+
+  const trimmed = value.trim();
+
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function decimalToNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    'toNumber' in value &&
+    typeof value.toNumber === 'function'
+  ) {
+    const parsed = value.toNumber();
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseDate(
+  value: string | null | undefined,
+  fieldName: string,
+): Date | null {
+  if (value === null || value === undefined || value.trim() === '') {
+    return null;
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new BadRequestException(`${fieldName} no tiene formato de fecha válido.`);
+  }
+
+  return date;
+}
+
+function parseLaborHours(value: number | string | null | undefined): number | null {
+  if (value === null || value === undefined || value === '') return null;
+
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new BadRequestException('Las horas trabajadas deben ser un número válido.');
+  }
+
+  return parsed;
+}
+
+function serializeReportMaterial(material: ReportMaterialEntity) {
+  return {
+    id: material.id,
+    reportId: material.reportId,
+    name: material.name,
+    description: material.description,
+    quantity: material.quantity,
+    unit: material.unit,
+    sortOrder: material.sortOrder,
+    notes: material.notes,
+    createdAt: material.createdAt,
+    updatedAt: material.updatedAt,
+  };
 }
 
 function serializeReportItem(item: ReportItemEntity) {
-  const resolvedType = item.type ?? item.templateItem?.type ?? null;
-  const resolvedValueType = item.valueType ?? item.templateItem?.valueType ?? null;
-
-  const legacyValue =
-    item.value ??
-    item.valueText ??
-    (item.valueNumber !== null ? String(item.valueNumber) : null) ??
-    (item.valueBoolean !== null ? String(item.valueBoolean) : null) ??
-    (item.valueDate ? item.valueDate.toISOString() : null) ??
-    (item.valueJson !== null ? stringifyLegacyValue(item.valueJson) : null);
+  const parsedNumber =
+    item.value !== null && item.value.trim() !== '' ? Number(item.value) : NaN;
 
   return {
     id: item.id,
     reportId: item.reportId,
     templateItemId: item.templateItemId,
-    label:
-      item.label ??
-      item.templateItem?.label ??
-      item.title ??
-      item.templateItem?.title ??
-      null,
-    title:
-      item.title ??
-      item.templateItem?.title ??
-      item.label ??
-      item.templateItem?.label ??
-      null,
-    description: item.description ?? item.templateItem?.description ?? null,
-    type: resolvedType,
-    valueType: resolvedValueType,
+    label: item.label,
+    title: item.title,
+    description: item.description,
+    type: item.type,
+    valueType: item.valueType,
     required: item.required,
-    sortOrder: item.sortOrder,
     itemOrder: item.itemOrder,
-    unit: item.unit ?? item.templateItem?.unit ?? null,
-    helpText: item.templateItem?.helpText ?? null,
-    placeholder: item.templateItem?.placeholder ?? null,
+    sortOrder: item.sortOrder,
+    unit: item.unit,
     status: item.status,
-    value: legacyValue,
-    valueText: item.valueText,
-    valueNumber: item.valueNumber,
+
+    value: item.value,
+    valueText: item.valueText ?? item.value,
+    valueNumber:
+      item.valueNumber ?? (Number.isFinite(parsedNumber) ? parsedNumber : null),
     valueBoolean: item.valueBoolean,
     valueDate: item.valueDate,
     valueJson: item.valueJson,
+    valueChoice: null,
+
     notes: item.notes,
-    resultValue: legacyValue,
+    resultValue: item.value,
     resultNotes: item.notes,
-    templateItem: item.templateItem,
+
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
-  };
-}
-
-function serializeUser(user?: { id: string; name: string; email: string } | null) {
-  if (!user) return null;
-
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
   };
 }
 
@@ -235,18 +309,11 @@ function serializeReport(report: ReportWithRelations) {
   return {
     id: report.id,
     companyId: report.companyId,
-    workOrderId: report.workOrderId,
-    templateId: report.templateId,
     customerId: report.customerId,
     siteId: report.siteId,
     assetId: report.assetId,
-
-    createdById: report.createdById,
-    createdByUserId: report.createdByUserId,
-    completedByUserId: report.completedByUserId,
-    assignedTechnicianId: report.assignedTechnicianId,
-    submittedById: report.submittedById,
-    reviewedById: report.reviewedById,
+    templateId: report.templateId,
+    workOrderId: report.workOrderId,
 
     title: report.title,
     description: report.description,
@@ -258,11 +325,17 @@ function serializeReport(report: ReportWithRelations) {
     observations: report.observations,
     technicianNotes: report.technicianNotes,
     reviewNotes: report.reviewNotes,
-    laborHours: report.laborHours,
-    laborDays: report.laborDays ?? null,
+    laborHours: decimalToNumber(report.laborHours),
 
     status: report.status,
     state: report.state,
+
+    createdById: report.createdById,
+    createdByUserId: report.createdByUserId,
+    completedByUserId: report.completedByUserId,
+    assignedTechnicianId: report.assignedTechnicianId,
+    submittedById: report.submittedById,
+    reviewedById: report.reviewedById,
 
     assignedAt: report.assignedAt,
     startedAt: report.startedAt,
@@ -272,12 +345,9 @@ function serializeReport(report: ReportWithRelations) {
     createdAt: report.createdAt,
     updatedAt: report.updatedAt,
 
-    performedAt:
-      report.completedAt ??
-      report.submittedAt ??
-      report.startedAt ??
-      report.createdAt,
-    templateName: report.template?.title ?? report.template?.name ?? report.title ?? null,
+    performedAt: report.completedAt ?? report.startedAt ?? report.createdAt,
+
+    templateName: report.template?.title ?? report.template?.name ?? report.title,
     templateDesc: report.template?.description ?? report.description ?? null,
 
     template: report.template,
@@ -285,15 +355,15 @@ function serializeReport(report: ReportWithRelations) {
     site: report.site,
     asset: report.asset,
     workOrder: report.workOrder,
-    createdBy: serializeUser(report.createdBy),
-    createdByUser: serializeUser(report.createdByUser),
-    completedByUser: serializeUser(report.completedByUser),
-    assignedTechnician: serializeUser(report.assignedTechnician),
-    submittedBy: serializeUser(report.submittedBy),
-    reviewedBy: serializeUser(report.reviewedBy),
+    createdBy: report.createdBy,
+    createdByUser: report.createdByUser,
+    completedByUser: report.completedByUser,
+    assignedTechnician: report.assignedTechnician,
+    submittedBy: report.submittedBy,
+    reviewedBy: report.reviewedBy,
 
     items: report.items.map(serializeReportItem),
-    materials: report.materials,
+    materials: report.materials.map(serializeReportMaterial),
   };
 }
 
@@ -304,86 +374,111 @@ export class MaintenanceReportsService {
   private async ensureActiveUserInCompany(
     companyId: string,
     userId: string,
-  ): Promise<CompanyUserActor> {
-    const user = await this.prisma.user.findFirst({
+  ): Promise<Actor> {
+    const userCompany = await this.prisma.userCompany.findFirst({
       where: {
-        id: userId,
-        isActive: true,
-        OR: [
-          { companyId },
-          {
-            memberships: {
-              some: {
-                companyId,
-                active: true,
-              },
-            },
-          },
-        ],
+        companyId,
+        userId,
+        active: true,
       },
-      select: {
-        id: true,
-        companyId: true,
-        role: true,
-        memberships: {
-          where: {
-            companyId,
-            active: true,
-          },
+      include: {
+        user: {
           select: {
+            id: true,
+            email: true,
+            name: true,
             role: true,
+            isActive: true,
           },
-          take: 1,
         },
       },
     });
 
-    if (!user) {
+    if (!userCompany || !userCompany.user?.isActive) {
       throw new BadRequestException(
         'El usuario del header no pertenece a esta company.',
       );
     }
 
-    return user;
+    return {
+      id: userCompany.user.id,
+      email: userCompany.user.email,
+      name: userCompany.user.name,
+      userRole: userCompany.user.role,
+      companyRole: userCompany.role,
+    };
   }
 
-  private resolveUserRoleInCompany(
-    companyId: string,
-    actor: CompanyUserActor,
-  ): UserRole | null {
-    if (actor.companyId === companyId && actor.role) {
-      return actor.role;
-    }
-
-    return actor.memberships[0]?.role ?? null;
-  }
-
-  private async ensureAdminUserInCompany(companyId: string, userId: string) {
-    const actor = await this.ensureActiveUserInCompany(companyId, userId);
-    const role = this.resolveUserRoleInCompany(companyId, actor);
-
-    if (!isAdminRole(role)) {
-      throw new ForbiddenException(
-        'Solo administración puede crear, revisar o aprobar partes de trabajo.',
-      );
-    }
-
-    return actor;
+  private isAdmin(actor: Actor): boolean {
+    return (
+      actor.companyRole === UserRole.ADMIN ||
+      actor.companyRole === UserRole.SUPER_ADMIN ||
+      actor.userRole === UserRole.ADMIN ||
+      actor.userRole === UserRole.SUPER_ADMIN
+    );
   }
 
   private ensureAssignedTechnicianOrAdmin(
-    companyId: string,
-    actor: CompanyUserActor,
-    assignedTechnicianId?: string | null,
+    actor: Actor,
+    assignedTechnicianId: string | null,
   ) {
-    const role = this.resolveUserRoleInCompany(companyId, actor);
+    if (this.isAdmin(actor)) return;
 
-    if (isAdminRole(role)) return;
-    if (isTechnicianRole(role) && assignedTechnicianId === actor.id) return;
+    if (!assignedTechnicianId) {
+      throw new ForbiddenException('Esta orden todavía no tiene técnico asignado.');
+    }
 
-    throw new ForbiddenException(
-      'Solo el técnico asignado o un administrador pueden modificar este parte.',
-    );
+    if (assignedTechnicianId !== actor.id) {
+      throw new ForbiddenException(
+        'No puedes modificar un parte asignado a otro técnico.',
+      );
+    }
+  }
+
+  private ensureAdmin(actor: Actor) {
+    if (!this.isAdmin(actor)) {
+      throw new ForbiddenException('Solo un administrador puede revisar este parte.');
+    }
+  }
+
+  private buildMaterialsCreateManyData(
+    reportId: string,
+    materials: NonNullable<UpdateReportPayload['materials']>,
+  ): Prisma.MaintenanceReportMaterialCreateManyInput[] {
+    const rows: Prisma.MaintenanceReportMaterialCreateManyInput[] = [];
+
+    materials.forEach((material, index) => {
+      const name = cleanString(material.name);
+
+      if (!name) {
+        return;
+      }
+
+      const rawQuantity = material.quantity as unknown;
+
+      const quantity =
+        rawQuantity === null || rawQuantity === undefined || rawQuantity === ''
+          ? 1
+          : Number(rawQuantity);
+
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        throw new BadRequestException(
+          `La cantidad del material "${name}" debe ser mayor que 0.`,
+        );
+      }
+
+      rows.push({
+        reportId,
+        name,
+        description: cleanString(material.description),
+        quantity,
+        unit: cleanString(material.unit),
+        notes: cleanString(material.notes),
+        sortOrder: material.sortOrder ?? index + 1,
+      });
+    });
+
+    return rows;
   }
 
   async list(companyId: string) {
@@ -431,19 +526,169 @@ export class MaintenanceReportsService {
     };
   }
 
+  async ensureForWorkOrder(
+    companyId: string,
+    userId: string | undefined,
+    workOrderId: string,
+  ) {
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+    const normalizedUserId = normalizeUserId(userId);
+
+    const actor = await this.ensureActiveUserInCompany(
+      normalizedCompanyId,
+      normalizedUserId,
+    );
+
+    const existingReport = await this.prisma.maintenanceReport.findFirst({
+      where: {
+        companyId: normalizedCompanyId,
+        workOrderId,
+      },
+      include: reportInclude,
+    });
+
+    if (existingReport) {
+      this.ensureAssignedTechnicianOrAdmin(
+        actor,
+        existingReport.assignedTechnicianId,
+      );
+
+      return serializeReport(existingReport);
+    }
+
+    const workOrder = await this.prisma.workOrder.findFirst({
+      where: {
+        id: workOrderId,
+        companyId: normalizedCompanyId,
+      },
+      select: {
+        id: true,
+        code: true,
+        title: true,
+        description: true,
+        status: true,
+        customerId: true,
+        siteId: true,
+        assetId: true,
+        assignedTechnicianId: true,
+        assignedToUserId: true,
+        maintenanceTemplateId: true,
+      },
+    });
+
+    if (!workOrder) {
+      throw new NotFoundException('WorkOrder no encontrada para esta company.');
+    }
+
+    if (
+      workOrder.status === WorkOrderStatus.CANCELLED ||
+      workOrder.status === WorkOrderStatus.DONE
+    ) {
+      throw new BadRequestException(
+        'No se puede crear un parte para una orden cerrada.',
+      );
+    }
+
+    const assignedTechnicianId =
+      workOrder.assignedTechnicianId ?? workOrder.assignedToUserId ?? null;
+
+    if (!assignedTechnicianId) {
+      throw new BadRequestException(
+        'La orden debe tener un técnico asignado antes de crear el parte.',
+      );
+    }
+
+    this.ensureAssignedTechnicianOrAdmin(actor, assignedTechnicianId);
+
+    const template = workOrder.maintenanceTemplateId
+      ? await this.prisma.maintenanceTemplate.findFirst({
+          where: {
+            id: workOrder.maintenanceTemplateId,
+            companyId: normalizedCompanyId,
+          },
+          include: {
+            items: {
+              orderBy: [{ sortOrder: 'asc' }, { itemOrder: 'asc' }],
+            },
+          },
+        })
+      : null;
+
+    return this.prisma.$transaction(async (tx) => {
+      const created = await tx.maintenanceReport.create({
+        data: {
+          companyId: normalizedCompanyId,
+          workOrderId: workOrder.id,
+          templateId: template?.id ?? null,
+          customerId: workOrder.customerId,
+          siteId: workOrder.siteId,
+          assetId: workOrder.assetId,
+
+          createdById: normalizedUserId,
+          createdByUserId: normalizedUserId,
+          assignedTechnicianId,
+
+          title: `Parte de trabajo - ${workOrder.code ?? workOrder.title}`,
+          description: workOrder.description ?? null,
+
+          status: MaintenanceReportStatus.ASSIGNED,
+          state: MaintenanceReportState.DRAFT,
+          assignedAt: new Date(),
+        },
+      });
+
+      if (template?.items.length) {
+        await tx.maintenanceReportItem.createMany({
+          data: template.items.map((item, index) => ({
+            reportId: created.id,
+            templateItemId: item.id,
+            label: item.label ?? item.title ?? `Item ${index + 1}`,
+            title: item.title ?? item.label ?? `Item ${index + 1}`,
+            description: item.description ?? null,
+            type: item.type ?? null,
+            valueType: item.valueType ?? null,
+            required: item.required,
+            sortOrder: item.sortOrder ?? index + 1,
+            itemOrder: item.itemOrder ?? index + 1,
+            unit: item.unit ?? null,
+            status: MaintenanceItemStatus.PENDING,
+            value: null,
+            notes: null,
+          })),
+        });
+      }
+
+      const fullReport = await tx.maintenanceReport.findFirst({
+        where: {
+          id: created.id,
+          companyId: normalizedCompanyId,
+        },
+        include: reportInclude,
+      });
+
+      if (!fullReport) {
+        throw new NotFoundException('No se pudo recuperar el parte creado.');
+      }
+
+      return serializeReport(fullReport);
+    });
+  }
+
   async createFromTemplate(
     companyId: string,
     userId: string | undefined,
     dto: CreateMaintenanceReportDto,
   ) {
     const normalizedCompanyId = normalizeCompanyId(companyId);
+    const normalizedUserId = normalizeUserId(userId);
 
-    if (!userId?.trim()) {
-      throw new BadRequestException('Falta header x-user-id');
-    }
+    await this.ensureActiveUserInCompany(normalizedCompanyId, normalizedUserId);
 
-    const normalizedUserId = userId.trim();
-    await this.ensureAdminUserInCompany(normalizedCompanyId, normalizedUserId);
+    const createDto = dto as CreateMaintenanceReportDto & {
+      title?: string;
+      notes?: string;
+      workOrderId?: string;
+    };
 
     const template = await this.prisma.maintenanceTemplate.findFirst({
       where: {
@@ -453,7 +698,7 @@ export class MaintenanceReportsService {
       },
       include: {
         items: {
-          orderBy: [{ sortOrder: 'asc' }, { itemOrder: 'asc' }, { createdAt: 'asc' }],
+          orderBy: [{ sortOrder: 'asc' }, { itemOrder: 'asc' }],
         },
       },
     });
@@ -468,189 +713,190 @@ export class MaintenanceReportsService {
       throw new BadRequestException('El template no tiene items.');
     }
 
-    const normalizedWorkOrderId = dto.workOrderId?.trim();
+    let customerId: string | null = dto.customerId ?? null;
+    let siteId: string | null = dto.siteId ?? null;
+    let assetId: string | null = dto.assetId ?? null;
 
-    if (!normalizedWorkOrderId) {
-      throw new BadRequestException(
-        'workOrderId es obligatorio. El admin debe crear el parte desde una work order.',
-      );
-    }
-
-    const linkedWorkOrder = await this.prisma.workOrder.findFirst({
-      where: {
-        id: normalizedWorkOrderId,
-        companyId: normalizedCompanyId,
-      },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        customerId: true,
-        siteId: true,
-        assetId: true,
-        assignedTechnicianId: true,
-        assignedToUserId: true,
-        status: true,
-      },
-    });
-
-    if (!linkedWorkOrder) {
-      throw new NotFoundException('WorkOrder no encontrada para esta company.');
-    }
-
-    if (
-      linkedWorkOrder.status === WorkOrderStatus.CANCELLED ||
-      linkedWorkOrder.status === WorkOrderStatus.DONE
-    ) {
-      throw new BadRequestException(
-        'No se puede crear un parte para una work order cerrada.',
-      );
-    }
-
-    const resolvedCustomerId = dto.customerId ?? linkedWorkOrder.customerId ?? null;
-    const resolvedSiteId = dto.siteId ?? linkedWorkOrder.siteId ?? null;
-    const resolvedAssetId = dto.assetId ?? linkedWorkOrder.assetId ?? null;
-
-    if (!resolvedCustomerId) {
-      throw new BadRequestException('customerId es obligatorio.');
-    }
-
-    if (!resolvedSiteId) {
-      throw new BadRequestException('siteId es obligatorio.');
-    }
-
-    const customer = await this.prisma.customer.findFirst({
-      where: {
-        id: resolvedCustomerId,
-        companyId: normalizedCompanyId,
-      },
-      select: { id: true },
-    });
-
-    if (!customer) {
-      throw new NotFoundException('Customer no encontrado para esta company.');
-    }
-
-    const site = await this.prisma.site.findFirst({
-      where: {
-        id: resolvedSiteId,
-        companyId: normalizedCompanyId,
-      },
-      select: { id: true, customerId: true },
-    });
-
-    if (!site) {
-      throw new NotFoundException('Site no encontrado para esta company.');
-    }
-
-    if (site.customerId !== customer.id) {
-      throw new BadRequestException('El site no pertenece al customer indicado.');
-    }
-
-    let asset:
-      | {
-          id: string;
-          siteId: string | null;
-        }
-      | null = null;
-
-    if (resolvedAssetId) {
-      asset = await this.prisma.asset.findFirst({
+    if (customerId) {
+      const customer = await this.prisma.customer.findFirst({
         where: {
-          id: resolvedAssetId,
+          id: customerId,
           companyId: normalizedCompanyId,
         },
-        select: { id: true, siteId: true },
+        select: { id: true },
+      });
+
+      if (!customer) {
+        throw new NotFoundException('Customer no encontrado para esta company.');
+      }
+    }
+
+    if (siteId) {
+      const site = await this.prisma.site.findFirst({
+        where: {
+          id: siteId,
+          companyId: normalizedCompanyId,
+        },
+        select: {
+          id: true,
+          customerId: true,
+        },
+      });
+
+      if (!site) {
+        throw new NotFoundException('Site no encontrado para esta company.');
+      }
+
+      if (customerId && site.customerId !== customerId) {
+        throw new BadRequestException('El site no pertenece al customer indicado.');
+      }
+
+      customerId = customerId ?? site.customerId;
+    }
+
+    if (assetId) {
+      const asset = await this.prisma.asset.findFirst({
+        where: {
+          id: assetId,
+          companyId: normalizedCompanyId,
+        },
+        select: {
+          id: true,
+          customerId: true,
+          siteId: true,
+        },
       });
 
       if (!asset) {
         throw new NotFoundException('Asset no encontrado para esta company.');
       }
 
-      if (asset.siteId && asset.siteId !== site.id) {
+      if (siteId && asset.siteId && asset.siteId !== siteId) {
         throw new BadRequestException('El asset no pertenece al site indicado.');
       }
+
+      siteId = siteId ?? asset.siteId;
+      customerId = customerId ?? asset.customerId;
     }
 
-    const existingLinkedReport = await this.prisma.maintenanceReport.findFirst({
-      where: {
-        companyId: normalizedCompanyId,
-        workOrderId: linkedWorkOrder.id,
-        status: {
-          not: MaintenanceReportStatus.CANCELLED,
+    let linkedWorkOrder:
+      | {
+          id: string;
+          customerId: string | null;
+          siteId: string | null;
+          assetId: string | null;
+          assignedTechnicianId: string | null;
+          assignedToUserId: string | null;
+        }
+      | null = null;
+
+    if (createDto.workOrderId) {
+      linkedWorkOrder = await this.prisma.workOrder.findFirst({
+        where: {
+          id: createDto.workOrderId,
+          companyId: normalizedCompanyId,
         },
-      },
-      select: {
-        id: true,
-        status: true,
-      },
-    });
+        select: {
+          id: true,
+          customerId: true,
+          siteId: true,
+          assetId: true,
+          assignedTechnicianId: true,
+          assignedToUserId: true,
+        },
+      });
 
-    if (existingLinkedReport) {
-      throw new BadRequestException(
-        `Ya existe un parte vinculado a esta work order (${existingLinkedReport.id}).`,
-      );
-    }
+      if (!linkedWorkOrder) {
+        throw new NotFoundException('WorkOrder no encontrada para esta company.');
+      }
 
-    const assignedTechnicianId =
-      linkedWorkOrder.assignedTechnicianId ??
-      linkedWorkOrder.assignedToUserId ??
-      null;
+      if (customerId && linkedWorkOrder.customerId !== customerId) {
+        throw new BadRequestException(
+          'La work order no pertenece al customer indicado.',
+        );
+      }
 
-    if (!assignedTechnicianId) {
-      throw new BadRequestException(
-        'La work order debe tener un técnico asignado antes de crear el parte.',
-      );
+      if (siteId && linkedWorkOrder.siteId !== siteId) {
+        throw new BadRequestException('La work order no pertenece al site indicado.');
+      }
+
+      if (
+        assetId &&
+        linkedWorkOrder.assetId &&
+        linkedWorkOrder.assetId !== assetId
+      ) {
+        throw new BadRequestException(
+          'El asset del reporte no coincide con el asset de la work order.',
+        );
+      }
+
+      const existingLinkedReport = await this.prisma.maintenanceReport.findFirst({
+        where: {
+          companyId: normalizedCompanyId,
+          workOrderId: linkedWorkOrder.id,
+          status: {
+            not: MaintenanceReportStatus.CANCELLED,
+          },
+        },
+        select: {
+          id: true,
+          status: true,
+        },
+      });
+
+      if (existingLinkedReport) {
+        throw new BadRequestException(
+          `Ya existe un parte vinculado a esta work order (${existingLinkedReport.id}).`,
+        );
+      }
+
+      customerId = customerId ?? linkedWorkOrder.customerId;
+      siteId = siteId ?? linkedWorkOrder.siteId;
+      assetId = assetId ?? linkedWorkOrder.assetId;
     }
 
     return this.prisma.$transaction(async (tx) => {
       const report = await tx.maintenanceReport.create({
         data: {
           companyId: normalizedCompanyId,
-          workOrderId: linkedWorkOrder.id,
+          customerId,
+          siteId,
+          assetId,
           templateId: template.id,
-          customerId: customer.id,
-          siteId: site.id,
-          assetId: asset?.id ?? null,
-
-          createdById: normalizedUserId,
-          createdByUserId: normalizedUserId,
-          assignedTechnicianId,
-
+          workOrderId: linkedWorkOrder?.id ?? null,
+          assignedTechnicianId:
+            linkedWorkOrder?.assignedTechnicianId ??
+            linkedWorkOrder?.assignedToUserId ??
+            null,
           title:
-            dto.title?.trim() ||
+            createDto.title?.trim() ||
             template.title ||
             template.name ||
-            linkedWorkOrder.title ||
             'Parte de mantenimiento',
-          description: template.description ?? linkedWorkOrder.description ?? null,
-          notes: dto.notes ?? null,
-
-          status: MaintenanceReportStatus.ASSIGNED,
+          description: template.description ?? null,
+          notes: createDto.notes ?? null,
+          status: MaintenanceReportStatus.DRAFT,
           state: MaintenanceReportState.DRAFT,
-          assignedAt: new Date(),
+          createdById: normalizedUserId,
+          createdByUserId: normalizedUserId,
         },
       });
 
       await tx.maintenanceReportItem.createMany({
-        data: template.items.map((it, idx) => ({
+        data: template.items.map((item, index) => ({
           reportId: report.id,
-          templateItemId: it.id,
-          label: it.label ?? it.title ?? `Item ${idx + 1}`,
-          title: it.title ?? it.label ?? `Item ${idx + 1}`,
-          description: it.description ?? null,
-          type: it.type ?? MaintenanceItemType.TEXT,
-          valueType: it.valueType ?? String(it.type ?? MaintenanceItemType.TEXT),
-          required: it.required,
-          sortOrder: it.sortOrder ?? it.itemOrder ?? idx + 1,
-          itemOrder: it.itemOrder ?? it.sortOrder ?? idx + 1,
-          unit: it.unit ?? null,
+          templateItemId: item.id,
+          label: item.label ?? item.title ?? `Item ${index + 1}`,
+          title: item.title ?? item.label ?? `Item ${index + 1}`,
+          description: item.description ?? null,
+          type: item.type ?? null,
+          valueType: item.valueType ?? null,
+          required: item.required,
+          sortOrder: item.sortOrder ?? index + 1,
+          itemOrder: item.itemOrder ?? index + 1,
+          unit: item.unit ?? null,
           status: MaintenanceItemStatus.PENDING,
           value: null,
-          valueText: null,
-          valueNumber: null,
-          valueBoolean: null,
-          valueDate: null,
           notes: null,
         })),
       });
@@ -675,7 +921,10 @@ export class MaintenanceReportsService {
     const normalizedCompanyId = normalizeCompanyId(companyId);
 
     const report = await this.prisma.maintenanceReport.findFirst({
-      where: { id, companyId: normalizedCompanyId },
+      where: {
+        id,
+        companyId: normalizedCompanyId,
+      },
       include: reportInclude,
     });
 
@@ -693,149 +942,120 @@ export class MaintenanceReportsService {
     dto: UpdateMaintenanceReportDto,
   ) {
     const normalizedCompanyId = normalizeCompanyId(companyId);
+    const normalizedUserId = normalizeUserId(userId);
 
-    if (!userId?.trim()) {
-      throw new BadRequestException('Falta header x-user-id');
-    }
-
-    const normalizedUserId = userId.trim();
     const actor = await this.ensureActiveUserInCompany(
       normalizedCompanyId,
       normalizedUserId,
     );
 
+    const patch = dto as UpdateReportPayload;
+
     const report = await this.prisma.maintenanceReport.findFirst({
-      where: { id, companyId: normalizedCompanyId },
-      include: {
-        workOrder: {
-          select: {
-            id: true,
-            status: true,
-            startedAt: true,
-          },
-        },
+      where: {
+        id,
+        companyId: normalizedCompanyId,
       },
+      include: reportInclude,
     });
 
     if (!report) {
       throw new NotFoundException('Reporte no encontrado.');
     }
 
-    this.ensureAssignedTechnicianOrAdmin(
-      normalizedCompanyId,
-      actor,
-      report.assignedTechnicianId,
-    );
+    this.ensureAssignedTechnicianOrAdmin(actor, report.assignedTechnicianId);
 
     if (
+      report.status === MaintenanceReportStatus.SUBMITTED ||
       report.status === MaintenanceReportStatus.APPROVED ||
+      report.status === MaintenanceReportStatus.COMPLETED ||
       report.status === MaintenanceReportStatus.CANCELLED
     ) {
-      throw new BadRequestException('Este parte ya no admite edición.');
-    }
-
-    if (
-      report.state === MaintenanceReportState.FINAL &&
-      report.status !== MaintenanceReportStatus.REJECTED
-    ) {
       throw new BadRequestException(
-        'El parte ya fue enviado y no admite cambios directos.',
+        'No se puede editar un parte enviado, aprobado o cerrado.',
       );
     }
 
-    const startedAt = hasOwn(dto, 'startedAt')
-      ? toDateOrNull(dto.startedAt ?? null)
-      : undefined;
-    const completedAt = hasOwn(dto, 'completedAt')
-      ? toDateOrNull(dto.completedAt ?? null)
-      : undefined;
+    const data: Prisma.MaintenanceReportUpdateInput = {};
 
-    if (dto.startedAt && startedAt === null) {
-      throw new BadRequestException('startedAt inválida');
+    if (hasOwn(patch, 'title')) data.title = cleanString(patch.title);
+    if (hasOwn(patch, 'description')) {
+      data.description = cleanString(patch.description);
     }
-
-    if (dto.completedAt && completedAt === null) {
-      throw new BadRequestException('completedAt inválida');
+    if (hasOwn(patch, 'notes')) data.notes = cleanString(patch.notes);
+    if (hasOwn(patch, 'summary')) data.summary = cleanString(patch.summary);
+    if (hasOwn(patch, 'diagnosis')) data.diagnosis = cleanString(patch.diagnosis);
+    if (hasOwn(patch, 'workPerformed')) {
+      data.workPerformed = cleanString(patch.workPerformed);
     }
-
-    const laborHours =
-      dto.laborHours === undefined || dto.laborHours === null
-        ? undefined
-        : new Prisma.Decimal(dto.laborHours);
-
-    const updateData: Prisma.MaintenanceReportUpdateInput = {
-      ...(dto.title !== undefined ? { title: dto.title ?? null } : {}),
-      ...(dto.description !== undefined ? { description: dto.description ?? null } : {}),
-      ...(dto.notes !== undefined ? { notes: dto.notes ?? null } : {}),
-      ...(dto.summary !== undefined ? { summary: dto.summary ?? null } : {}),
-      ...(dto.diagnosis !== undefined ? { diagnosis: dto.diagnosis ?? null } : {}),
-      ...(dto.workPerformed !== undefined
-        ? { workPerformed: dto.workPerformed ?? null }
-        : {}),
-      ...(dto.recommendations !== undefined
-        ? { recommendations: dto.recommendations ?? null }
-        : {}),
-      ...(dto.observations !== undefined
-        ? { observations: dto.observations ?? null }
-        : {}),
-      ...(dto.technicianNotes !== undefined
-        ? { technicianNotes: dto.technicianNotes ?? null }
-        : {}),
-      ...(laborHours !== undefined ? { laborHours } : {}),
-      ...(startedAt !== undefined ? { startedAt } : {}),
-      ...(completedAt !== undefined ? { completedAt } : {}),
-      ...(dto.materials !== undefined
-        ? {
-            materials: {
-              deleteMany: {},
-              create: dto.materials.map((item, idx) => ({
-                name: item.name,
-                description: item.description ?? null,
-                quantity: item.quantity,
-                unit: item.unit ?? null,
-                sortOrder: item.sortOrder ?? idx + 1,
-                notes: item.notes ?? null,
-              })),
-            },
-          }
-        : {}),
-    };
-
-    const dtoWithLaborDays = dto as UpdateMaintenanceReportDto & {
-      laborDays?: number | string | null;
-    };
+    if (hasOwn(patch, 'recommendations')) {
+      data.recommendations = cleanString(patch.recommendations);
+    }
+    if (hasOwn(patch, 'observations')) {
+      data.observations = cleanString(patch.observations);
+    }
+    if (hasOwn(patch, 'technicianNotes')) {
+      data.technicianNotes = cleanString(patch.technicianNotes);
+    }
+    if (hasOwn(patch, 'laborHours')) {
+      data.laborHours = parseLaborHours(patch.laborHours);
+    }
+    if (hasOwn(patch, 'startedAt')) {
+      data.startedAt = parseDate(patch.startedAt, 'startedAt');
+    }
+    if (hasOwn(patch, 'completedAt')) {
+      data.completedAt = parseDate(patch.completedAt, 'completedAt');
+    }
+    if (hasOwn(patch, 'performedAt')) {
+      data.completedAt = parseDate(patch.performedAt, 'performedAt');
+    }
 
     if (
-      dtoWithLaborDays.laborDays !== undefined &&
-      dtoWithLaborDays.laborDays !== null
+      report.status === MaintenanceReportStatus.DRAFT ||
+      report.status === MaintenanceReportStatus.ASSIGNED ||
+      report.status === MaintenanceReportStatus.REJECTED
     ) {
-      updateData.laborDays = new Prisma.Decimal(dtoWithLaborDays.laborDays);
-    } else if (dtoWithLaborDays.laborDays === null) {
-      updateData.laborDays = null;
+      data.status = MaintenanceReportStatus.IN_PROGRESS;
+      data.state = MaintenanceReportState.DRAFT;
+      data.startedAt = report.startedAt ?? new Date();
     }
 
+    const shouldReplaceMaterials = Array.isArray(patch.materials);
+    const materialRows = shouldReplaceMaterials
+      ? this.buildMaterialsCreateManyData(id, patch.materials ?? [])
+      : [];
+
     const updated = await this.prisma.$transaction(async (tx) => {
-      const next = await tx.maintenanceReport.update({
+      const saved = await tx.maintenanceReport.update({
         where: { id },
-        data: updateData,
+        data,
+      });
+
+      if (shouldReplaceMaterials) {
+        await tx.maintenanceReportMaterial.deleteMany({
+          where: { reportId: id },
+        });
+
+        if (materialRows.length > 0) {
+          await tx.maintenanceReportMaterial.createMany({
+            data: materialRows,
+          });
+        }
+      }
+
+      const fullReport = await tx.maintenanceReport.findFirst({
+        where: {
+          id: saved.id,
+          companyId: normalizedCompanyId,
+        },
         include: reportInclude,
       });
 
-      if (report.workOrderId && startedAt) {
-        await tx.workOrder.update({
-          where: { id: report.workOrderId },
-          data: {
-            status:
-              report.workOrder?.status === WorkOrderStatus.OPEN ||
-              report.workOrder?.status === WorkOrderStatus.ASSIGNED
-                ? WorkOrderStatus.IN_PROGRESS
-                : report.workOrder?.status,
-            startedAt: report.workOrder?.startedAt ?? startedAt,
-          },
-        });
+      if (!fullReport) {
+        throw new NotFoundException('No se pudo recuperar el parte actualizado.');
       }
 
-      return next;
+      return fullReport;
     });
 
     return serializeReport(updated);
@@ -857,8 +1077,6 @@ export class MaintenanceReportsService {
       select: {
         id: true,
         status: true,
-        state: true,
-        startedAt: true,
       },
     });
 
@@ -867,12 +1085,13 @@ export class MaintenanceReportsService {
     }
 
     if (
-      report.state === MaintenanceReportState.FINAL ||
+      report.status === MaintenanceReportStatus.SUBMITTED ||
       report.status === MaintenanceReportStatus.APPROVED ||
+      report.status === MaintenanceReportStatus.COMPLETED ||
       report.status === MaintenanceReportStatus.CANCELLED
     ) {
       throw new BadRequestException(
-        'No se pueden editar items de un reporte cerrado.',
+        'No se pueden editar items de un reporte enviado o cerrado.',
       );
     }
 
@@ -881,137 +1100,54 @@ export class MaintenanceReportsService {
         id: itemId,
         reportId,
       },
-      include: {
-        templateItem: true,
-      },
     });
 
     if (!item) {
       throw new NotFoundException('Item no encontrado.');
     }
 
-    const data: Prisma.MaintenanceReportItemUpdateInput = {};
+    const data: Prisma.MaintenanceReportItemUpdateInput = {
+      status: dto.status ?? item.status,
+      value: dto.value ?? dto.resultValue ?? dto.valueText ?? item.value,
+      notes: dto.notes ?? dto.resultNotes ?? item.notes,
+    };
 
-    if (dto.status !== undefined) {
-      data.status = dto.status;
+    if (dto.valueText !== undefined) data.valueText = dto.valueText;
+    if (dto.valueNumber !== undefined) data.valueNumber = dto.valueNumber;
+    if (dto.valueBoolean !== undefined) data.valueBoolean = dto.valueBoolean;
+    if (dto.valueDate !== undefined) data.valueDate = new Date(dto.valueDate);
+    if (dto.valueJson !== undefined) {
+      data.valueJson = dto.valueJson as Prisma.InputJsonValue;
     }
 
-    if (dto.notes !== undefined || dto.resultNotes !== undefined) {
-      data.notes = dto.notes ?? dto.resultNotes ?? null;
-    }
-
-    if (hasOwn(dto, 'valueJson')) {
-      const rawJson = dto.valueJson;
-
-      if (rawJson === null || rawJson === undefined) {
-        data.valueJson = Prisma.DbNull;
-        data.value = null;
-      } else {
-        data.valueJson = rawJson as Prisma.InputJsonValue;
-        data.value = stringifyLegacyValue(rawJson);
-      }
-
-      data.valueDate = null;
-      data.valueBoolean = null;
-      data.valueNumber = null;
-      data.valueText = null;
-    } else if (hasOwn(dto, 'valueDate')) {
-      const nextDate = toDateOrNull(dto.valueDate ?? null);
-
-      if (dto.valueDate && !nextDate) {
-        throw new BadRequestException('valueDate inválida');
-      }
-
-      data.valueDate = nextDate;
-      data.valueBoolean = null;
-      data.valueNumber = null;
-      data.valueText = null;
-      data.valueJson = Prisma.DbNull;
-      data.value = stringifyLegacyValue(nextDate);
-    } else if (hasOwn(dto, 'valueBoolean')) {
-      data.valueBoolean = dto.valueBoolean ?? null;
-      data.valueDate = null;
-      data.valueNumber = null;
-      data.valueText = null;
-      data.valueJson = Prisma.DbNull;
-      data.value = stringifyLegacyValue(dto.valueBoolean ?? null);
-    } else if (hasOwn(dto, 'valueNumber')) {
-      data.valueNumber = dto.valueNumber ?? null;
-      data.valueDate = null;
-      data.valueBoolean = null;
-      data.valueText = null;
-      data.valueJson = Prisma.DbNull;
-      data.value = stringifyLegacyValue(dto.valueNumber ?? null);
-    } else if (
-      hasOwn(dto, 'valueText') ||
-      hasOwn(dto, 'value') ||
-      hasOwn(dto, 'resultValue')
-    ) {
-      const textValue = dto.valueText ?? dto.value ?? dto.resultValue ?? null;
-
-      data.valueText = textValue;
-      data.valueNumber = null;
-      data.valueBoolean = null;
-      data.valueDate = null;
-      data.valueJson = Prisma.DbNull;
-      data.value = textValue;
-    }
-
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const nextItem = await tx.maintenanceReportItem.update({
-        where: { id: itemId },
-        data,
-      });
-
-      if (
-        report.status === MaintenanceReportStatus.DRAFT ||
-        report.status === MaintenanceReportStatus.ASSIGNED ||
-        report.status === MaintenanceReportStatus.REJECTED
-      ) {
-        await tx.maintenanceReport.update({
-          where: { id: report.id },
-          data: {
-            status: MaintenanceReportStatus.IN_PROGRESS,
-            state: MaintenanceReportState.DRAFT,
-            startedAt: report.startedAt ?? new Date(),
-          },
-        });
-      }
-
-      return nextItem;
+    const updated = await this.prisma.maintenanceReportItem.update({
+      where: { id: itemId },
+      data,
     });
 
-    const fullUpdated = await this.prisma.maintenanceReportItem.findFirst({
-      where: { id: updated.id },
-      include: {
-        templateItem: true,
-      },
-    });
-
-    if (!fullUpdated) {
-      throw new NotFoundException('No se pudo recuperar el item actualizado.');
-    }
-
-    return serializeReportItem(fullUpdated as ReportItemEntity);
+    return serializeReportItem(updated);
   }
 
   async finalize(companyId: string, id: string, userId?: string) {
     const normalizedCompanyId = normalizeCompanyId(companyId);
-    const normalizedUserId = userId?.trim();
+    const normalizedUserId = normalizeUserId(userId);
 
-    const actor = normalizedUserId
-      ? await this.ensureActiveUserInCompany(normalizedCompanyId, normalizedUserId)
-      : null;
+    const actor = await this.ensureActiveUserInCompany(
+      normalizedCompanyId,
+      normalizedUserId,
+    );
 
     const report = await this.prisma.maintenanceReport.findFirst({
-      where: { id, companyId: normalizedCompanyId },
+      where: {
+        id,
+        companyId: normalizedCompanyId,
+      },
       include: {
         items: true,
         workOrder: {
           select: {
             id: true,
             status: true,
-            startedAt: true,
           },
         },
       },
@@ -1021,68 +1157,91 @@ export class MaintenanceReportsService {
       throw new NotFoundException('Reporte no encontrado.');
     }
 
-    if (actor) {
-      this.ensureAssignedTechnicianOrAdmin(
-        normalizedCompanyId,
-        actor,
-        report.assignedTechnicianId,
-      );
+    this.ensureAssignedTechnicianOrAdmin(actor, report.assignedTechnicianId);
+
+    if (report.status === MaintenanceReportStatus.SUBMITTED) {
+      throw new BadRequestException('El parte ya fue enviado al administrador.');
     }
 
     if (
-      report.status === MaintenanceReportStatus.SUBMITTED ||
-      report.status === MaintenanceReportStatus.APPROVED
+      report.status === MaintenanceReportStatus.APPROVED ||
+      report.status === MaintenanceReportStatus.COMPLETED
     ) {
-      throw new BadRequestException('El parte ya fue enviado al admin.');
+      throw new BadRequestException('El parte ya está cerrado.');
     }
 
     if (report.status === MaintenanceReportStatus.CANCELLED) {
-      throw new BadRequestException('No se puede finalizar un reporte cancelado.');
+      throw new BadRequestException('No se puede enviar un parte cancelado.');
     }
 
-    if (!report.items.length) {
-      throw new BadRequestException('El reporte no tiene items.');
+    if (!report.workPerformed?.trim()) {
+      throw new BadRequestException('Falta completar el trabajo realizado.');
     }
 
-    const pendingItems = report.items.filter(
-      (item) => item.status === MaintenanceItemStatus.PENDING,
-    );
+    if (!report.diagnosis?.trim()) {
+      throw new BadRequestException('Falta completar el diagnóstico.');
+    }
 
-    if (pendingItems.length > 0) {
-      throw new BadRequestException(
-        'No se puede enviar: todavía hay items en estado PENDING.',
+    const laborHours = decimalToNumber(report.laborHours);
+
+    if (laborHours === null || laborHours <= 0) {
+      throw new BadRequestException('Falta completar las horas trabajadas.');
+    }
+
+    if (report.items.length > 0) {
+      const pendingItems = report.items.filter(
+        (item) => item.status === MaintenanceItemStatus.PENDING,
       );
-    }
 
-    const now = new Date();
+      if (pendingItems.length > 0) {
+        throw new BadRequestException(
+          'No se puede enviar: todavía hay items en estado PENDING.',
+        );
+      }
+    }
 
     const updated = await this.prisma.$transaction(async (tx) => {
-      const nextReport = await tx.maintenanceReport.update({
+      const saved = await tx.maintenanceReport.update({
         where: { id },
         data: {
           status: MaintenanceReportStatus.SUBMITTED,
           state: MaintenanceReportState.FINAL,
-          startedAt: report.startedAt ?? now,
-          submittedAt: now,
-          submittedById: normalizedUserId ?? report.submittedById ?? null,
-          completedAt: report.completedAt ?? now,
-          completedByUserId: normalizedUserId ?? report.completedByUserId ?? null,
+          submittedAt: new Date(),
+          submittedById: normalizedUserId,
+          completedByUserId: normalizedUserId,
+          completedAt: report.completedAt ?? new Date(),
         },
-        include: reportInclude,
       });
 
-      if (report.workOrderId && report.workOrder?.status !== WorkOrderStatus.CANCELLED) {
-        await tx.workOrder.update({
-          where: { id: report.workOrderId },
+      if (
+        report.workOrderId &&
+        report.workOrder?.status !== WorkOrderStatus.DONE &&
+        report.workOrder?.status !== WorkOrderStatus.CANCELLED
+      ) {
+        await tx.workOrder.updateMany({
+          where: {
+            id: report.workOrderId,
+            companyId: normalizedCompanyId,
+          },
           data: {
             status: WorkOrderStatus.PENDING,
-            startedAt: report.workOrder?.startedAt ?? report.startedAt ?? now,
-            completedAt: null,
           },
         });
       }
 
-      return nextReport;
+      const fullReport = await tx.maintenanceReport.findFirst({
+        where: {
+          id: saved.id,
+          companyId: normalizedCompanyId,
+        },
+        include: reportInclude,
+      });
+
+      if (!fullReport) {
+        throw new NotFoundException('No se pudo recuperar el parte enviado.');
+      }
+
+      return fullReport;
     });
 
     return serializeReport(updated);
@@ -1095,22 +1254,25 @@ export class MaintenanceReportsService {
     dto: ReviewMaintenanceReportDto,
   ) {
     const normalizedCompanyId = normalizeCompanyId(companyId);
+    const normalizedUserId = normalizeUserId(userId);
 
-    if (!userId?.trim()) {
-      throw new BadRequestException('Falta header x-user-id');
-    }
+    const actor = await this.ensureActiveUserInCompany(
+      normalizedCompanyId,
+      normalizedUserId,
+    );
 
-    const normalizedUserId = userId.trim();
-    await this.ensureAdminUserInCompany(normalizedCompanyId, normalizedUserId);
+    this.ensureAdmin(actor);
 
     const report = await this.prisma.maintenanceReport.findFirst({
-      where: { id, companyId: normalizedCompanyId },
+      where: {
+        id,
+        companyId: normalizedCompanyId,
+      },
       include: {
         workOrder: {
           select: {
             id: true,
             status: true,
-            startedAt: true,
           },
         },
       },
@@ -1122,51 +1284,65 @@ export class MaintenanceReportsService {
 
     if (report.status !== MaintenanceReportStatus.SUBMITTED) {
       throw new BadRequestException(
-        'Solo se puede revisar un parte en estado SUBMITTED.',
+        'Solo se pueden revisar partes enviados al administrador.',
       );
     }
 
-    const now = new Date();
+    const approved = dto.approved === true;
 
     const updated = await this.prisma.$transaction(async (tx) => {
-      const nextReport = await tx.maintenanceReport.update({
+      const saved = await tx.maintenanceReport.update({
         where: { id },
-        data: dto.approved
-          ? {
-              status: MaintenanceReportStatus.APPROVED,
-              state: MaintenanceReportState.FINAL,
-              reviewedAt: now,
-              reviewedById: normalizedUserId,
-              reviewNotes: dto.reviewNotes ?? null,
-            }
-          : {
-              status: MaintenanceReportStatus.REJECTED,
-              state: MaintenanceReportState.DRAFT,
-              reviewedAt: now,
-              reviewedById: normalizedUserId,
-              reviewNotes: dto.reviewNotes ?? null,
-            },
-        include: reportInclude,
+        data: {
+          status: approved
+            ? MaintenanceReportStatus.APPROVED
+            : MaintenanceReportStatus.REJECTED,
+          state: approved
+            ? MaintenanceReportState.FINAL
+            : MaintenanceReportState.DRAFT,
+          reviewNotes: cleanString(dto.reviewNotes),
+          reviewedById: normalizedUserId,
+          reviewedAt: new Date(),
+          completedAt: approved
+            ? report.completedAt ?? new Date()
+            : report.completedAt,
+        },
       });
 
-      if (report.workOrderId && report.workOrder?.status !== WorkOrderStatus.CANCELLED) {
-        await tx.workOrder.update({
-          where: { id: report.workOrderId },
-          data: dto.approved
+      if (report.workOrderId) {
+        await tx.workOrder.updateMany({
+          where: {
+            id: report.workOrderId,
+            companyId: normalizedCompanyId,
+            status: {
+              not: WorkOrderStatus.CANCELLED,
+            },
+          },
+          data: approved
             ? {
                 status: WorkOrderStatus.DONE,
-                startedAt: report.workOrder?.startedAt ?? report.startedAt ?? now,
-                completedAt: report.completedAt ?? now,
+                completedAt: new Date(),
               }
             : {
                 status: WorkOrderStatus.IN_PROGRESS,
-                startedAt: report.workOrder?.startedAt ?? report.startedAt ?? now,
                 completedAt: null,
               },
         });
       }
 
-      return nextReport;
+      const fullReport = await tx.maintenanceReport.findFirst({
+        where: {
+          id: saved.id,
+          companyId: normalizedCompanyId,
+        },
+        include: reportInclude,
+      });
+
+      if (!fullReport) {
+        throw new NotFoundException('No se pudo recuperar el parte revisado.');
+      }
+
+      return fullReport;
     });
 
     return serializeReport(updated);

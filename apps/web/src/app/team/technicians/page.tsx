@@ -16,31 +16,24 @@ import {
   type TcSession,
 } from '@/lib/tc/session';
 
-type CompanyUserRole = 'ADMIN' | 'TECHNICIAN' | 'SUPER_ADMIN' | string;
-
-type CompanyUserMembership = {
+type TechnicianMembership = {
   id?: string;
   companyId?: string;
-  role?: CompanyUserRole;
+  role?: string;
   active?: boolean;
-  company?: {
-    id?: string;
-    name?: string | null;
-    slug?: string | null;
-    isActive?: boolean;
-  } | null;
 };
 
-type CompanyUser = {
+type Technician = {
   id: string;
   name: string;
   email: string;
-  role: CompanyUserRole;
-  companyId?: string | null;
+  role: string;
   isActive: boolean;
+  specialty?: string | null;
+  specialization?: string | null;
+  phone?: string | null;
   createdAt?: string | null;
-  updatedAt?: string | null;
-  memberships?: CompanyUserMembership[];
+  memberships?: TechnicianMembership[];
 };
 
 type Load<T> =
@@ -48,7 +41,7 @@ type Load<T> =
   | { status: 'ok'; data: T }
   | { status: 'error'; error: string };
 
-const EMPTY_USERS: CompanyUser[] = [];
+const EMPTY_TECHNICIANS: Technician[] = [];
 
 function asStr(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback;
@@ -56,6 +49,47 @@ function asStr(value: unknown, fallback = ''): string {
 
 function asBool(value: unknown, fallback = false): boolean {
   return typeof value === 'boolean' ? value : fallback;
+}
+
+function parseMembership(value: unknown): TechnicianMembership | null {
+  if (!isRecord(value)) return null;
+
+  return {
+    id: asStr(value.id) || undefined,
+    companyId: asStr(value.companyId) || undefined,
+    role: asStr(value.role) || undefined,
+    active: asBool(value.active, false),
+  };
+}
+
+function parseTechnician(value: unknown): Technician {
+  if (!isRecord(value)) {
+    return {
+      id: '',
+      name: 'Técnico sin nombre',
+      email: '',
+      role: 'TECHNICIAN',
+      isActive: false,
+      memberships: [],
+    };
+  }
+
+  const memberships = Array.isArray(value.memberships)
+    ? value.memberships.map(parseMembership).filter(Boolean)
+    : [];
+
+  return {
+    id: asStr(value.id),
+    name: asStr(value.name, 'Técnico sin nombre'),
+    email: asStr(value.email),
+    role: asStr(value.role, 'TECHNICIAN'),
+    isActive: asBool(value.isActive, false),
+    specialty: asStr(value.specialty) || null,
+    specialization: asStr(value.specialization) || null,
+    phone: asStr(value.phone) || null,
+    createdAt: asStr(value.createdAt) || null,
+    memberships: memberships as TechnicianMembership[],
+  };
 }
 
 function getServerMessage(json: unknown, fallback: string): string {
@@ -70,80 +104,6 @@ function getServerMessage(json: unknown, fallback: string): string {
   }
 
   return fallback;
-}
-
-function parseMembership(value: unknown): CompanyUserMembership | null {
-  if (!isRecord(value)) return null;
-
-  return {
-    id: asStr(value.id) || undefined,
-    companyId: asStr(value.companyId) || undefined,
-    role: asStr(value.role) || undefined,
-    active: asBool(value.active, false),
-    company: isRecord(value.company)
-      ? {
-          id: asStr(value.company.id) || undefined,
-          name: asStr(value.company.name) || null,
-          slug: asStr(value.company.slug) || null,
-          isActive: asBool(value.company.isActive, false),
-        }
-      : null,
-  };
-}
-
-function parseCompanyUser(value: unknown): CompanyUser {
-  if (!isRecord(value)) {
-    return {
-      id: '',
-      name: 'Usuario sin nombre',
-      email: '',
-      role: 'ADMIN',
-      isActive: false,
-      memberships: [],
-    };
-  }
-
-  const memberships = Array.isArray(value.memberships)
-    ? value.memberships.map(parseMembership).filter(Boolean)
-    : [];
-
-  return {
-    id: asStr(value.id),
-    name: asStr(value.name, 'Usuario sin nombre'),
-    email: asStr(value.email),
-    role: asStr(value.role, 'ADMIN'),
-    companyId: asStr(value.companyId) || null,
-    isActive: asBool(value.isActive, false),
-    createdAt: asStr(value.createdAt) || null,
-    updatedAt: asStr(value.updatedAt) || null,
-    memberships: memberships as CompanyUserMembership[],
-  };
-}
-
-function formatRole(role?: CompanyUserRole): string {
-  switch (role) {
-    case 'ADMIN':
-      return 'Administrador';
-    case 'TECHNICIAN':
-      return 'Técnico';
-    case 'SUPER_ADMIN':
-      return 'Súper admin';
-    default:
-      return role || '—';
-  }
-}
-
-function roleBadgeClass(role?: CompanyUserRole): string {
-  switch (role) {
-    case 'ADMIN':
-      return 'border-violet-700 bg-violet-950/50 text-violet-300';
-    case 'TECHNICIAN':
-      return 'border-sky-700 bg-sky-950/50 text-sky-300';
-    case 'SUPER_ADMIN':
-      return 'border-amber-700 bg-amber-950/50 text-amber-300';
-    default:
-      return 'border-slate-700 bg-slate-900 text-slate-400';
-  }
 }
 
 function formatDateTime(value?: string | null): string {
@@ -162,32 +122,29 @@ function formatDateTime(value?: string | null): string {
   }).format(date);
 }
 
-function currentMembership(user: CompanyUser, session: TcSession | null) {
-  return user.memberships?.find((item) => item.companyId === session?.companyId);
+function resolveSpecialty(technician: Technician): string {
+  return (
+    technician.specialty?.trim() ||
+    technician.specialization?.trim() ||
+    'Sin especialidad registrada'
+  );
 }
 
-function resolveUserArea(user: CompanyUser): string {
-  const role = currentMembership(user, null)?.role ?? user.role;
-
-  if (role === 'ADMIN') {
-    return 'Administración / Oficina';
-  }
-
-  if (role === 'SUPER_ADMIN') {
-    return 'Súper administración';
-  }
-
-  return 'Usuario interno';
+function currentMembership(
+  technician: Technician,
+  session: TcSession | null,
+): TechnicianMembership | undefined {
+  return technician.memberships?.find(
+    (item) => item.companyId === session?.companyId,
+  );
 }
 
-export default function TeamUsersPage() {
+export default function TeamTechniciansPage() {
   const [mounted, setMounted] = useState(false);
   const [session, setSession] = useState<TcSession | null>(null);
-
-  const [state, setState] = useState<Load<CompanyUser[]>>({
+  const [state, setState] = useState<Load<Technician[]>>({
     status: 'loading',
   });
-
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('');
   const [message, setMessage] = useState<string | null>(null);
@@ -222,12 +179,12 @@ export default function TeamUsersPage() {
 
     let cancelled = false;
 
-    async function loadUsers() {
+    async function loadTechnicians() {
       try {
         setState({ status: 'loading' });
 
         const query = new URLSearchParams();
-        query.set('role', 'ADMIN');
+        query.set('role', 'TECHNICIAN');
         query.set('pageSize', '100');
 
         if (search.trim()) query.set('search', search.trim());
@@ -243,7 +200,7 @@ export default function TeamUsersPage() {
         if (response.code < 200 || response.code >= 300) {
           setState({
             status: 'error',
-            error: `No se pudieron cargar los usuarios. ${getServerMessage(
+            error: `No se pudieron cargar los técnicos. ${getServerMessage(
               response.json,
               `HTTP ${response.code}`,
             )}`,
@@ -252,11 +209,13 @@ export default function TeamUsersPage() {
         }
 
         const { items } = normalizeList(response.json);
-        const users = items.map(parseCompanyUser).filter((user) => user.id);
+        const technicians = items
+          .map(parseTechnician)
+          .filter((technician) => technician.id);
 
         setState({
           status: 'ok',
-          data: users,
+          data: technicians,
         });
       } catch (error) {
         if (!cancelled) {
@@ -268,33 +227,33 @@ export default function TeamUsersPage() {
       }
     }
 
-    void loadUsers();
+    void loadTechnicians();
 
     return () => {
       cancelled = true;
     };
   }, [activeFilter, mounted, refreshKey, search, session]);
 
-  async function toggleActive(user: CompanyUser) {
+  async function toggleActive(technician: Technician) {
     if (!session) {
       setMessage('Sesión no encontrada.');
       return;
     }
 
-    const endpoint = user.isActive ? 'deactivate' : 'activate';
+    const endpoint = technician.isActive ? 'deactivate' : 'activate';
 
     try {
-      setActionLoadingId(user.id);
+      setActionLoadingId(technician.id);
       setMessage(null);
 
       const response = await tcPatch(
         session,
-        `/company-users/${user.id}/${endpoint}`,
+        `/company-users/${technician.id}/${endpoint}`,
       );
 
       if (response.code < 200 || response.code >= 300) {
         setMessage(
-          `No se pudo actualizar el usuario. ${getServerMessage(
+          `No se pudo actualizar el técnico. ${getServerMessage(
             response.json,
             `HTTP ${response.code}`,
           )}`,
@@ -303,14 +262,14 @@ export default function TeamUsersPage() {
       }
 
       setMessage(
-        user.isActive
-          ? 'Usuario desactivado correctamente.'
-          : 'Usuario activado correctamente.',
+        technician.isActive
+          ? 'Técnico desactivado correctamente.'
+          : 'Técnico activado correctamente.',
       );
 
       setRefreshKey((current) => current + 1);
     } catch (error) {
-      setMessage(`No se pudo actualizar el usuario: ${errMsg(error)}`);
+      setMessage(`No se pudo actualizar el técnico: ${errMsg(error)}`);
     } finally {
       setActionLoadingId(null);
     }
@@ -333,8 +292,7 @@ export default function TeamUsersPage() {
           <p className="text-sm font-semibold text-slate-400">Personal</p>
           <h1 className="mt-2 text-2xl font-bold">Sesión no encontrada</h1>
           <p className="mt-3 text-slate-300">
-            Para ver usuarios internos necesitas iniciar sesión como
-            administrador.
+            Para ver técnicos necesitas iniciar sesión como administrador.
           </p>
           <Link
             href="/login"
@@ -367,16 +325,16 @@ export default function TeamUsersPage() {
     );
   }
 
-  const users = state.status === 'ok' ? state.data : EMPTY_USERS;
+  const technicians = state.status === 'ok' ? state.data : EMPTY_TECHNICIANS;
 
-  const activeUsers = users.filter((user) => {
-    const membership = currentMembership(user, session);
-    return user.isActive && membership?.active !== false;
+  const activeTechnicians = technicians.filter((technician) => {
+    const membership = currentMembership(technician, session);
+    return technician.isActive && membership?.active !== false;
   });
 
-  const inactiveUsers = users.filter((user) => {
-    const membership = currentMembership(user, session);
-    return !user.isActive || membership?.active === false;
+  const inactiveTechnicians = technicians.filter((technician) => {
+    const membership = currentMembership(technician, session);
+    return !technician.isActive || membership?.active === false;
   });
 
   return (
@@ -388,12 +346,12 @@ export default function TeamUsersPage() {
           </p>
 
           <h1 className="mt-2 text-3xl font-bold tracking-tight">
-            Usuarios internos
+            Técnicos
           </h1>
 
           <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
-            Aquí se gestionan encargados, personal de oficina, administración,
-            roles, permisos y activación de usuarios internos.
+            Lista completa del equipo técnico. Aquí puedes revisar quién está
+            activo, su especialidad y su disponibilidad para recibir órdenes.
           </p>
         </div>
 
@@ -401,30 +359,30 @@ export default function TeamUsersPage() {
           href="/team/users/new"
           className="inline-flex items-center justify-center rounded-2xl bg-sky-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-sky-500"
         >
-          Dar de alta usuario
+          Dar de alta técnico
         </Link>
       </div>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <div className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
           <p className="text-sm font-semibold text-slate-400">
-            Usuarios internos
+            Técnicos totales
           </p>
-          <p className="mt-2 text-3xl font-bold">{users.length}</p>
+          <p className="mt-2 text-3xl font-bold">{technicians.length}</p>
         </div>
 
         <div className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
           <p className="text-sm font-semibold text-slate-400">
-            Usuarios activos
+            Técnicos activos
           </p>
-          <p className="mt-2 text-3xl font-bold">{activeUsers.length}</p>
+          <p className="mt-2 text-3xl font-bold">{activeTechnicians.length}</p>
         </div>
 
         <div className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
           <p className="text-sm font-semibold text-slate-400">
-            Usuarios inactivos
+            Técnicos inactivos
           </p>
-          <p className="mt-2 text-3xl font-bold">{inactiveUsers.length}</p>
+          <p className="mt-2 text-3xl font-bold">{inactiveTechnicians.length}</p>
         </div>
       </div>
 
@@ -437,11 +395,11 @@ export default function TeamUsersPage() {
       <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
         <div className="flex flex-col gap-4 border-b border-slate-800 pb-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="text-xl font-bold">Lista de usuarios internos</h2>
+            <h2 className="text-xl font-bold">Lista de técnicos</h2>
             <p className="mt-2 text-sm text-slate-400">
-              {users.length} usuario{users.length === 1 ? '' : 's'} interno
-              {users.length === 1 ? '' : 's'} registrado
-              {users.length === 1 ? '' : 's'}.
+              {technicians.length} técnico
+              {technicians.length === 1 ? '' : 's'} registrado
+              {technicians.length === 1 ? '' : 's'}.
             </p>
           </div>
 
@@ -467,96 +425,99 @@ export default function TeamUsersPage() {
 
         {state.status === 'loading' ? (
           <div className="mt-6 rounded-2xl bg-slate-950 p-5 text-slate-400">
-            Cargando usuarios internos...
+            Cargando técnicos...
           </div>
         ) : state.status === 'error' ? (
           <div className="mt-6 rounded-2xl border border-rose-800 bg-rose-950/40 p-5 text-rose-200">
             {state.error}
           </div>
-        ) : users.length === 0 ? (
+        ) : technicians.length === 0 ? (
           <div className="mt-6 rounded-2xl bg-slate-950 p-5 text-slate-400">
-            No hay usuarios internos registrados todavía.
+            No hay técnicos registrados todavía.
           </div>
         ) : (
-          <div className="mt-6 overflow-hidden rounded-2xl border border-slate-800">
-            <div className="hidden grid-cols-[1.4fr_1fr_1fr_1fr_auto] gap-4 border-b border-slate-800 bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-500 lg:grid">
-              <div>Usuario</div>
-              <div>Área</div>
-              <div>Estado</div>
-              <div>Creado</div>
-              <div>Acción</div>
-            </div>
+          <div className="mt-6 grid gap-4">
+            {technicians.map((technician) => {
+              const membership = currentMembership(technician, session);
+              const active = technician.isActive && membership?.active !== false;
 
-            <div className="divide-y divide-slate-800">
-              {users.map((user) => {
-                const membership = currentMembership(user, session);
-                const role = membership?.role ?? user.role;
-                const active = user.isActive && membership?.active !== false;
-
-                return (
-                  <div
-                    key={user.id}
-                    className="grid gap-4 bg-slate-900 px-4 py-4 transition hover:bg-slate-950 lg:grid-cols-[1.4fr_1fr_1fr_1fr_auto] lg:items-center"
-                  >
+              return (
+                <article
+                  key={technician.id}
+                  className="rounded-3xl border border-slate-800 bg-slate-950 p-5 transition hover:border-sky-800"
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
-                      <p className="font-bold text-white">{user.name}</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-lg font-bold text-white">
+                          {technician.name}
+                        </h3>
+
+                        <span
+                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${
+                            active
+                              ? 'border-emerald-700 bg-emerald-950/50 text-emerald-300'
+                              : 'border-slate-700 bg-slate-900 text-slate-400'
+                          }`}
+                        >
+                          {active ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+
                       <p className="mt-1 text-sm text-slate-400">
-                        {user.email}
+                        {technician.email}
                       </p>
+
+                      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+                          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                            Especialidad
+                          </p>
+                          <p className="mt-2 text-sm font-semibold text-slate-200">
+                            {resolveSpecialty(technician)}
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+                          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                            Teléfono
+                          </p>
+                          <p className="mt-2 text-sm font-semibold text-slate-200">
+                            {technician.phone?.trim() || '—'}
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+                          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                            Alta
+                          </p>
+                          <p className="mt-2 text-sm font-semibold text-slate-200">
+                            {formatDateTime(technician.createdAt)}
+                          </p>
+                        </div>
+                      </div>
                     </div>
 
-                    <div>
-                      <span
-                        className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${roleBadgeClass(
-                          role,
-                        )}`}
-                      >
-                        {formatRole(role)}
-                      </span>
-
-                      <p className="mt-2 text-xs text-slate-500">
-                        {resolveUserArea(user)}
-                      </p>
-                    </div>
-
-                    <div>
-                      <span
-                        className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${
-                          active
-                            ? 'border-emerald-700 bg-emerald-950/50 text-emerald-300'
-                            : 'border-slate-700 bg-slate-950 text-slate-400'
-                        }`}
-                      >
-                        {active ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </div>
-
-                    <div className="text-sm text-slate-400">
-                      {formatDateTime(user.createdAt)}
-                    </div>
-
-                    <div>
-                      <button
-                        type="button"
-                        disabled={actionLoadingId === user.id}
-                        onClick={() => void toggleActive(user)}
-                        className={`inline-flex rounded-2xl px-4 py-2 text-sm font-bold transition disabled:cursor-not-allowed disabled:bg-slate-700 ${
-                          active
-                            ? 'border border-slate-700 bg-slate-950 text-slate-200 hover:bg-slate-800'
-                            : 'bg-sky-600 text-white hover:bg-sky-500'
-                        }`}
-                      >
-                        {actionLoadingId === user.id
-                          ? 'Actualizando...'
-                          : active
-                            ? 'Desactivar'
-                            : 'Activar'}
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      disabled={actionLoadingId === technician.id}
+                      onClick={() => void toggleActive(technician)}
+                      className={`inline-flex rounded-2xl px-4 py-2 text-sm font-bold transition disabled:cursor-not-allowed disabled:bg-slate-700 ${
+                        active
+                          ? 'border border-slate-700 bg-slate-950 text-slate-200 hover:bg-slate-800'
+                          : 'bg-sky-600 text-white hover:bg-sky-500'
+                      }`}
+                    >
+                      {actionLoadingId === technician.id
+                        ? 'Actualizando...'
+                        : active
+                          ? 'Desactivar'
+                          : 'Activar'}
+                    </button>
                   </div>
-                );
-              })}
-            </div>
+                </article>
+              );
+            })}
           </div>
         )}
       </section>
