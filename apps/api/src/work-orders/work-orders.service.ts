@@ -1,9 +1,13 @@
-import {
+﻿import {
   BadRequestException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, WorkOrderPriority, WorkOrderStatus } from '@prisma/client';
+import {
+  Prisma,
+  WorkOrderPriority,
+  WorkOrderStatus,
+} from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { QueryWorkOrdersDto } from './dto/query-work-orders.dto';
 
@@ -84,7 +88,9 @@ export class WorkOrdersService {
   }
 
   private isWorkOrderPriority(value: string): value is WorkOrderPriority {
-    return Object.values(WorkOrderPriority).includes(value as WorkOrderPriority);
+    return Object.values(WorkOrderPriority).includes(
+      value as WorkOrderPriority,
+    );
   }
 
   private resolveStatusFromAction(candidates: string[]): WorkOrderStatus {
@@ -95,9 +101,9 @@ export class WorkOrdersService {
     }
 
     throw new BadRequestException(
-      `No existe un estado válido para esta acción. Revisa el enum WorkOrderStatus en schema.prisma. Estados probados: ${candidates.join(
-        ', ',
-      )}`,
+      `No existe un estado válido para esta acción.
+Revisa el enum WorkOrderStatus en schema.prisma.
+Estados probados: ${candidates.join(', ')}`,
     );
   }
 
@@ -133,18 +139,40 @@ export class WorkOrdersService {
     return date;
   }
 
+  private pickString(value: unknown): string | undefined {
+    if (typeof value !== 'string') return undefined;
+
+    const cleanValue = value.trim();
+
+    return cleanValue ? cleanValue : undefined;
+  }
+
+  private resolveAssignedUserId(data: WorkOrderPlainObject): string | undefined {
+    return (
+      this.pickString(data.assignedToId) ??
+      this.pickString(data.assignedToUserId) ??
+      this.pickString(data.assignedTechnicianId)
+    );
+  }
+
   private normalizeWorkOrderData(dto: object): WorkOrderPlainObject {
     const data = this.cleanUndefined(dto);
+    const assignedUserId = this.resolveAssignedUserId(data);
 
     /**
-     * Frontend puede enviar assignedToId.
-     * Prisma actual guarda ese dato en assignedToUserId.
+     * El frontend puede enviar assignedToId.
+     * Prisma guarda actualmente la asignación en:
+     * - assignedToUserId
+     * - assignedTechnicianId
+     *
+     * Mantenemos ambos sincronizados para evitar inconsistencias.
      */
-    if (typeof data.assignedToId === 'string' && data.assignedToId.trim()) {
-      data.assignedToUserId = data.assignedToId;
-      data.assignedTechnicianId = data.assignedToId;
-      delete data.assignedToId;
+    if (assignedUserId) {
+      data.assignedToUserId = assignedUserId;
+      data.assignedTechnicianId = assignedUserId;
     }
+
+    delete data.assignedToId;
 
     /**
      * Por seguridad eliminamos objetos de relación si llegan desde frontend.
@@ -156,6 +184,7 @@ export class WorkOrdersService {
     delete data.assignedTechnician;
     delete data.createdBy;
     delete data.company;
+    delete data.maintenanceTemplate;
 
     /**
      * Fechas.
@@ -173,11 +202,13 @@ export class WorkOrdersService {
     }
 
     const startedAt = this.normalizeDate(data.startedAt);
+
     if (startedAt) {
       data.startedAt = startedAt;
     }
 
     const completedAt = this.normalizeDate(data.completedAt);
+
     if (completedAt) {
       data.completedAt = completedAt;
     }
@@ -209,18 +240,36 @@ export class WorkOrdersService {
     return data;
   }
 
+  private resolveAssignedFilter(
+    query: QueryWorkOrdersDto,
+  ): string | undefined {
+    return (
+      query.assignedToId ??
+      query.assignedToUserId ??
+      query.assignedTechnicianId
+    );
+  }
+
   private buildWhere(
     companyId?: string,
     query: QueryWorkOrdersDto = {},
   ): Prisma.WorkOrderWhereInput {
     const where: Prisma.WorkOrderWhereInput = {};
+    const andFilters: Prisma.WorkOrderWhereInput[] = [];
 
     if (companyId) {
       where.companyId = companyId;
     }
 
-    if (query.assignedToId) {
-      where.assignedToUserId = query.assignedToId;
+    const assignedUserId = this.resolveAssignedFilter(query);
+
+    if (assignedUserId) {
+      andFilters.push({
+        OR: [
+          { assignedToUserId: assignedUserId },
+          { assignedTechnicianId: assignedUserId },
+        ],
+      });
     }
 
     if (query.status) {
@@ -228,6 +277,7 @@ export class WorkOrdersService {
     }
 
     const priority = this.normalizePriority(query.priority);
+
     if (priority) {
       where.priority = priority;
     }
@@ -242,6 +292,37 @@ export class WorkOrdersService {
 
     if (query.assetId) {
       where.assetId = query.assetId;
+    }
+
+    const search = query.q?.trim();
+
+    if (search) {
+      andFilters.push({
+        OR: [
+          {
+            code: {
+              contains: search,
+              mode: 'insensitive',
+            },
+          },
+          {
+            title: {
+              contains: search,
+              mode: 'insensitive',
+            },
+          },
+          {
+            description: {
+              contains: search,
+              mode: 'insensitive',
+            },
+          },
+        ],
+      });
+    }
+
+    if (andFilters.length > 0) {
+      where.AND = andFilters;
     }
 
     return where;
@@ -265,7 +346,6 @@ export class WorkOrdersService {
 
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 20;
-
     const where = this.buildWhere(companyId, query);
 
     const [items, total] = await this.prisma.$transaction([
