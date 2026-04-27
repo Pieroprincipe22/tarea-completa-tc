@@ -1,81 +1,72 @@
-import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+﻿import { Type } from 'class-transformer';
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  Min,
+} from 'class-validator';
+import { WorkOrderPriority, WorkOrderStatus } from '@prisma/client';
 
 export class QueryWorkOrdersDto {
-  /**
-   * ID del técnico asignado.
-   *
-   * Importante:
-   * No usar @IsUUID(), porque Prisma está generando IDs tipo CUID:
-   * ejemplo: cmo0c8ae100042i9g08o7vqil
-   */
   @IsOptional()
-  @IsString()
-  assignedToId?: string;
+  @IsEnum(WorkOrderStatus)
+  status?: WorkOrderStatus;
 
-  /**
-   * Estado de la orden de trabajo.
-   * Lo dejamos como string para no romper si los enums del schema
-   * tienen nombres diferentes entre fases.
-   */
   @IsOptional()
-  @IsString()
-  status?: string;
+  @IsEnum(WorkOrderPriority)
+  priority?: WorkOrderPriority;
 
-  /**
-   * Prioridad de la orden de trabajo.
-   */
   @IsOptional()
-  @IsString()
-  priority?: string;
-
-  /**
-   * Búsqueda libre.
-   */
-  @IsOptional()
-  @IsString()
-  search?: string;
-
-  /**
-   * Filtro por cliente, si el frontend/admin lo usa.
-   */
-  @IsOptional()
-  @IsString()
+  @IsUUID()
   customerId?: string;
 
-  /**
-   * Filtro por sede/ubicación, si existe en tu módulo.
-   */
   @IsOptional()
-  @IsString()
+  @IsUUID()
   siteId?: string;
 
-  /**
-   * Filtro por activo/máquina, si existe en tu módulo.
-   */
   @IsOptional()
-  @IsString()
+  @IsUUID()
   assetId?: string;
 
   /**
-   * Página actual.
+   * Nombre usado por el frontend técnico:
+   * /work-orders?assignedToId=USER_ID
    */
+  @IsOptional()
+  @IsUUID()
+  assignedToId?: string;
+
+  /**
+   * Campo real actual en Prisma para el usuario asignado.
+   */
+  @IsOptional()
+  @IsUUID()
+  assignedToUserId?: string;
+
+  /**
+   * Campo real actual en Prisma para el técnico asignado.
+   */
+  @IsOptional()
+  @IsUUID()
+  assignedTechnicianId?: string;
+
+  @IsOptional()
+  @IsString()
+  q?: string;
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  page?: number = 1;
+  page?: number;
 
-  /**
-   * Cantidad de resultados por página.
-   *
-   * El frontend está enviando pageSize=100,
-   * por eso permitimos máximo 100.
-   */
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(100)
-  pageSize?: number = 20;
+  pageSize?: number;
 }
