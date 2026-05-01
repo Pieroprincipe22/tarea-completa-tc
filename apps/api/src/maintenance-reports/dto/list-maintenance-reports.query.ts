@@ -1,6 +1,19 @@
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, IsUUID, Min } from 'class-validator';
-import { MaintenanceReportStatus } from '@prisma/client';
+
+export const maintenanceReportStatusValues = [
+  'DRAFT',
+  'ASSIGNED',
+  'IN_PROGRESS',
+  'SUBMITTED',
+  'COMPLETED',
+  'APPROVED',
+  'REJECTED',
+  'CANCELLED',
+] as const;
+
+export type MaintenanceReportStatusValue =
+  (typeof maintenanceReportStatusValues)[number];
 
 export class ListMaintenanceReportsQueryDto {
   @IsOptional()
@@ -20,13 +33,13 @@ export class ListMaintenanceReportsQueryDto {
   templateId?: string;
 
   @IsOptional()
-  @IsEnum(MaintenanceReportStatus)
-  status?: MaintenanceReportStatus;
+  @IsEnum(maintenanceReportStatusValues)
+  status?: MaintenanceReportStatusValue;
 
   // Alias legacy para compatibilidad
   @IsOptional()
-  @IsEnum(MaintenanceReportStatus)
-  state?: MaintenanceReportStatus;
+  @IsEnum(maintenanceReportStatusValues)
+  state?: MaintenanceReportStatusValue;
 
   @IsOptional()
   @Type(() => Number)

@@ -1,8 +1,9 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { UserRole } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { scryptSync, timingSafeEqual } from 'node:crypto';
+
+type UserRoleValue = 'ADMIN' | 'TECHNICIAN' | 'SUPER_ADMIN';
 
 function verifyPassword(
   password: string,
@@ -29,12 +30,12 @@ function verifyPassword(
 type LoginCompany = {
   companyId: string;
   name: string;
-  role: UserRole;
+  role: UserRoleValue;
 };
 
 type ActiveMembership = {
   companyId: string;
-  role: UserRole;
+  role: UserRoleValue;
   active: boolean;
   company: {
     id: string;
@@ -50,7 +51,7 @@ type UserForLogin = {
   passwordHash: string;
   isActive: boolean;
   companyId: string | null;
-  role: UserRole | null;
+  role: UserRoleValue | null;
   company: {
     id: string;
     name: string;

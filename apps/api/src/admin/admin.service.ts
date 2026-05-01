@@ -1,14 +1,15 @@
 import { randomBytes, scryptSync } from 'node:crypto';
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { Prisma, UserRole } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { DevUserDto } from './dto/dev-user.dto';
 
+type UserRoleValue = 'ADMIN' | 'TECHNICIAN' | 'SUPER_ADMIN';
+
 type DevUserResponse = {
-  ok: true;
+  ok: boolean;
   companyId: string;
   userId: string;
-  role: UserRole;
+  role: UserRoleValue;
 };
 
 function hashPassword(password: string): string {
@@ -17,15 +18,15 @@ function hashPassword(password: string): string {
   return `scrypt:${salt}:${derivedKey}`;
 }
 
-function resolveRole(input?: string): UserRole {
+function resolveRole(input?: string): UserRoleValue {
   const value = (input ?? 'ADMIN').trim().toUpperCase();
 
   if (value === 'SUPER_ADMIN' || value === 'SUPERADMIN') {
-    return UserRole.SUPER_ADMIN;
+    return 'SUPER_ADMIN';
   }
 
   if (value === 'OWNER' || value === 'ADMIN') {
-    return UserRole.ADMIN;
+    return 'ADMIN';
   }
 
   if (
@@ -34,7 +35,7 @@ function resolveRole(input?: string): UserRole {
     value === 'TECNICO' ||
     value === 'TÉCNICO'
   ) {
-    return UserRole.TECHNICIAN;
+    return 'TECHNICIAN';
   }
 
   throw new BadRequestException(
@@ -69,7 +70,7 @@ export class AdminService {
       throw new BadRequestException('DevUserDto must include a valid name');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: any) => {
       const existingCompany = await tx.company.findFirst({
         where: {
           name: companyName,
@@ -96,7 +97,7 @@ export class AdminService {
             },
           });
 
-      const createData: Prisma.UserCreateInput = {
+      const createData = {
         company: {
           connect: { id: company.id },
         },
@@ -107,7 +108,7 @@ export class AdminService {
         isActive: true,
       };
 
-      const updateData: Prisma.UserUpdateInput = {
+      const updateData: any = {
         company: {
           connect: { id: company.id },
         },

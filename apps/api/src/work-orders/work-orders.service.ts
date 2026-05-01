@@ -3,21 +3,33 @@
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  Prisma,
-  WorkOrderPriority,
-  WorkOrderStatus,
-} from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { QueryWorkOrdersDto } from './dto/query-work-orders.dto';
 
 type WorkOrderPlainObject = Record<string, unknown>;
 
+const workOrderStatusValues = [
+  'OPEN',
+  'ASSIGNED',
+  'PENDING',
+  'IN_PROGRESS',
+  'DONE',
+  'CANCELLED',
+] as const;
+
+type WorkOrderStatusValue = (typeof workOrderStatusValues)[number];
+
+const workOrderPriorityValues = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const;
+type WorkOrderPriorityValue = (typeof workOrderPriorityValues)[number];
+
+type WorkOrderWhereInput = Record<string, unknown>;
+type WorkOrderInclude = Record<string, unknown>;
+
 @Injectable()
 export class WorkOrdersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private readonly workOrderInclude: Prisma.WorkOrderInclude = {
+  private readonly workOrderInclude: WorkOrderInclude = {
     customer: {
       select: {
         id: true,
@@ -83,17 +95,15 @@ export class WorkOrdersService {
     };
   }
 
-  private isWorkOrderStatus(value: string): value is WorkOrderStatus {
-    return Object.values(WorkOrderStatus).includes(value as WorkOrderStatus);
+  private isWorkOrderStatus(value: string): value is WorkOrderStatusValue {
+    return (workOrderStatusValues as readonly string[]).includes(value);
   }
 
-  private isWorkOrderPriority(value: string): value is WorkOrderPriority {
-    return Object.values(WorkOrderPriority).includes(
-      value as WorkOrderPriority,
-    );
+  private isWorkOrderPriority(value: string): value is WorkOrderPriorityValue {
+    return (workOrderPriorityValues as readonly string[]).includes(value);
   }
 
-  private resolveStatusFromAction(candidates: string[]): WorkOrderStatus {
+  private resolveStatusFromAction(candidates: string[]): WorkOrderStatusValue {
     for (const candidate of candidates) {
       if (this.isWorkOrderStatus(candidate)) {
         return candidate;
@@ -107,7 +117,7 @@ Estados probados: ${candidates.join(', ')}`,
     );
   }
 
-  private normalizeStatus(status: string): WorkOrderStatus {
+  private normalizeStatus(status: string): WorkOrderStatusValue {
     if (!this.isWorkOrderStatus(status)) {
       throw new BadRequestException(`Estado de orden no válido: ${status}`);
     }
@@ -115,7 +125,9 @@ Estados probados: ${candidates.join(', ')}`,
     return status;
   }
 
-  private normalizePriority(priority?: string): WorkOrderPriority | undefined {
+  private normalizePriority(
+    priority?: string,
+  ): WorkOrderPriorityValue | undefined {
     if (!priority) return undefined;
 
     if (!this.isWorkOrderPriority(priority)) {
@@ -253,70 +265,57 @@ Estados probados: ${candidates.join(', ')}`,
   private buildWhere(
     companyId?: string,
     query: QueryWorkOrdersDto = {},
-  ): Prisma.WorkOrderWhereInput {
-    const where: Prisma.WorkOrderWhereInput = {};
-    const andFilters: Prisma.WorkOrderWhereInput[] = [];
+  ): WorkOrderWhereInput {
+    const where: WorkOrderWhereInput = {};
+    const andFilters: WorkOrderWhereInput[] = [];
 
     if (companyId) {
       where.companyId = companyId;
     }
 
-    const assignedUserId = this.resolveAssignedFilter(query);
+    if (query.status) {
+      andFilters.push({
+        status: this.normalizeStatus(query.status),
+      });
+    }
 
-    if (assignedUserId) {
+    if (query.priority) {
+      andFilters.push({
+        priority: this.normalizePriority(query.priority),
+      });
+    }
+
+    if (query.customerId) {
+      andFilters.push({ customerId: query.customerId });
+    }
+
+    if (query.siteId) {
+      andFilters.push({ siteId: query.siteId });
+    }
+
+    if (query.assetId) {
+      andFilters.push({ assetId: query.assetId });
+    }
+
+    const assignedTo = this.resolveAssignedFilter(query);
+
+    if (assignedTo) {
       andFilters.push({
         OR: [
-          { assignedToUserId: assignedUserId },
-          { assignedTechnicianId: assignedUserId },
+          { assignedToUserId: assignedTo },
+          { assignedTechnicianId: assignedTo },
         ],
       });
     }
 
-    if (query.status) {
-      where.status = this.normalizeStatus(query.status);
-    }
+    if (query.search?.trim()) {
+      const search = query.search.trim();
 
-    const priority = this.normalizePriority(query.priority);
-
-    if (priority) {
-      where.priority = priority;
-    }
-
-    if (query.customerId) {
-      where.customerId = query.customerId;
-    }
-
-    if (query.siteId) {
-      where.siteId = query.siteId;
-    }
-
-    if (query.assetId) {
-      where.assetId = query.assetId;
-    }
-
-    const search = query.q?.trim();
-
-    if (search) {
       andFilters.push({
         OR: [
-          {
-            code: {
-              contains: search,
-              mode: 'insensitive',
-            },
-          },
-          {
-            title: {
-              contains: search,
-              mode: 'insensitive',
-            },
-          },
-          {
-            description: {
-              contains: search,
-              mode: 'insensitive',
-            },
-          },
+          { title: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+          { code: { contains: search, mode: 'insensitive' } },
         ],
       });
     }
@@ -328,6 +327,7 @@ Estados probados: ${candidates.join(', ')}`,
     return where;
   }
 
+  // ===== PARTE 2 INICIA AQUÍ =====
   async list(companyId: string, query: QueryWorkOrdersDto = {}) {
     return this.findAll(companyId, query);
   }
@@ -379,7 +379,7 @@ Estados probados: ${candidates.join(', ')}`,
   async findOne(companyIdOrId: string, maybeId?: string) {
     const { companyId, id } = this.resolveScopedArgs(companyIdOrId, maybeId);
 
-    const where: Prisma.WorkOrderWhereInput = {
+    const where: WorkOrderWhereInput = {
       id,
     };
 
@@ -417,7 +417,7 @@ Estados probados: ${candidates.join(', ')}`,
     }
 
     return this.prisma.workOrder.create({
-      data: data as Prisma.WorkOrderUncheckedCreateInput,
+      data: data as any,
       include: this.workOrderInclude,
     });
   }
@@ -435,7 +435,7 @@ Estados probados: ${candidates.join(', ')}`,
       where: {
         id,
       },
-      data: data as Prisma.WorkOrderUncheckedUpdateInput,
+      data: data as any,
       include: this.workOrderInclude,
     });
   }
@@ -472,7 +472,7 @@ Estados probados: ${candidates.join(', ')}`,
       data: {
         assignedToUserId: assignedToId,
         assignedTechnicianId: assignedToId,
-      } as Prisma.WorkOrderUncheckedUpdateInput,
+      } as any,
       include: this.workOrderInclude,
     });
   }

@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
-import './globals.css';
+
 import AuthGate from '@/components/AuthGate';
-import TopBar from '@/components/TopBar';
 import Sidebar from '@/components/Sidebar';
+import TopBar from '@/components/TopBar';
+
+import './globals.css';
 
 export const metadata: Metadata = {
   title: 'TC Mantenimiento',
@@ -15,22 +17,22 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body className="tc-shell">
+      <body className="tc-shell min-h-screen bg-slate-950 text-slate-100 antialiased">
         <AuthGate>
-          <div className="relative min-h-screen">
-            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:32px_32px] [mask-image:linear-gradient(to_bottom,rgba(0,0,0,0.28),transparent)]" />
+          <div className="relative min-h-screen overflow-x-hidden bg-slate-950">
+            <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(to_right,rgba(56,189,248,0.045)_1px,transparent_1px),linear-gradient(to_bottom,rgba(56,189,248,0.045)_1px,transparent_1px)] bg-[size:32px_32px] [mask-image:linear-gradient(to_bottom,rgba(0,0,0,0.45),transparent_78%)]" />
+
+            <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.16),transparent_32%),radial-gradient(circle_at_80%_10%,rgba(37,99,235,0.12),transparent_30%),radial-gradient(circle_at_50%_100%,rgba(2,132,199,0.08),transparent_36%)]" />
 
             <TopBar />
 
-            <main className="relative z-10 mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-              <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-                <Sidebar />
+            <div className="relative z-10 mx-auto flex w-full max-w-[1600px]">
+              <Sidebar />
 
-                <section className="min-w-0 flex-1">
-                  <div className="tc-page">{children}</div>
-                </section>
+              <div className="min-w-0 flex-1">
+                {children}
               </div>
-            </main>
+            </div>
           </div>
         </AuthGate>
       </body>

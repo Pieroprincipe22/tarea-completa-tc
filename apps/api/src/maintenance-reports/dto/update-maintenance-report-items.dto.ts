@@ -7,12 +7,15 @@ import {
   IsOptional,
   IsString,
 } from 'class-validator';
-import { MaintenanceItemStatus } from '@prisma/client';
+
+export const maintenanceItemStatusValues = ['PENDING', 'OK', 'FAIL', 'NA'] as const;
+export type MaintenanceItemStatusValue =
+  (typeof maintenanceItemStatusValues)[number];
 
 export class UpdateMaintenanceReportItemDto {
   @IsOptional()
-  @IsEnum(MaintenanceItemStatus)
-  status?: MaintenanceItemStatus;
+  @IsEnum(maintenanceItemStatusValues)
+  status?: MaintenanceItemStatusValue;
 
   @IsOptional()
   @IsString()

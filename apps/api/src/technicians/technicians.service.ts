@@ -3,19 +3,21 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
+
+type UserRoleValue = 'ADMIN' | 'TECHNICIAN' | 'SUPER_ADMIN';
+const TECHNICIAN_ROLE: UserRoleValue = 'TECHNICIAN';
 
 type TechnicianMembershipRow = {
   id: string;
   companyId: string;
   userId: string;
-  role: UserRole;
+  role: UserRoleValue;
   user: {
     id: string;
     name: string | null;
     email: string;
-    role: UserRole;
+    role: UserRoleValue | null;
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
@@ -58,7 +60,7 @@ export class TechniciansService {
     const memberships = await this.prisma.userCompany.findMany({
       where: {
         companyId: normalizedCompanyId,
-        role: UserRole.TECHNICIAN,
+        role: TECHNICIAN_ROLE,
       },
       include: {
         user: {
@@ -80,7 +82,7 @@ export class TechniciansService {
       .map((membership) =>
         this.serializeTechnician(membership as TechnicianMembershipRow),
       )
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name));
 
     return {
       items,
@@ -100,7 +102,7 @@ export class TechniciansService {
       where: {
         companyId: normalizedCompanyId,
         userId: normalizedId,
-        role: UserRole.TECHNICIAN,
+        role: TECHNICIAN_ROLE,
       },
       include: {
         user: {

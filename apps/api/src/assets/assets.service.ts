@@ -3,23 +3,24 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AssetStatus } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
+
+type AssetStatusValue = 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE' | 'RETIRED';
 
 function normalizeNullableString(value?: string | null): string | null {
   const normalized = value?.trim();
   return normalized ? normalized : null;
 }
 
-function normalizeAssetStatus(value?: string | null): AssetStatus | undefined {
+function normalizeAssetStatus(value?: string | null): AssetStatusValue | undefined {
   const normalized = value?.trim().toUpperCase();
 
   if (!normalized) return undefined;
-  if (normalized === 'ACTIVE') return AssetStatus.ACTIVE;
-  if (normalized === 'INACTIVE') return AssetStatus.INACTIVE;
-  if (normalized === 'MAINTENANCE') return AssetStatus.MAINTENANCE;
-  if (normalized === 'RETIRED') return AssetStatus.RETIRED;
+  if (normalized === 'ACTIVE') return 'ACTIVE';
+  if (normalized === 'INACTIVE') return 'INACTIVE';
+  if (normalized === 'MAINTENANCE') return 'MAINTENANCE';
+  if (normalized === 'RETIRED') return 'RETIRED';
 
   throw new BadRequestException('status inválido para asset');
 }
@@ -50,7 +51,7 @@ export class AssetsService {
     model: string | null;
     serialNumber: string | null;
     internalCode: string | null;
-    status: AssetStatus;
+    status: AssetStatusValue;
     installationAt: Date | null;
     location: string | null;
     notes: string | null;
@@ -105,7 +106,7 @@ export class AssetsService {
     });
 
     return {
-      items: items.map((asset) => this.serializeAsset(asset)),
+      items: items.map((asset: any) => this.serializeAsset(asset)),
       count: items.length,
     };
   }

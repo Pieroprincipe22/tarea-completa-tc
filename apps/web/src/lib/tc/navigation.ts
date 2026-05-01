@@ -137,27 +137,44 @@ const ADMIN_SECTIONS: TcNavSection[] = [
     ],
   },
   {
-    key: 'activos',
-    title: 'Activos',
+    key: 'inventario',
+    title: 'Inventario',
     sectionPath: '/inventory',
     groups: [
       {
-        key: 'activos-main',
-        title: 'Activos e inventario',
-        shortTitle: 'Activos',
+        key: 'inventario-main',
+        title: 'Inventario',
+        shortTitle: 'Inventario',
         items: [
-          leaf('assets-home', 'Resumen de activos', '/inventory', {
-            description: 'Entrada principal del módulo de activos e inventario.',
+          leaf('inventory-warehouse', 'Almacén', '/inventory/warehouse', {
+            description: 'Materiales, repuestos, consumibles y stock disponible.',
           }),
-          leaf('inventory-stock', 'Inventario y stock', '/inventory/stock', {
-            description: 'Materiales, repuestos, consumibles y stock.',
+          leaf('inventory-orders', 'Pedidos', '/inventory/orders', {
+            description: 'Material solicitado por técnicos desde los partes de trabajo.',
           }),
-          leaf('assets', 'Equipos / activos', '/assets', {
-            description: 'Equipos instalados en clientes y sites.',
+          leaf(
+            'inventory-movements',
+            'Movimientos de almacén',
+            '/inventory/movements',
+            {
+              description:
+                'Entradas, salidas, devoluciones, asignaciones y ajustes de stock.',
+            },
+          ),
+          leaf('inventory-purchases', 'Compras', '/inventory/purchases', {
+            description:
+              'Compras a proveedores, costes, fechas de pedido y facturas.',
           }),
-          leaf('sites', 'Sites / ubicaciones', '/sites', {
-            description: 'Centros, plantas, edificios o ubicaciones de servicio.',
-          }),
+          leaf(
+            'inventory-replenishment',
+            'Reposición',
+            '/inventory/replenishment',
+            {
+              description:
+                'Reposición de stock, mínimos, material crítico y necesidades futuras.',
+              comingSoon: true,
+            },
+          ),
         ],
       },
     ],

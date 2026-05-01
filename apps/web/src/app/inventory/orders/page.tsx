@@ -1,8 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { readTcSession, resolveHomePath, type TcSession } from '@/lib/tc/session';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type SVGProps,
+} from 'react';
+
 import {
   errMsg,
   isRecord,
@@ -10,6 +16,13 @@ import {
   resolveCorePaths,
   tcGet,
 } from '@/lib/tc/api';
+import {
+  readTcSession,
+  resolveHomePath,
+  type TcSession,
+} from '@/lib/tc/session';
+
+type IconProps = SVGProps<SVGSVGElement>;
 
 type LoadState<T> =
   | { status: 'loading' }
@@ -38,6 +51,124 @@ type MaterialOrderRow = {
   invoiceStatus: 'PENDING' | 'UPLOADED';
 };
 
+function ClipboardIcon(props: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M9 4h6l1 2h2a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2l1-2Z" />
+      <path d="M9 4h6v4H9V4Z" />
+      <path d="M8 12h8" />
+      <path d="M8 16h5" />
+    </svg>
+  );
+}
+
+function BoxIcon(props: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="m12 3 7.5 4.2v9.6L12 21l-7.5-4.2V7.2L12 3Z" />
+      <path d="M4.8 7.4 12 11.5l7.2-4.1" />
+      <path d="M12 11.5V21" />
+    </svg>
+  );
+}
+
+function InvoiceIcon(props: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M7 3h10a2 2 0 0 1 2 2v16l-3-2-2 2-2-2-2 2-2-2-3 2V5a2 2 0 0 1 2-2Z" />
+      <path d="M9 8h6" />
+      <path d="M9 12h6" />
+      <path d="M9 16h4" />
+    </svg>
+  );
+}
+
+function RefreshIcon(props: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4" />
+      <path d="M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4" />
+    </svg>
+  );
+}
+
+function SearchIcon(props: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="m21 21-4.3-4.3" />
+      <path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" />
+    </svg>
+  );
+}
+
+function CalendarIcon(props: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M7 3v4" />
+      <path d="M17 3v4" />
+      <path d="M4 8h16" />
+      <path d="M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />
+      <path d="M8 12h3" />
+      <path d="M13 12h3" />
+      <path d="M8 16h3" />
+    </svg>
+  );
+}
+
 function asStr(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback;
 }
@@ -64,7 +195,10 @@ function getEntityName(value: unknown): string {
   return asStr(value.name, '—');
 }
 
-function getMaterialText(material: Record<string, unknown>, keys: string[]): string | null {
+function getMaterialText(
+  material: Record<string, unknown>,
+  keys: string[],
+): string | null {
   for (const key of keys) {
     const value = asNullableStr(material[key]);
 
@@ -108,7 +242,8 @@ function getReportRows(value: unknown): MaterialOrderRow[] {
       return {
         id: asStr(rawMaterial.id, `${reportId}-${index}`),
         reportId,
-        workOrderId: asNullableStr(value.workOrderId) ?? asNullableStr(workOrder?.id),
+        workOrderId:
+          asNullableStr(value.workOrderId) ?? asNullableStr(workOrder?.id),
         reportTitle,
         reportStatus: asStr(value.status, '—'),
         customerName: getEntityName(customer),
@@ -138,7 +273,9 @@ function getReportRows(value: unknown): MaterialOrderRow[] {
         requestedAt: asNullableStr(rawMaterial.requestedAt),
         expectedDeliveryAt: asNullableStr(rawMaterial.expectedDeliveryAt),
         deliveredAt: asNullableStr(rawMaterial.deliveredAt),
-        invoiceStatus: asNullableStr(rawMaterial.invoiceUrl) ? 'UPLOADED' : 'PENDING',
+        invoiceStatus: asNullableStr(rawMaterial.invoiceUrl)
+          ? 'UPLOADED'
+          : 'PENDING',
       };
     })
     .filter((row): row is MaterialOrderRow => !!row);
@@ -157,7 +294,9 @@ function formatDate(input?: string | null): string {
 
   const date = new Date(input);
 
-  return Number.isNaN(date.getTime()) ? input : date.toLocaleDateString('es-ES');
+  return Number.isNaN(date.getTime())
+    ? input
+    : date.toLocaleDateString('es-ES');
 }
 
 function formatReportStatus(status: string): string {
@@ -186,24 +325,69 @@ function formatReportStatus(status: string): string {
 function reportStatusBadgeClass(status: string): string {
   switch (status) {
     case 'SUBMITTED':
-      return 'border-sky-500/40 bg-sky-500/10 text-sky-300';
+      return 'border-sky-400/40 bg-sky-400/10 text-sky-300';
     case 'APPROVED':
-      return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
+      return 'border-emerald-400/40 bg-emerald-400/10 text-emerald-300';
     case 'REJECTED':
-      return 'border-rose-500/40 bg-rose-500/10 text-rose-300';
+      return 'border-rose-400/40 bg-rose-400/10 text-rose-300';
     case 'IN_PROGRESS':
-      return 'border-blue-500/40 bg-blue-500/10 text-blue-300';
+      return 'border-blue-400/40 bg-blue-400/10 text-blue-300';
     default:
-      return 'border-slate-700 bg-slate-800 text-slate-200';
+      return 'border-slate-700/80 bg-slate-950/70 text-slate-300';
   }
 }
 
 function invoiceBadgeClass(status: MaterialOrderRow['invoiceStatus']): string {
   if (status === 'UPLOADED') {
-    return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
+    return 'border-emerald-400/40 bg-emerald-400/10 text-emerald-300';
   }
 
-  return 'border-amber-500/40 bg-amber-500/10 text-amber-300';
+  return 'border-amber-400/40 bg-amber-400/10 text-amber-200';
+}
+
+function MetricCard({
+  title,
+  value,
+  description,
+  icon,
+  tone = 'default',
+}: {
+  title: string;
+  value: number | string;
+  description: string;
+  icon: 'orders' | 'invoice' | 'calendar';
+  tone?: 'default' | 'warning';
+}) {
+  return (
+    <div className="rounded-3xl border border-slate-800/90 bg-slate-900/55 p-5 shadow-[0_18px_60px_rgba(2,6,23,0.25)]">
+      <div className="flex items-start gap-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-sky-400/25 bg-sky-500/10 text-sky-400">
+          {icon === 'orders' ? <BoxIcon className="h-6 w-6" /> : null}
+          {icon === 'invoice' ? <InvoiceIcon className="h-6 w-6" /> : null}
+          {icon === 'calendar' ? <CalendarIcon className="h-6 w-6" /> : null}
+        </div>
+
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+            {title}
+          </p>
+
+          <p
+            className={[
+              'mt-2 text-3xl font-black tracking-tight',
+              tone === 'warning' ? 'text-amber-200' : 'text-white',
+            ].join(' ')}
+          >
+            {value}
+          </p>
+
+          <p className="mt-1 text-sm leading-6 text-slate-400">
+            {description}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function InventoryOrdersPage() {
@@ -290,26 +474,40 @@ export default function InventoryOrdersPage() {
     return state.data.filter((row) => row.invoiceStatus === 'PENDING').length;
   }, [state]);
 
+  const uploadedInvoiceCount = useMemo(() => {
+    if (state.status !== 'ok') return 0;
+
+    return state.data.filter((row) => row.invoiceStatus === 'UPLOADED').length;
+  }, [state]);
+
   if (!mounted) {
     return (
-      <main className="min-h-screen bg-slate-950 p-6 text-slate-100">
-        Cargando sesión…
+      <main className="min-h-[calc(100vh-86px)] flex-1 bg-slate-950 px-6 py-8 text-slate-100 lg:px-8">
+        <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 text-slate-300">
+          Cargando sesión…
+        </div>
       </main>
     );
   }
 
   if (!session) {
     return (
-      <main className="min-h-screen bg-slate-950 p-6 text-slate-100">
-        <section className="mx-auto max-w-3xl rounded-3xl border border-slate-800 bg-slate-900 p-6">
-          <h1 className="text-2xl font-black">Pedidos de materiales</h1>
-          <p className="mt-2 text-slate-400">Sin sesión tenant. Ve a /login.</p>
+      <main className="min-h-[calc(100vh-86px)] flex-1 bg-slate-950 px-6 py-8 text-slate-100 lg:px-8">
+        <section className="mx-auto max-w-3xl rounded-3xl border border-amber-400/30 bg-amber-400/10 p-6">
+          <h1 className="text-2xl font-black text-white">
+            Pedidos de materiales
+          </h1>
+
+          <p className="mt-2 text-sm leading-6 text-amber-100">
+            No hay sesión activa. Entra otra vez para revisar los pedidos de
+            materiales.
+          </p>
 
           <Link
             href="/login"
-            className="mt-4 inline-flex rounded-2xl bg-white px-4 py-2 text-sm font-black text-slate-950 hover:bg-slate-200"
+            className="mt-5 inline-flex rounded-2xl bg-sky-500 px-5 py-3 text-sm font-black text-white transition hover:bg-sky-400"
           >
-            Ir a /login
+            Ir a login
           </Link>
         </section>
       </main>
@@ -317,128 +515,178 @@ export default function InventoryOrdersPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 p-6 text-slate-100">
+    <main className="min-h-[calc(100vh-86px)] flex-1 bg-slate-950 px-6 py-8 text-slate-100 lg:px-8">
       <div className="mx-auto max-w-7xl space-y-6">
-        <header className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <section className="relative overflow-hidden rounded-3xl border border-sky-500/40 bg-slate-900/70 p-8 shadow-[0_0_80px_rgba(14,165,233,0.10)]">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_32%)]" />
+          <div className="absolute right-0 top-0 h-full w-1/2 bg-[linear-gradient(rgba(56,189,248,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,0.07)_1px,transparent_1px)] bg-[size:24px_24px] opacity-40" />
+
+          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.28em] text-slate-500">
+              <p className="text-[12px] font-black uppercase tracking-[0.28em] text-sky-400">
                 Inventario
               </p>
 
-              <h1 className="mt-4 text-3xl font-black">Pedidos de materiales</h1>
+              <h1 className="mt-4 text-5xl font-black tracking-tight text-white">
+                Pedidos
+              </h1>
 
-              <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
-                Materiales solicitados por técnicos desde los partes de trabajo.
-                Aquí administración puede revisar qué se necesita pedir para
-                terminar el servicio.
+              <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300">
+                Revisa los materiales solicitados por técnicos desde los partes
+                de trabajo: cantidad, marca/modelo, referencia, observaciones,
+                fechas de pedido, entrega y factura.
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Link
-                href="/inventory"
-                className="rounded-2xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800"
+            <div className="rounded-3xl border border-slate-700/80 bg-slate-950/65 p-5 shadow-[0_18px_60px_rgba(2,6,23,0.35)]">
+              <div className="flex gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-sky-400/25 bg-sky-500/10 text-sky-300">
+                  <ClipboardIcon className="h-7 w-7" />
+                </div>
+
+                <div>
+                  <p className="text-sm font-black text-white">
+                    Flujo correcto
+                  </p>
+
+                  <p className="mt-2 max-w-xs text-sm leading-6 text-slate-400">
+                    técnico solicita → admin compra → almacén recibe → factura
+                    se adjunta
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            title="Solicitudes"
+            value={state.status === 'ok' ? state.data.length : '—'}
+            description="Materiales detectados desde partes técnicos."
+            icon="orders"
+          />
+
+          <MetricCard
+            title="Pendiente factura"
+            value={state.status === 'ok' ? pendingInvoiceCount : '—'}
+            description="Pedidos sin factura asociada todavía."
+            icon="invoice"
+            tone="warning"
+          />
+
+          <MetricCard
+            title="Factura subida"
+            value={state.status === 'ok' ? uploadedInvoiceCount : '—'}
+            description="Materiales con comprobante registrado."
+            icon="invoice"
+          />
+
+          <MetricCard
+            title="Seguimiento"
+            value="Activo"
+            description="Control administrativo del pedido y entrega."
+            icon="calendar"
+          />
+        </section>
+
+        <section className="rounded-3xl border border-slate-800/90 bg-slate-900/55 p-5 shadow-[0_22px_70px_rgba(2,6,23,0.30)]">
+          <div className="flex flex-col gap-4 border-b border-slate-800 pb-5 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+              <h2 className="text-2xl font-black tracking-tight text-white">
+                Pedidos de materiales
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-400">
+                Listado generado desde los materiales añadidos en los partes de
+                trabajo.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="relative">
+                <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+
+                <input
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Buscar pedido…"
+                  className="h-11 w-full rounded-2xl border border-slate-700 bg-slate-950/80 px-4 pl-11 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-sky-400/70 focus:ring-2 focus:ring-sky-400/10 sm:w-[360px]"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => void loadOrders()}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-sky-400/40 bg-sky-500/15 px-4 text-sm font-black text-sky-200 transition hover:bg-sky-500/25"
               >
-                Volver a inventario
-              </Link>
+                <RefreshIcon className="h-4 w-4" />
+                Recargar
+              </button>
 
               <Link
                 href={homeHref}
-                className="rounded-2xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800"
+                className="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-700 bg-slate-950/80 px-4 text-sm font-black text-slate-300 transition hover:border-sky-500/40 hover:bg-sky-500/10 hover:text-sky-200"
               >
                 Dashboard
               </Link>
             </div>
           </div>
-        </header>
-
-        <section className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
-              Total solicitado
-            </p>
-            <p className="mt-3 text-3xl font-black">
-              {state.status === 'ok' ? state.data.length : '—'}
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
-              Pendiente factura
-            </p>
-            <p className="mt-3 text-3xl font-black text-amber-300">
-              {state.status === 'ok' ? pendingInvoiceCount : '—'}
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
-              Flujo
-            </p>
-            <p className="mt-3 text-sm leading-6 text-slate-400">
-              Técnico solicita → Admin compra → Almacén recibe → Factura se adjunta.
-            </p>
-          </div>
-        </section>
-
-        <section className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-            <input
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Buscar por material, marca/modelo, referencia, cliente, activo o técnico"
-              className="h-11 flex-1 rounded-2xl border border-slate-700 bg-slate-950 px-4 text-sm text-slate-100 outline-none focus:border-slate-500"
-            />
-
-            <button
-              type="button"
-              onClick={() => void loadOrders()}
-              className="h-11 rounded-2xl border border-slate-700 px-4 text-sm font-bold text-slate-200 hover:bg-slate-800"
-            >
-              Recargar
-            </button>
-          </div>
 
           {state.status === 'ok' ? (
-            <p className="mt-4 text-sm text-slate-400">
+            <p className="mt-5 text-sm text-slate-400">
               {filteredRows.length} pedido
               {filteredRows.length === 1 ? '' : 's'} encontrado
               {filteredRows.length === 1 ? '' : 's'}.
             </p>
           ) : null}
-        </section>
 
-        <section className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
           {state.status === 'loading' ? (
-            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-6 text-slate-300">
+            <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950/55 p-8 text-center text-sm text-slate-400">
               Cargando pedidos…
             </div>
-          ) : state.status === 'error' ? (
-            <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-6 text-rose-200">
+          ) : null}
+
+          {state.status === 'error' ? (
+            <div className="mt-5 rounded-2xl border border-rose-400/30 bg-rose-400/10 p-5 text-sm text-rose-100">
               {state.error}
             </div>
-          ) : filteredRows.length === 0 ? (
-            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-6 text-slate-300">
-              No hay pedidos de materiales todavía. Cuando un técnico añada
-              materiales en un parte, aparecerán aquí.
+          ) : null}
+
+          {state.status === 'ok' && filteredRows.length === 0 ? (
+            <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950/55 p-10 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl border border-sky-400/25 bg-sky-500/10 text-sky-300">
+                <ClipboardIcon className="h-8 w-8" />
+              </div>
+
+              <p className="mt-5 text-lg font-black text-white">
+                No hay pedidos de materiales todavía.
+              </p>
+
+              <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+                Cuando un técnico añada materiales en un parte de trabajo,
+                aparecerán aquí para que administración pueda revisar qué se
+                debe comprar o preparar desde almacén.
+              </p>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1380px] border-collapse text-left text-sm">
+          ) : null}
+
+          {state.status === 'ok' && filteredRows.length > 0 ? (
+            <div className="mt-5 overflow-x-auto">
+              <table className="min-w-[1380px] border-separate border-spacing-y-3 text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-800 text-xs uppercase tracking-wide text-slate-500">
-                    <th className="px-3 py-3">Material</th>
-                    <th className="px-3 py-3">Cantidad</th>
-                    <th className="px-3 py-3">Marca / modelo</th>
-                    <th className="px-3 py-3">Referencia</th>
-                    <th className="px-3 py-3">Observación</th>
-                    <th className="px-3 py-3">Cliente / activo</th>
-                    <th className="px-3 py-3">Técnico</th>
-                    <th className="px-3 py-3">Fecha pedido</th>
-                    <th className="px-3 py-3">Entrega</th>
-                    <th className="px-3 py-3">Factura</th>
-                    <th className="px-3 py-3 text-right">Acciones</th>
+                  <tr className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
+                    <th className="px-4 py-2">Material</th>
+                    <th className="px-4 py-2">Cantidad</th>
+                    <th className="px-4 py-2">Marca / modelo</th>
+                    <th className="px-4 py-2">Referencia</th>
+                    <th className="px-4 py-2">Observación</th>
+                    <th className="px-4 py-2">Cliente / activo</th>
+                    <th className="px-4 py-2">Técnico</th>
+                    <th className="px-4 py-2">Fecha pedido</th>
+                    <th className="px-4 py-2">Entrega</th>
+                    <th className="px-4 py-2">Factura</th>
+                    <th className="px-4 py-2 text-right">Acciones</th>
                   </tr>
                 </thead>
 
@@ -446,10 +694,10 @@ export default function InventoryOrdersPage() {
                   {filteredRows.map((row) => (
                     <tr
                       key={row.id}
-                      className="border-b border-slate-800/80 align-top last:border-0"
+                      className="rounded-2xl bg-slate-950/55 text-slate-300"
                     >
-                      <td className="px-3 py-4">
-                        <p className="font-black text-slate-100">
+                      <td className="rounded-l-2xl border-y border-l border-slate-800 px-4 py-4 align-top">
+                        <p className="font-black text-white">
                           {row.materialName}
                         </p>
 
@@ -458,62 +706,66 @@ export default function InventoryOrdersPage() {
                         </p>
 
                         <span
-                          className={`mt-2 inline-flex rounded-full border px-3 py-1 text-[10px] font-black ${reportStatusBadgeClass(
-                            row.reportStatus,
-                          )}`}
+                          className={[
+                            'mt-3 inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-wide',
+                            reportStatusBadgeClass(row.reportStatus),
+                          ].join(' ')}
                         >
                           {formatReportStatus(row.reportStatus)}
                         </span>
                       </td>
 
-                      <td className="px-3 py-4 font-bold text-slate-200">
+                      <td className="border-y border-slate-800 px-4 py-4 align-top font-black text-slate-200">
                         {formatQuantity(row.quantity, row.unit)}
                       </td>
 
-                      <td className="px-3 py-4 text-slate-300">
+                      <td className="border-y border-slate-800 px-4 py-4 align-top">
                         {row.brandModel ?? 'Pendiente'}
                       </td>
 
-                      <td className="px-3 py-4 text-slate-300">
+                      <td className="border-y border-slate-800 px-4 py-4 align-top">
                         {row.reference ?? 'Pendiente'}
                       </td>
 
-                      <td className="px-3 py-4">
-                        <p className="max-w-[260px] text-sm leading-6 text-slate-300">
+                      <td className="border-y border-slate-800 px-4 py-4 align-top">
+                        <p className="max-w-[260px] leading-6">
                           {row.observation ?? 'Sin observación.'}
                         </p>
                       </td>
 
-                      <td className="px-3 py-4">
-                        <p className="font-bold text-slate-200">
+                      <td className="border-y border-slate-800 px-4 py-4 align-top">
+                        <p className="font-black text-slate-200">
                           {row.customerName}
                         </p>
-                        <p className="mt-1 text-xs text-slate-400">
+                        <p className="mt-1 text-xs text-slate-500">
                           Site: {row.siteName}
                         </p>
-                        <p className="mt-1 text-xs text-slate-400">
+                        <p className="mt-1 text-xs text-slate-500">
                           Activo: {row.assetName}
                         </p>
                       </td>
 
-                      <td className="px-3 py-4 text-slate-300">
+                      <td className="border-y border-slate-800 px-4 py-4 align-top">
                         {row.technicianName}
                       </td>
 
-                      <td className="px-3 py-4 text-slate-300">
+                      <td className="border-y border-slate-800 px-4 py-4 align-top">
                         {formatDate(row.requestedAt)}
                       </td>
 
-                      <td className="px-3 py-4 text-slate-300">
+                      <td className="border-y border-slate-800 px-4 py-4 align-top">
                         <p>Estimada: {formatDate(row.expectedDeliveryAt)}</p>
-                        <p className="mt-1">Real: {formatDate(row.deliveredAt)}</p>
+                        <p className="mt-1">
+                          Real: {formatDate(row.deliveredAt)}
+                        </p>
                       </td>
 
-                      <td className="px-3 py-4">
+                      <td className="border-y border-slate-800 px-4 py-4 align-top">
                         <span
-                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${invoiceBadgeClass(
-                            row.invoiceStatus,
-                          )}`}
+                          className={[
+                            'inline-flex rounded-full border px-3 py-1 text-xs font-black uppercase tracking-wide',
+                            invoiceBadgeClass(row.invoiceStatus),
+                          ].join(' ')}
                         >
                           {row.invoiceStatus === 'UPLOADED'
                             ? 'Subida'
@@ -521,11 +773,11 @@ export default function InventoryOrdersPage() {
                         </span>
                       </td>
 
-                      <td className="px-3 py-4 text-right">
+                      <td className="rounded-r-2xl border-y border-r border-slate-800 px-4 py-4 align-top text-right">
                         <div className="flex justify-end gap-2">
                           <Link
                             href={`/maintenance-reports/${row.reportId}`}
-                            className="rounded-xl border border-slate-600 px-3 py-2 text-xs font-black text-slate-100 hover:bg-slate-800"
+                            className="rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-black text-slate-200 transition hover:border-sky-500/40 hover:bg-sky-500/10 hover:text-sky-200"
                           >
                             Abrir parte
                           </Link>
@@ -533,7 +785,7 @@ export default function InventoryOrdersPage() {
                           {row.workOrderId ? (
                             <Link
                               href={`/work-orders/${row.workOrderId}`}
-                              className="rounded-xl border border-slate-600 px-3 py-2 text-xs font-black text-slate-100 hover:bg-slate-800"
+                              className="rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-black text-slate-200 transition hover:border-sky-500/40 hover:bg-sky-500/10 hover:text-sky-200"
                             >
                               Ver orden
                             </Link>
@@ -542,7 +794,7 @@ export default function InventoryOrdersPage() {
                           <button
                             type="button"
                             disabled
-                            className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-black text-slate-500 opacity-60"
+                            className="cursor-not-allowed rounded-xl border border-slate-700 px-3 py-2 text-xs font-black text-slate-500 opacity-60"
                             title="Se conectará cuando creemos el modelo de pedidos y adjuntos."
                           >
                             Subir factura
@@ -554,7 +806,7 @@ export default function InventoryOrdersPage() {
                 </tbody>
               </table>
             </div>
-          )}
+          ) : null}
         </section>
       </div>
     </main>

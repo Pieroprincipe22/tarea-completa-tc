@@ -1,7 +1,17 @@
 import { IsEnum } from 'class-validator';
-import { WorkOrderStatus } from '@prisma/client';
+
+export const workOrderStatusValues = [
+  'OPEN',
+  'ASSIGNED',
+  'PENDING',
+  'IN_PROGRESS',
+  'DONE',
+  'CANCELLED',
+] as const;
+
+export type WorkOrderStatusValue = (typeof workOrderStatusValues)[number];
 
 export class UpdateWorkOrderStatusDto {
-  @IsEnum(WorkOrderStatus)
-  status!: WorkOrderStatus;
+  @IsEnum(workOrderStatusValues)
+  status!: WorkOrderStatusValue;
 }

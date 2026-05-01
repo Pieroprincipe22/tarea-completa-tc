@@ -4,9 +4,11 @@ import {
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
+
+type UserRoleValue = 'ADMIN' | 'TECHNICIAN' | 'SUPER_ADMIN';
+const ADMIN_ROLE: UserRoleValue = 'ADMIN';
 
 function hashPassword(password: string): string {
   const salt = randomBytes(16).toString('hex');
@@ -20,7 +22,7 @@ export class CompaniesService {
 
   async create(dto: CreateCompanyDto) {
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      return await this.prisma.$transaction(async (tx: any) => {
         const company = await tx.company.create({
           data: { name: dto.companyName.trim() },
         });
@@ -41,7 +43,7 @@ export class CompaniesService {
           data: {
             companyId: company.id,
             userId: user.id,
-            role: UserRole.ADMIN,
+            role: ADMIN_ROLE,
             active: true,
           },
         });
@@ -87,6 +89,6 @@ export class CompaniesService {
       include: { company: true },
     });
 
-    return rows.map((r) => r.company);
+    return rows.map((r: { company: unknown }) => r.company);
   }
 }

@@ -1,8 +1,19 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { MaintenanceItemType } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { CreateMaintenanceTemplateDto } from './dto/create-maintenance-template.dto';
 import { UpdateMaintenanceTemplateDto } from './dto/update-maintenance-template.dto';
+
+type MaintenanceItemTypeValue =
+  | 'TEXT'
+  | 'LONG_TEXT'
+  | 'TEXTAREA'
+  | 'NUMBER'
+  | 'BOOLEAN'
+  | 'DATE'
+  | 'CHECKBOX'
+  | 'CHECKLIST'
+  | 'PHOTO'
+  | 'SIGNATURE';
 
 type LegacyTemplateItemInput = {
   title?: string;
@@ -29,30 +40,30 @@ type LegacyTemplateDto = {
   items?: LegacyTemplateItemInput[];
 };
 
-function normalizeItemType(value?: string | null): MaintenanceItemType {
-  if (!value?.trim()) return MaintenanceItemType.TEXT;
+function normalizeItemType(value?: string | null): MaintenanceItemTypeValue {
+  if (!value?.trim()) return 'TEXT';
 
   const normalized = value.trim().toUpperCase();
 
-  if (normalized === 'TEXT') return MaintenanceItemType.TEXT;
-  if (normalized === 'LONG_TEXT') return MaintenanceItemType.LONG_TEXT;
-  if (normalized === 'TEXTAREA') return MaintenanceItemType.TEXTAREA;
-  if (normalized === 'NUMBER') return MaintenanceItemType.NUMBER;
-  if (normalized === 'BOOLEAN') return MaintenanceItemType.BOOLEAN;
-  if (normalized === 'DATE') return MaintenanceItemType.DATE;
-  if (normalized === 'CHECKBOX') return MaintenanceItemType.CHECKBOX;
-  if (normalized === 'CHECKLIST') return MaintenanceItemType.CHECKLIST;
-  if (normalized === 'PHOTO') return MaintenanceItemType.PHOTO;
-  if (normalized === 'SIGNATURE') return MaintenanceItemType.SIGNATURE;
+  if (normalized === 'TEXT') return 'TEXT';
+  if (normalized === 'LONG_TEXT') return 'LONG_TEXT';
+  if (normalized === 'TEXTAREA') return 'TEXTAREA';
+  if (normalized === 'NUMBER') return 'NUMBER';
+  if (normalized === 'BOOLEAN') return 'BOOLEAN';
+  if (normalized === 'DATE') return 'DATE';
+  if (normalized === 'CHECKBOX') return 'CHECKBOX';
+  if (normalized === 'CHECKLIST') return 'CHECKLIST';
+  if (normalized === 'PHOTO') return 'PHOTO';
+  if (normalized === 'SIGNATURE') return 'SIGNATURE';
 
-  if (normalized === 'SHORT_TEXT') return MaintenanceItemType.TEXT;
-  if (normalized === 'MULTILINE') return MaintenanceItemType.TEXTAREA;
-  if (normalized === 'INTEGER') return MaintenanceItemType.NUMBER;
-  if (normalized === 'DECIMAL') return MaintenanceItemType.NUMBER;
-  if (normalized === 'YES_NO') return MaintenanceItemType.BOOLEAN;
-  if (normalized === 'SWITCH') return MaintenanceItemType.BOOLEAN;
+  if (normalized === 'SHORT_TEXT') return 'TEXT';
+  if (normalized === 'MULTILINE') return 'TEXTAREA';
+  if (normalized === 'INTEGER') return 'NUMBER';
+  if (normalized === 'DECIMAL') return 'NUMBER';
+  if (normalized === 'YES_NO') return 'BOOLEAN';
+  if (normalized === 'SWITCH') return 'BOOLEAN';
 
-  return MaintenanceItemType.TEXT;
+  return 'TEXT';
 }
 
 @Injectable()
