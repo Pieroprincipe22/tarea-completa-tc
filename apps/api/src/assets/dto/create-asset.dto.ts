@@ -2,13 +2,14 @@ import {
   IsDateString,
   IsOptional,
   IsString,
-  IsUUID,
   MaxLength,
   MinLength,
 } from 'class-validator';
 
 export class CreateAssetDto {
-  @IsUUID()
+  // ID de Prisma (CUID), no UUID.
+  @IsString()
+  @MinLength(1)
   siteId!: string;
 
   @IsString()

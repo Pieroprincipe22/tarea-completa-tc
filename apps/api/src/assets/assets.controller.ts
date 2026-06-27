@@ -5,7 +5,6 @@ import {
   Get,
   Headers,
   Param,
-  ParseUUIDPipe,
   Post,
 } from '@nestjs/common';
 import { AssetsService } from './assets.service';
@@ -34,7 +33,7 @@ export class AssetsController {
   @Get(':id')
   get(
     @Headers('x-company-id') companyIdHeader: string | undefined,
-    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('id') id: string,
   ) {
     const companyId = requiredHeader(companyIdHeader, 'x-company-id');
     return this.assets.get(companyId, id);

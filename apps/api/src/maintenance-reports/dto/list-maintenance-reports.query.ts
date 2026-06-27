@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsUUID, Min } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
 
 export const maintenanceReportStatusValues = [
   'DRAFT',
@@ -16,20 +16,21 @@ export type MaintenanceReportStatusValue =
   (typeof maintenanceReportStatusValues)[number];
 
 export class ListMaintenanceReportsQueryDto {
+  // IDs de Prisma (CUID), no UUID.
   @IsOptional()
-  @IsUUID()
+  @IsString()
   assetId?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   siteId?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   customerId?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   templateId?: string;
 
   @IsOptional()

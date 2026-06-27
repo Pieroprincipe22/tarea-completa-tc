@@ -1,7 +1,15 @@
-import { IsBoolean, IsEmail, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
 
 export class CreateContactDto {
-  @IsUUID()
+  // ID de Prisma (CUID), no UUID.
+  @IsString()
+  @MinLength(1)
   siteId!: string;
 
   @IsString()

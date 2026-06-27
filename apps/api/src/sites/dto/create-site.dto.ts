@@ -1,7 +1,9 @@
-import { IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class CreateSiteDto {
-  @IsUUID()
+  // ID de Prisma (CUID), no UUID.
+  @IsString()
+  @MinLength(1)
   customerId!: string;
 
   @IsString()
