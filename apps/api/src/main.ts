@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { TenantGuard } from './common/tenant.guard';
+import { AllExceptionsFilter } from './common/all-exceptions.filter';
 
 function getAllowedOrigins(): string[] {
   const raw =
@@ -67,6 +68,7 @@ async function bootstrap() {
   );
 
   app.useGlobalGuards(app.get(TenantGuard));
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   const port = Number(process.env.PORT ?? 3002);
   await app.listen(port);
