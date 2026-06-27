@@ -12,9 +12,7 @@ function verifyPassword(
   if (!stored) return false;
 
   // Compatibilidad temporal con seeds viejas en texto plano.
-  if (!stored.startsWith('scrypt:')) {
-    return stored === password;
-  }
+  if (!stored || !stored.startsWith('scrypt:')) return false;
 
   const [, salt, storedKeyHex] = stored.split(':');
   if (!salt || !storedKeyHex) return false;

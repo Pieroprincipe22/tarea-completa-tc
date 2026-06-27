@@ -10,9 +10,17 @@ export class StorageService {
   constructor() {
     const endpoint = process.env.S3_ENDPOINT || 'http://localhost:9000';
     const region = process.env.S3_REGION || 'us-east-1';
-    const accessKeyId = process.env.S3_ACCESS_KEY || 'minio';
-    const secretAccessKey = process.env.S3_SECRET_KEY || 'minio12345';
     this.bucket = process.env.S3_BUCKET || 'tc';
+
+    const accessKeyId = process.env.S3_ACCESS_KEY?.trim();
+    const secretAccessKey = process.env.S3_SECRET_KEY?.trim();
+
+    // Sin fallback a credenciales conocidas: si faltan, la API no arranca.
+    if (!accessKeyId || !secretAccessKey) {
+      throw new Error(
+        'S3_ACCESS_KEY y S3_SECRET_KEY son obligatorias. Configúralas en el entorno (apps/api/.env).',
+      );
+    }
 
     this.s3 = new S3Client({
       region,

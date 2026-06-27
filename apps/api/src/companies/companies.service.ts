@@ -28,7 +28,7 @@ export class CompaniesService {
         });
 
         const ownerName = dto.ownerName?.trim() || 'Admin';
-        const ownerPassword = dto.ownerPassword?.trim() || 'changeMe123';
+        const ownerPassword = dto.ownerPassword.trim();
 
         const user = await tx.user.create({
           data: {
