@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AdminModule } from './admin/admin.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -26,6 +28,14 @@ import { WorkOrdersModule } from './work-orders/work-orders.module';
       cache: true,
       expandVariables: true,
     }),
+    // Límite global generoso: protege sin molestar el uso normal del dashboard.
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60000, // 60 segundos
+        limit: 120, // 120 peticiones por minuto por IP
+      },
+    ]),
     DatabaseModule,
     AuthModule,
     TenantModule,
@@ -43,6 +53,13 @@ import { WorkOrdersModule } from './work-orders/work-orders.module';
     AdminModule,
   ],
   controllers: [AppController, HealthController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    // Activa el rate limiting de forma global.
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

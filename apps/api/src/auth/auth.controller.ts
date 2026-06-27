@@ -7,6 +7,7 @@ import {
   Res,
   ValidationPipe,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Transform } from 'class-transformer';
 import { IsEmail, IsString, MinLength } from 'class-validator';
 import type { Response } from 'express';
@@ -33,6 +34,8 @@ class LoginDto {
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
+  // Límite estricto contra fuerza bruta: 5 intentos por minuto por IP.
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -49,7 +52,6 @@ export class AuthController {
   ) {
     const result = await this.auth.login(body.email, body.password);
 
-    // El token va en una cookie httpOnly: el JavaScript del navegador NO puede leerla.
     res.cookie(ACCESS_COOKIE, result.accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

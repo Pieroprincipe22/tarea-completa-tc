@@ -1,6 +1,7 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { TenantGuard } from './common/tenant.guard';
 
@@ -19,6 +20,16 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true,
   });
+
+  // Cabeceras de seguridad HTTP. Como esto es una API JSON consumida por un
+  // frontend en otro origen, desactivamos CSP (corresponde al frontend) y
+  // ponemos CORP en cross-origin para no bloquear el consumo legítimo vía CORS.
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
 
   const allowedOrigins = getAllowedOrigins();
 
