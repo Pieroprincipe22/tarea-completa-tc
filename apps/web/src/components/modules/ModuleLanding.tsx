@@ -18,9 +18,15 @@ type ModuleLandingProps = {
   items: ModuleLandingItem[];
 };
 
+type ModuleCardVariant = 'active' | 'coming-soon';
+
 type ModuleCardProps = ModuleLandingItem & {
-  variant: 'active' | 'coming-soon';
+  variant: ModuleCardVariant;
 };
+
+function cx(...classes: Array<string | false | null | undefined>): string {
+  return classes.filter(Boolean).join(' ');
+}
 
 function ArrowIcon(props: IconProps) {
   return (
@@ -105,7 +111,7 @@ function SparkIcon(props: IconProps) {
   );
 }
 
-function StatusPill({ variant }: { variant: ModuleCardProps['variant'] }) {
+function StatusPill({ variant }: { variant: ModuleCardVariant }) {
   if (variant === 'active') {
     return (
       <span className="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-300">
@@ -131,24 +137,24 @@ function ModuleCard({
 
   const content = (
     <div
-      className={[
+      className={cx(
         'group relative h-full overflow-hidden rounded-3xl border p-6 shadow-[0_22px_70px_rgba(2,6,23,0.30)] transition duration-200',
         disabled
           ? 'border-slate-800/90 bg-slate-900/35'
           : 'border-slate-800/90 bg-slate-900/55 hover:-translate-y-0.5 hover:border-sky-400/45 hover:bg-slate-900/75 hover:shadow-[0_28px_90px_rgba(14,165,233,0.12)]',
-      ].join(' ')}
+      )}
     >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.14),transparent_38%)] opacity-80" />
 
       <div className="relative flex items-start justify-between gap-4">
         <div className="flex gap-4">
           <div
-            className={[
+            className={cx(
               'flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border',
               disabled
                 ? 'border-slate-700/70 bg-slate-950/60 text-slate-500'
                 : 'border-sky-400/25 bg-sky-500/10 text-sky-400',
-            ].join(' ')}
+            )}
           >
             {disabled ? (
               <SparkIcon className="h-7 w-7" />
@@ -198,8 +204,8 @@ export default function ModuleLanding({
   focusText,
   items,
 }: ModuleLandingProps) {
-  const activeItems = items.filter((item) => !item.comingSoon);
-  const comingSoonItems = items.filter((item) => item.comingSoon);
+  const activeItems = items.filter((item) => !item.comingSoon && item.href);
+  const comingSoonItems = items.filter((item) => item.comingSoon || !item.href);
 
   return (
     <main className="min-h-[calc(100vh-86px)] flex-1 bg-slate-950 px-6 py-8 text-slate-100 lg:px-8">
@@ -250,6 +256,7 @@ export default function ModuleLanding({
               <p className="text-[12px] font-black uppercase tracking-[0.28em] text-sky-400">
                 Disponibles
               </p>
+
               <h2 className="mt-2 text-2xl font-black tracking-tight text-white">
                 Módulos activos
               </h2>
@@ -258,7 +265,7 @@ export default function ModuleLanding({
             <div className="grid gap-5 md:grid-cols-2">
               {activeItems.map((item) => (
                 <ModuleCard
-                  key={`${item.title}-${item.href ?? 'active'}`}
+                  key={`${item.title}-${item.href}`}
                   title={item.title}
                   description={item.description}
                   href={item.href}
@@ -276,9 +283,11 @@ export default function ModuleLanding({
               <p className="text-[12px] font-black uppercase tracking-[0.28em] text-sky-400">
                 Próximamente
               </p>
+
               <h2 className="mt-2 text-2xl font-black tracking-tight text-white">
                 Futuros módulos
               </h2>
+
               <p className="mt-2 text-sm leading-6 text-slate-400">
                 Estas funciones quedan identificadas para desarrollo posterior,
                 sin mezclarlas con las pantallas principales ya disponibles.

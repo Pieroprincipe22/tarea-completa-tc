@@ -10,6 +10,8 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../database/prisma.service';
 import { IS_PUBLIC_KEY } from './public.decorator';
 
+const ACCESS_COOKIE = 'tc_access';
+
 type AccessTokenPayload = {
   sub: string;
   email?: string;
@@ -20,6 +22,7 @@ type AccessTokenPayload = {
 
 type RequestWithTenant = {
   headers: Record<string, unknown>;
+  cookies?: Record<string, unknown>;
   tenant?: {
     companyId: string;
     companyName: string;
@@ -37,6 +40,24 @@ function readHeader(value: unknown): string {
   }
 
   return typeof value === 'string' ? value.trim() : '';
+}
+
+// Lee una cookie directamente de la cabecera Cookie, sin depender de cookie-parser.
+function readCookieFromHeader(cookieHeader: unknown, name: string): string {
+  const raw = readHeader(cookieHeader);
+  if (!raw) return '';
+
+  for (const part of raw.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq === -1) continue;
+
+    const key = part.slice(0, eq).trim();
+    if (key === name) {
+      return decodeURIComponent(part.slice(eq + 1).trim());
+    }
+  }
+
+  return '';
 }
 
 @Injectable()
@@ -64,12 +85,24 @@ export class TenantGuard implements CanActivate {
       throw new BadRequestException('Missing x-company-id');
     }
 
-    const authHeader = readHeader(req.headers.authorization);
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedException('Missing bearer token');
+    // 1º cookie httpOnly (leída directo de la cabecera, sin depender de cookie-parser);
+    // 2º req.cookies (si cookie-parser está activo); 3º header Authorization (compatibilidad).
+    let token = readCookieFromHeader(req.headers.cookie, ACCESS_COOKIE);
+
+    if (!token) {
+      const cookieToken = req.cookies?.[ACCESS_COOKIE];
+      if (typeof cookieToken === 'string') {
+        token = cookieToken.trim();
+      }
     }
 
-    const token = authHeader.slice('Bearer '.length).trim();
+    if (!token) {
+      const authHeader = readHeader(req.headers.authorization);
+      if (authHeader.startsWith('Bearer ')) {
+        token = authHeader.slice('Bearer '.length).trim();
+      }
+    }
+
     if (!token) {
       throw new UnauthorizedException('Missing bearer token');
     }

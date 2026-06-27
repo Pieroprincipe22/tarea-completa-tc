@@ -1,4 +1,4 @@
-import {
+﻿import {
   DEFAULT_API_BASE,
   clearTcSession,
   readTcSession,
@@ -117,7 +117,7 @@ function extractApiMessage(json: unknown): string {
     );
 
     if (parts.length > 0) {
-      return parts.join(' · ');
+      return parts.join(' Â· ');
     }
   }
 
@@ -196,6 +196,7 @@ export async function tcFetch<T = unknown>(
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
     cache: 'no-store',
+    credentials: 'include',
   });
 
   const json = (await readBody(response)) as T;
@@ -356,7 +357,7 @@ export function resolveCoreNavItems(
       },
       {
         key: 'workOrders',
-        title: 'Mis órdenes',
+        title: 'Mis Ã³rdenes',
         path: '/technician/dashboard/work-orders',
       },
     ];
@@ -380,7 +381,7 @@ export function resolveCoreNavItems(
     },
     {
       key: 'reports',
-      title: 'Partes técnicos',
+      title: 'Partes tÃ©cnicos',
       path: '/maintenance-reports',
     },
     {

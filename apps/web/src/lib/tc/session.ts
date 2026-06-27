@@ -6,7 +6,7 @@ export type TcSession = {
   companyId: string;
   companyName?: string;
   userId: string;
-  accessToken: string;
+  accessToken?: string;
   email?: string;
   name?: string;
   role?: string;
@@ -46,9 +46,7 @@ function isValidSession(value: unknown): value is TcSession {
     typeof row.companyId === 'string' &&
     row.companyId.trim().length > 0 &&
     typeof row.userId === 'string' &&
-    row.userId.trim().length > 0 &&
-    typeof row.accessToken === 'string' &&
-    row.accessToken.trim().length > 0
+    row.userId.trim().length > 0
   );
 }
 
@@ -58,7 +56,7 @@ function normalizeSession(session: TcSession): TcSession {
     companyId: session.companyId.trim(),
     companyName: session.companyName?.trim() || undefined,
     userId: session.userId.trim(),
-    accessToken: session.accessToken.trim(),
+    accessToken: session.accessToken?.trim() || undefined,
     email: session.email?.trim().toLowerCase() || undefined,
     name: session.name?.trim() || undefined,
     role: normalizeRole(session.role) || undefined,
@@ -110,9 +108,8 @@ function readFromLegacyKeys(storage: Storage | null): TcSession | null {
   const apiBase = sanitizeApiBase(storage.getItem(TC_STORAGE_KEYS.apiBase));
   const companyId = asString(storage.getItem(TC_STORAGE_KEYS.companyId));
   const userId = asString(storage.getItem(TC_STORAGE_KEYS.userId));
-  const accessToken = asString(storage.getItem(TC_STORAGE_KEYS.accessToken));
 
-  if (!companyId || !userId || !accessToken) {
+  if (!companyId || !userId) {
     return null;
   }
 
@@ -120,18 +117,28 @@ function readFromLegacyKeys(storage: Storage | null): TcSession | null {
     apiBase,
     companyId,
     userId,
-    accessToken,
   };
 }
 
 function persistToStorage(storage: Storage | null, session: TcSession) {
   if (!storage) return;
 
-  storage.setItem(TC_STORAGE_KEYS.session, JSON.stringify(session));
+  // El accessToken NUNCA se guarda: vive solo en la cookie httpOnly.
+  // El accessToken NUNCA se guarda: vive solo en la cookie httpOnly.
+  const persistable = {
+    apiBase: session.apiBase,
+    companyId: session.companyId,
+    companyName: session.companyName,
+    userId: session.userId,
+    email: session.email,
+    name: session.name,
+    role: session.role,
+  };
+
+  storage.setItem(TC_STORAGE_KEYS.session, JSON.stringify(persistable));
   storage.setItem(TC_STORAGE_KEYS.apiBase, session.apiBase);
   storage.setItem(TC_STORAGE_KEYS.companyId, session.companyId);
   storage.setItem(TC_STORAGE_KEYS.userId, session.userId);
-  storage.setItem(TC_STORAGE_KEYS.accessToken, session.accessToken);
 }
 
 function clearStorage(storage: Storage | null) {

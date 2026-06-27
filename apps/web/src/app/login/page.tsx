@@ -154,8 +154,8 @@ export default function LoginPage() {
   const initial = useMemo<FormState>(
     () => ({
       apiBase: DEFAULT_API_BASE,
-      email: 'admin@tc.local',
-      password: 'admin123',
+      email: '',
+      password: '',
       selectedCompanyId: '',
     }),
     [],
@@ -274,6 +274,7 @@ export default function LoginPage() {
           email,
           password,
         }),
+        credentials: 'include', // ← imprescindible para guardar la cookie httpOnly
       });
 
       const json = await readJsonSafe(res);
@@ -420,7 +421,7 @@ export default function LoginPage() {
                 type="email"
                 value={form.email}
                 onChange={(e) => onChange('email', e.target.value)}
-                placeholder="admin@tc.local"
+                placeholder="tu@email.com"
                 autoComplete="email"
                 className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none transition focus:border-sky-500"
                 disabled={loading}

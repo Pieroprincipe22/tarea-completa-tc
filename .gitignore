@@ -32,3 +32,6 @@ Thumbs.db
 
 # Prisma
 # No ignoramos migrations porque sí deben subirse al repo.
+
+# Marcador local del script de arranque
+.tc-setup-done
