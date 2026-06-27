@@ -1,7 +1,15 @@
-import { Controller, Get, Param, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Post,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AttachmentsService } from './attachments.service';
 import { Tenant, TenantContext } from '../common/tenant.decorator';
+import { imageAndPdfUploadOptions } from '../common/file-upload';
 
 @Controller('work-orders/:workOrderId/attachments')
 export class WorkOrderAttachmentsController {
@@ -13,12 +21,17 @@ export class WorkOrderAttachmentsController {
   }
 
   @Post()
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  @UseInterceptors(FileInterceptor('file', imageAndPdfUploadOptions))
   upload(
     @Tenant() t: TenantContext,
     @Param('workOrderId') workOrderId: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    return this.service.uploadWorkOrderAttachment(t.companyId, t.userId, workOrderId, file);
+    return this.service.uploadWorkOrderAttachment(
+      t.companyId,
+      t.userId,
+      workOrderId,
+      file,
+    );
   }
 }
