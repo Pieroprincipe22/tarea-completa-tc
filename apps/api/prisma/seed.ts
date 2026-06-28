@@ -723,10 +723,14 @@ async function main() {
   console.log('workOrder3Id:', workOrder3.id);
   console.log('report2Id:', report2.id);
   console.log('report3Id:', report3.id);
-  console.log('adminEmail:', adminEmail);
-  console.log('adminPassword:', adminPasswordPlain);
+console.log('adminEmail:', adminEmail);
   console.log('technicianEmail:', technicianEmail);
-  console.log('technicianPassword:', technicianPasswordPlain);
+
+  // Las contraseñas solo se muestran en desarrollo, nunca en producción.
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('adminPassword:', adminPasswordPlain);
+    console.log('technicianPassword:', technicianPasswordPlain);
+  }
 }
 
 main()
