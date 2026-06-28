@@ -1,5 +1,9 @@
 import { Transform } from 'class-transformer';
-import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+
+// Fuente única de los planes válidos (se reutiliza en otros DTOs).
+export const COMPANY_PLANS = ['BASIC', 'PRO', 'ENTERPRISE'] as const;
+export type CompanyPlanValue = (typeof COMPANY_PLANS)[number];
 
 export class CreateCompanyDto {
   @IsString()
@@ -17,4 +21,9 @@ export class CreateCompanyDto {
   @IsString()
   @MinLength(8)
   ownerPassword!: string;
+
+  // Plan opcional al crear; si no se manda, la empresa queda en BASIC.
+  @IsOptional()
+  @IsIn(COMPANY_PLANS)
+  plan?: CompanyPlanValue;
 }

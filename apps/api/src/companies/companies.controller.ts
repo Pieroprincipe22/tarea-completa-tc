@@ -4,11 +4,16 @@ import {
   ForbiddenException,
   Get,
   Param,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
 import { CompaniesService } from './companies.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
+import {
+  SetCompanyStatusDto,
+  UpdateCompanyPlanDto,
+} from './dto/update-company.dto';
 import { Tenant, TenantContext } from '../common/tenant.decorator';
 import { Roles } from '../common/roles.decorator';
 import { RolesGuard } from '../common/roles.guard';
@@ -19,7 +24,6 @@ export class CompaniesController {
   constructor(private readonly companies: CompaniesService) {}
 
   // Alta de empresas = operación de plataforma. Solo SUPER_ADMIN.
-  // (El alta self-service de prueba irá en un endpoint público aparte, Fase 4.)
   @Post()
   @Roles('SUPER_ADMIN')
   create(@Body() dto: CreateCompanyDto) {
@@ -31,6 +35,20 @@ export class CompaniesController {
   @Roles('SUPER_ADMIN')
   findAll() {
     return this.companies.findAll();
+  }
+
+  // Cambiar el plan de una empresa = solo SUPER_ADMIN.
+  @Patch(':id/plan')
+  @Roles('SUPER_ADMIN')
+  updatePlan(@Param('id') id: string, @Body() dto: UpdateCompanyPlanDto) {
+    return this.companies.updatePlan(id, dto.plan);
+  }
+
+  // Activar / desactivar una empresa (cortar acceso sin borrar) = solo SUPER_ADMIN.
+  @Patch(':id/status')
+  @Roles('SUPER_ADMIN')
+  setActive(@Param('id') id: string, @Body() dto: SetCompanyStatusDto) {
+    return this.companies.setActive(id, dto.isActive);
   }
 
   // Un usuario solo puede consultar SUS propias empresas (salvo SUPER_ADMIN).

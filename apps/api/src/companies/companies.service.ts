@@ -5,7 +5,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { CreateCompanyDto } from './dto/create-company.dto';
+import { CreateCompanyDto, CompanyPlanValue } from './dto/create-company.dto';
 
 type UserRoleValue = 'ADMIN' | 'TECHNICIAN' | 'SUPER_ADMIN';
 const ADMIN_ROLE: UserRoleValue = 'ADMIN';
@@ -24,7 +24,10 @@ export class CompaniesService {
     try {
       return await this.prisma.$transaction(async (tx: any) => {
         const company = await tx.company.create({
-          data: { name: dto.companyName.trim() },
+          data: {
+            name: dto.companyName.trim(),
+            plan: dto.plan ?? 'BASIC',
+          },
         });
 
         const ownerName = dto.ownerName?.trim() || 'Admin';
@@ -71,6 +74,14 @@ export class CompaniesService {
   async findAll() {
     return this.prisma.company.findMany({
       orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        plan: true,
+        isActive: true,
+        createdAt: true,
+        _count: { select: { userCompanies: true } },
+      },
     });
   }
 
@@ -90,5 +101,19 @@ export class CompaniesService {
     });
 
     return rows.map((r: { company: unknown }) => r.company);
+  }
+
+  async updatePlan(id: string, plan: CompanyPlanValue) {
+    return this.prisma.company.update({
+      where: { id },
+      data: { plan },
+    });
+  }
+
+  async setActive(id: string, isActive: boolean) {
+    return this.prisma.company.update({
+      where: { id },
+      data: { isActive },
+    });
   }
 }
