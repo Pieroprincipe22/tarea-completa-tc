@@ -101,14 +101,21 @@ enum InvoiceStatus {
   CANCELLED
 }
 
+enum CompanyPlan {
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
 model Company {
-  id        String   @id @default(cuid())
+  id        String      @id @default(cuid())
   name      String
-  slug      String?  @unique
-  isActive  Boolean  @default(true)
-  existe    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  slug      String?     @unique
+  isActive  Boolean     @default(true)
+  existe    Boolean     @default(true)
+  plan      CompanyPlan @default(BASIC)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
   users                User[]
   userCompanies        UserCompany[]
@@ -276,7 +283,7 @@ model MaintenanceTemplate {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  company            Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company            Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   items              MaintenanceTemplateItem[]
   workOrders         WorkOrder[]
   maintenanceReports MaintenanceReport[]
@@ -452,22 +459,22 @@ model MaintenanceReportItem {
 
 model MaintenanceReportMaterial {
   id            String   @id @default(cuid())
-  reportId       String
-  name           String
-  description    String?
-  quantity       Float    @default(1)
-  unit           String?
-  sortOrder      Int      @default(0)
-  notes          String?
-  unitCost       Decimal? @db.Decimal(10, 2)
-  totalCost      Decimal? @db.Decimal(10, 2)
-  billable       Boolean  @default(true)
-  pricedByAdmin  Boolean  @default(false)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  reportId      String
+  name          String
+  description   String?
+  quantity      Float    @default(1)
+  unit          String?
+  sortOrder     Int      @default(0)
+  notes         String?
+  unitCost      Decimal? @db.Decimal(10, 2)
+  totalCost     Decimal? @db.Decimal(10, 2)
+  billable      Boolean  @default(true)
+  pricedByAdmin Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  report         MaintenanceReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  invoiceItems   InvoiceItem[]
+  report       MaintenanceReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  invoiceItems InvoiceItem[]
 
   @@index([reportId, sortOrder])
 }
@@ -550,25 +557,25 @@ model Invoice {
   status              InvoiceStatus @default(DRAFT)
   currency            String        @default("EUR")
 
-  laborAmount         Decimal?      @db.Decimal(10, 2)
-  materialsAmount     Decimal?      @db.Decimal(10, 2)
-  subtotal            Decimal?      @db.Decimal(10, 2)
-  taxRate             Decimal?      @db.Decimal(5, 2)
-  taxAmount           Decimal?      @db.Decimal(10, 2)
-  total               Decimal?      @db.Decimal(10, 2)
+  laborAmount     Decimal? @db.Decimal(10, 2)
+  materialsAmount Decimal? @db.Decimal(10, 2)
+  subtotal        Decimal? @db.Decimal(10, 2)
+  taxRate         Decimal? @db.Decimal(5, 2)
+  taxAmount       Decimal? @db.Decimal(10, 2)
+  total           Decimal? @db.Decimal(10, 2)
 
-  notes               String?
-  pdfUrl              String?
-  generatedAt         DateTime?
-  sentAt              DateTime?
-  paidAt              DateTime?
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
+  notes       String?
+  pdfUrl      String?
+  generatedAt DateTime?
+  sentAt      DateTime?
+  paidAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  company             Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  workOrder           WorkOrder?         @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
-  maintenanceReport   MaintenanceReport? @relation(fields: [maintenanceReportId], references: [id], onDelete: SetNull)
-  items               InvoiceItem[]
+  company           Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  workOrder         WorkOrder?         @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+  maintenanceReport MaintenanceReport? @relation(fields: [maintenanceReportId], references: [id], onDelete: SetNull)
+  items             InvoiceItem[]
 
   @@index([companyId, status])
 }
