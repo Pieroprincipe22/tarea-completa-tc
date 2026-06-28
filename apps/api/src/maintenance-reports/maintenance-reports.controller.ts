@@ -1,86 +1,76 @@
-import { Body, Controller, Get, Headers, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { MaintenanceReportsService } from './maintenance-reports.service';
 import { CreateMaintenanceReportDto } from './dto/create-maintenance-report.dto';
 import { ReviewMaintenanceReportDto } from './dto/review-maintenance-report.dto';
 import { UpdateMaintenanceReportItemDto } from './dto/update-maintenance-report-items.dto';
 import { UpdateMaintenanceReportDto } from './dto/update-maintenance-report.dto';
+import { Tenant, TenantContext } from '../common/tenant.decorator';
 
 @Controller('maintenance-reports')
 export class MaintenanceReportsController {
   constructor(private readonly service: MaintenanceReportsService) {}
 
   @Get()
-  list(@Headers('x-company-id') companyId: string) {
-    return this.service.list(companyId);
+  list(@Tenant() t: TenantContext) {
+    return this.service.list(t.companyId);
   }
 
   @Get('work-order/:workOrderId')
   listByWorkOrderId(
-    @Headers('x-company-id') companyId: string,
+    @Tenant() t: TenantContext,
     @Param('workOrderId') workOrderId: string,
   ) {
-    return this.service.listByWorkOrderId(companyId, workOrderId);
+    return this.service.listByWorkOrderId(t.companyId, workOrderId);
   }
 
   @Post('work-order/:workOrderId/ensure')
   ensureForWorkOrder(
-    @Headers('x-company-id') companyId: string,
-    @Headers('x-user-id') userId: string | undefined,
+    @Tenant() t: TenantContext,
     @Param('workOrderId') workOrderId: string,
   ) {
-    return this.service.ensureForWorkOrder(companyId, userId, workOrderId);
+    return this.service.ensureForWorkOrder(t.companyId, t.userId, workOrderId);
   }
 
   @Post()
-  create(
-    @Headers('x-company-id') companyId: string,
-    @Headers('x-user-id') userId: string | undefined,
-    @Body() dto: CreateMaintenanceReportDto,
-  ) {
-    return this.service.createFromTemplate(companyId, userId, dto);
+  create(@Tenant() t: TenantContext, @Body() dto: CreateMaintenanceReportDto) {
+    return this.service.createFromTemplate(t.companyId, t.userId, dto);
   }
 
   @Get(':id')
-  get(@Headers('x-company-id') companyId: string, @Param('id') id: string) {
-    return this.service.getById(companyId, id);
+  get(@Tenant() t: TenantContext, @Param('id') id: string) {
+    return this.service.getById(t.companyId, id);
   }
 
   @Patch(':id')
   update(
-    @Headers('x-company-id') companyId: string,
-    @Headers('x-user-id') userId: string | undefined,
+    @Tenant() t: TenantContext,
     @Param('id') id: string,
     @Body() dto: UpdateMaintenanceReportDto,
   ) {
-    return this.service.updateReport(companyId, id, userId, dto);
+    return this.service.updateReport(t.companyId, id, t.userId, dto);
   }
 
   @Patch(':id/items/:itemId')
   updateItem(
-    @Headers('x-company-id') companyId: string,
+    @Tenant() t: TenantContext,
     @Param('id') reportId: string,
     @Param('itemId') itemId: string,
     @Body() dto: UpdateMaintenanceReportItemDto,
   ) {
-    return this.service.updateItem(companyId, reportId, itemId, dto);
+    return this.service.updateItem(t.companyId, reportId, itemId, dto);
   }
 
   @Post(':id/finalize')
-  finalize(
-    @Headers('x-company-id') companyId: string,
-    @Headers('x-user-id') userId: string | undefined,
-    @Param('id') id: string,
-  ) {
-    return this.service.finalize(companyId, id, userId);
+  finalize(@Tenant() t: TenantContext, @Param('id') id: string) {
+    return this.service.finalize(t.companyId, id, t.userId);
   }
 
   @Post(':id/review')
   review(
-    @Headers('x-company-id') companyId: string,
-    @Headers('x-user-id') userId: string | undefined,
+    @Tenant() t: TenantContext,
     @Param('id') id: string,
     @Body() dto: ReviewMaintenanceReportDto,
   ) {
-    return this.service.review(companyId, id, userId, dto);
+    return this.service.review(t.companyId, id, t.userId, dto);
   }
 }

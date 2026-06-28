@@ -1,29 +1,24 @@
-import { Body, Controller, Get, Headers, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ContactsService } from './contacts.service';
 import { CreateContactDto } from './dto/create-contact.dto';
+import { Tenant, TenantContext } from '../common/tenant.decorator';
 
 @Controller('contacts')
 export class ContactsController {
   constructor(private readonly contacts: ContactsService) {}
 
   @Post()
-  create(
-    @Headers('x-company-id') companyId: string,
-    @Body() dto: CreateContactDto,
-  ) {
-    return this.contacts.create(companyId, dto);
+  create(@Tenant() t: TenantContext, @Body() dto: CreateContactDto) {
+    return this.contacts.create(t.companyId, dto);
   }
 
   @Get()
-  list(@Headers('x-company-id') companyId: string) {
-    return this.contacts.list(companyId);
+  list(@Tenant() t: TenantContext) {
+    return this.contacts.list(t.companyId);
   }
 
   @Get(':id')
-  get(
-    @Headers('x-company-id') companyId: string,
-    @Param('id') id: string,
-  ) {
-    return this.contacts.get(companyId, id);
+  get(@Tenant() t: TenantContext, @Param('id') id: string) {
+    return this.contacts.get(t.companyId, id);
   }
 }

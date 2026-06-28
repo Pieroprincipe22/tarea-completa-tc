@@ -1,50 +1,24 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Get,
-  Headers,
-  Param,
-  Post,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { SitesService } from './sites.service';
 import { CreateSiteDto } from './dto/create-site.dto';
-
-function requiredHeader(value: string | string[] | undefined, name: string): string {
-  const normalized = Array.isArray(value) ? value[0] : value;
-
-  if (!normalized?.trim()) {
-    throw new BadRequestException(`Falta header ${name}`);
-  }
-
-  return normalized.trim();
-}
+import { Tenant, TenantContext } from '../common/tenant.decorator';
 
 @Controller('sites')
 export class SitesController {
   constructor(private readonly sites: SitesService) {}
 
   @Post()
-  create(
-    @Headers('x-company-id') companyIdHeader: string | undefined,
-    @Body() dto: CreateSiteDto,
-  ) {
-    const companyId = requiredHeader(companyIdHeader, 'x-company-id');
-    return this.sites.create(companyId, dto);
+  create(@Tenant() t: TenantContext, @Body() dto: CreateSiteDto) {
+    return this.sites.create(t.companyId, dto);
   }
 
   @Get()
-  list(@Headers('x-company-id') companyIdHeader: string | undefined) {
-    const companyId = requiredHeader(companyIdHeader, 'x-company-id');
-    return this.sites.list(companyId);
+  list(@Tenant() t: TenantContext) {
+    return this.sites.list(t.companyId);
   }
 
   @Get(':id')
-  get(
-    @Headers('x-company-id') companyIdHeader: string | undefined,
-    @Param('id') id: string,
-  ) {
-    const companyId = requiredHeader(companyIdHeader, 'x-company-id');
-    return this.sites.get(companyId, id);
+  get(@Tenant() t: TenantContext, @Param('id') id: string) {
+    return this.sites.get(t.companyId, id);
   }
 }

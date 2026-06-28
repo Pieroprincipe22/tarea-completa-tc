@@ -8,30 +8,12 @@ import {
   Patch,
   Post,
   Query,
-  Req,
 } from '@nestjs/common';
 import { WorkOrdersService } from './work-orders.service';
 import { QueryWorkOrdersDto } from './dto/query-work-orders.dto';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
-
-type RequestWithUser = {
-  companyId?: string;
-  userId?: string;
-  role?: string;
-  user?: {
-    id?: string;
-    userId?: string;
-    companyId?: string;
-    company?: {
-      id?: string;
-    };
-    activeCompanyId?: string;
-  };
-  headers?: {
-    [key: string]: string | string[] | undefined;
-  };
-};
+import { Tenant, TenantContext } from '../common/tenant.decorator';
 
 type AssignWorkOrderBody = {
   assignedToId?: string;
@@ -45,147 +27,83 @@ type UpdateStatusBody = {
 export class WorkOrdersController {
   constructor(private readonly workOrders: WorkOrdersService) {}
 
-  private getHeaderValue(
-    req: RequestWithUser,
-    headerName: string,
-  ): string | undefined {
-    const value = req.headers?.[headerName];
-
-    if (Array.isArray(value)) {
-      return value[0];
-    }
-
-    return value;
-  }
-
-  private getCompanyId(req: RequestWithUser): string {
-    const companyId =
-      req.companyId ??
-      req.user?.companyId ??
-      req.user?.activeCompanyId ??
-      req.user?.company?.id ??
-      this.getHeaderValue(req, 'x-company-id');
-
-    if (!companyId) {
-      throw new BadRequestException(
-        'No se pudo resolver la empresa activa para esta operación',
-      );
-    }
-
-    return companyId;
-  }
-
-  private getCurrentUserId(req: RequestWithUser): string | undefined {
-    return (
-      req.user?.id ??
-      req.user?.userId ??
-      req.userId ??
-      this.getHeaderValue(req, 'x-user-id')
-    );
-  }
-
   @Get()
-  list(@Req() req: RequestWithUser, @Query() query: QueryWorkOrdersDto) {
-    const companyId = this.getCompanyId(req);
-
-    return this.workOrders.list(companyId, query);
+  list(@Tenant() t: TenantContext, @Query() query: QueryWorkOrdersDto) {
+    return this.workOrders.list(t.companyId, query);
   }
 
   @Get(':id')
-  get(@Req() req: RequestWithUser, @Param('id') id: string) {
-    const companyId = this.getCompanyId(req);
-
-    return this.workOrders.get(companyId, id);
+  get(@Tenant() t: TenantContext, @Param('id') id: string) {
+    return this.workOrders.get(t.companyId, id);
   }
 
   @Post()
-  create(@Req() req: RequestWithUser, @Body() dto: CreateWorkOrderDto) {
-    const companyId = this.getCompanyId(req);
-    const createdById = this.getCurrentUserId(req);
-
-    return this.workOrders.create(companyId, dto, createdById);
+  create(@Tenant() t: TenantContext, @Body() dto: CreateWorkOrderDto) {
+    return this.workOrders.create(t.companyId, dto, t.userId);
   }
 
   @Patch(':id/status')
   updateStatus(
-    @Req() req: RequestWithUser,
+    @Tenant() t: TenantContext,
     @Param('id') id: string,
     @Body() body: UpdateStatusBody,
   ) {
-    const companyId = this.getCompanyId(req);
-
     if (!body.status) {
       throw new BadRequestException('Falta el estado de la orden');
     }
 
-    return this.workOrders.updateStatus(companyId, id, body.status);
+    return this.workOrders.updateStatus(t.companyId, id, body.status);
   }
 
   @Patch(':id/assign')
   assign(
-    @Req() req: RequestWithUser,
+    @Tenant() t: TenantContext,
     @Param('id') id: string,
     @Body() body: AssignWorkOrderBody,
   ) {
-    const companyId = this.getCompanyId(req);
-
     if (!body.assignedToId) {
       throw new BadRequestException('Falta el ID del técnico asignado');
     }
 
-    return this.workOrders.assign(companyId, id, body.assignedToId);
+    return this.workOrders.assign(t.companyId, id, body.assignedToId);
   }
 
   @Patch(':id/start')
-  start(@Req() req: RequestWithUser, @Param('id') id: string) {
-    const companyId = this.getCompanyId(req);
-
-    return this.workOrders.start(companyId, id);
+  start(@Tenant() t: TenantContext, @Param('id') id: string) {
+    return this.workOrders.start(t.companyId, id);
   }
 
   @Patch(':id/done')
-  markDone(@Req() req: RequestWithUser, @Param('id') id: string) {
-    const companyId = this.getCompanyId(req);
-
-    return this.workOrders.markDone(companyId, id);
+  markDone(@Tenant() t: TenantContext, @Param('id') id: string) {
+    return this.workOrders.markDone(t.companyId, id);
   }
 
   @Patch(':id/mark-done')
-  markDoneAlias(@Req() req: RequestWithUser, @Param('id') id: string) {
-    const companyId = this.getCompanyId(req);
-
-    return this.workOrders.markDone(companyId, id);
+  markDoneAlias(@Tenant() t: TenantContext, @Param('id') id: string) {
+    return this.workOrders.markDone(t.companyId, id);
   }
 
   @Patch(':id/reopen')
-  reopen(@Req() req: RequestWithUser, @Param('id') id: string) {
-    const companyId = this.getCompanyId(req);
-
-    return this.workOrders.reopen(companyId, id);
+  reopen(@Tenant() t: TenantContext, @Param('id') id: string) {
+    return this.workOrders.reopen(t.companyId, id);
   }
 
   @Patch(':id/cancel')
-  cancel(@Req() req: RequestWithUser, @Param('id') id: string) {
-    const companyId = this.getCompanyId(req);
-
-    return this.workOrders.cancel(companyId, id);
+  cancel(@Tenant() t: TenantContext, @Param('id') id: string) {
+    return this.workOrders.cancel(t.companyId, id);
   }
 
   @Patch(':id')
   update(
-    @Req() req: RequestWithUser,
+    @Tenant() t: TenantContext,
     @Param('id') id: string,
     @Body() dto: UpdateWorkOrderDto,
   ) {
-    const companyId = this.getCompanyId(req);
-
-    return this.workOrders.update(companyId, id, dto);
+    return this.workOrders.update(t.companyId, id, dto);
   }
 
   @Delete(':id')
-  remove(@Req() req: RequestWithUser, @Param('id') id: string) {
-    const companyId = this.getCompanyId(req);
-
-    return this.workOrders.remove(companyId, id);
+  remove(@Tenant() t: TenantContext, @Param('id') id: string) {
+    return this.workOrders.remove(t.companyId, id);
   }
 }

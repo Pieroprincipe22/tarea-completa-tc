@@ -1,50 +1,24 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Get,
-  Headers,
-  Param,
-  Post,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { CustomersService } from './customers.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
-
-function requiredHeader(value: string | string[] | undefined, name: string): string {
-  const normalized = Array.isArray(value) ? value[0] : value;
-
-  if (!normalized?.trim()) {
-    throw new BadRequestException(`Falta header ${name}`);
-  }
-
-  return normalized.trim();
-}
+import { Tenant, TenantContext } from '../common/tenant.decorator';
 
 @Controller('customers')
 export class CustomersController {
   constructor(private readonly customers: CustomersService) {}
 
   @Post()
-  create(
-    @Headers('x-company-id') companyIdHeader: string | undefined,
-    @Body() dto: CreateCustomerDto,
-  ) {
-    const companyId = requiredHeader(companyIdHeader, 'x-company-id');
-    return this.customers.create(companyId, dto);
+  create(@Tenant() t: TenantContext, @Body() dto: CreateCustomerDto) {
+    return this.customers.create(t.companyId, dto);
   }
 
   @Get()
-  list(@Headers('x-company-id') companyIdHeader: string | undefined) {
-    const companyId = requiredHeader(companyIdHeader, 'x-company-id');
-    return this.customers.list(companyId);
+  list(@Tenant() t: TenantContext) {
+    return this.customers.list(t.companyId);
   }
 
   @Get(':id')
-  get(
-    @Headers('x-company-id') companyIdHeader: string | undefined,
-    @Param('id') id: string,
-  ) {
-    const companyId = requiredHeader(companyIdHeader, 'x-company-id');
-    return this.customers.get(companyId, id);
+  get(@Tenant() t: TenantContext, @Param('id') id: string) {
+    return this.customers.get(t.companyId, id);
   }
 }

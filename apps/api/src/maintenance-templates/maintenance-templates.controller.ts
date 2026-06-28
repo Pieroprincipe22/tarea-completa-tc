@@ -1,41 +1,51 @@
-import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { MaintenanceTemplatesService } from './maintenance-templates.service';
 import { CreateMaintenanceTemplateDto } from './dto/create-maintenance-template.dto';
 import { UpdateMaintenanceTemplateDto } from './dto/update-maintenance-template.dto';
+import { Tenant, TenantContext } from '../common/tenant.decorator';
 
 @Controller('maintenance-templates')
 export class MaintenanceTemplatesController {
   constructor(private readonly service: MaintenanceTemplatesService) {}
 
   @Post()
-  create(@Headers('x-company-id') companyId: string, @Body() dto: CreateMaintenanceTemplateDto) {
-    return this.service.create(companyId, dto);
+  create(@Tenant() t: TenantContext, @Body() dto: CreateMaintenanceTemplateDto) {
+    return this.service.create(t.companyId, dto);
   }
 
   @Get()
   findAll(
-    @Headers('x-company-id') companyId: string,
+    @Tenant() t: TenantContext,
     @Query('includeArchived') includeArchived?: string,
   ) {
-    return this.service.findAll(companyId, includeArchived === 'true');
+    return this.service.findAll(t.companyId, includeArchived === 'true');
   }
 
   @Get(':id')
-  findOne(@Headers('x-company-id') companyId: string, @Param('id') id: string) {
-    return this.service.findOne(companyId, id);
+  findOne(@Tenant() t: TenantContext, @Param('id') id: string) {
+    return this.service.findOne(t.companyId, id);
   }
 
   @Patch(':id')
   update(
-    @Headers('x-company-id') companyId: string,
+    @Tenant() t: TenantContext,
     @Param('id') id: string,
     @Body() dto: UpdateMaintenanceTemplateDto,
   ) {
-    return this.service.update(companyId, id, dto);
+    return this.service.update(t.companyId, id, dto);
   }
 
   @Delete(':id')
-  archive(@Headers('x-company-id') companyId: string, @Param('id') id: string) {
-    return this.service.archive(companyId, id);
+  archive(@Tenant() t: TenantContext, @Param('id') id: string) {
+    return this.service.archive(t.companyId, id);
   }
 }

@@ -1,50 +1,24 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Get,
-  Headers,
-  Param,
-  Post,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { AssetsService } from './assets.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
-
-function requiredHeader(value: string | string[] | undefined, name: string): string {
-  const normalized = Array.isArray(value) ? value[0] : value;
-
-  if (!normalized?.trim()) {
-    throw new BadRequestException(`Falta header ${name}`);
-  }
-
-  return normalized.trim();
-}
+import { Tenant, TenantContext } from '../common/tenant.decorator';
 
 @Controller('assets')
 export class AssetsController {
   constructor(private readonly assets: AssetsService) {}
 
   @Get()
-  list(@Headers('x-company-id') companyIdHeader: string | undefined) {
-    const companyId = requiredHeader(companyIdHeader, 'x-company-id');
-    return this.assets.list(companyId);
+  list(@Tenant() t: TenantContext) {
+    return this.assets.list(t.companyId);
   }
 
   @Get(':id')
-  get(
-    @Headers('x-company-id') companyIdHeader: string | undefined,
-    @Param('id') id: string,
-  ) {
-    const companyId = requiredHeader(companyIdHeader, 'x-company-id');
-    return this.assets.get(companyId, id);
+  get(@Tenant() t: TenantContext, @Param('id') id: string) {
+    return this.assets.get(t.companyId, id);
   }
 
   @Post()
-  create(
-    @Headers('x-company-id') companyIdHeader: string | undefined,
-    @Body() dto: CreateAssetDto,
-  ) {
-    const companyId = requiredHeader(companyIdHeader, 'x-company-id');
-    return this.assets.create(companyId, dto);
+  create(@Tenant() t: TenantContext, @Body() dto: CreateAssetDto) {
+    return this.assets.create(t.companyId, dto);
   }
 }
