@@ -19,9 +19,9 @@ function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(' ');
 }
 
-function LogoMark() {
+function LogoMark({ homeHref }: { homeHref: string }) {
   return (
-    <Link href="/dashboard" className="flex items-center gap-3">
+    <Link href={homeHref} className="flex items-center gap-3">
       <div className="relative flex h-12 w-12 items-center justify-center">
         <span className="absolute text-[38px] font-black tracking-tighter text-blue-500">
           T
@@ -513,18 +513,24 @@ export default function Sidebar() {
     [session?.role],
   );
 
-  const currentSectionKey = useMemo(
+ const currentSectionKey = useMemo(
     () => getCurrentSectionKey(pathname, session?.role),
     [pathname, session?.role],
   );
 
+  const isSuperAdmin = useMemo(
+    () => (session?.role ?? '').toUpperCase() === 'SUPER_ADMIN',
+    [session?.role],
+  );
+
+  const homeHref = isSuperAdmin ? '/super-admin' : '/dashboard';
+
   if (!mounted) return null;
-  if (pathname === '/login') return null;
 
   return (
     <aside className="sticky top-0 hidden h-screen w-[292px] shrink-0 border-r border-slate-800/80 bg-slate-950/92 xl:flex xl:flex-col">
       <div className="flex h-[86px] shrink-0 items-center border-b border-slate-800/80 px-7">
-        <LogoMark />
+        <LogoMark homeHref={homeHref} />
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col px-4 py-6">
@@ -549,7 +555,7 @@ export default function Sidebar() {
         </nav>
 
         <div className="mt-6 shrink-0">
-          <PlanCard />
+          {isSuperAdmin ? null : <PlanCard />}
         </div>
       </div>
 

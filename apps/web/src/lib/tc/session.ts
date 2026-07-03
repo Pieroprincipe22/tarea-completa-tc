@@ -219,6 +219,10 @@ export function isAdminSession(
 export function resolveHomePath(
   session?: Pick<TcSession, 'role'> | null,
 ): string {
+  if (normalizeRole(session?.role) === 'SUPER_ADMIN') {
+    return '/super-admin';
+  }
+
   return isTechnicianSession(session)
     ? '/technician/dashboard'
     : '/dashboard';

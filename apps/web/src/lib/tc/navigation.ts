@@ -421,12 +421,39 @@ const TECHNICIAN_SECTIONS: TcNavSection[] = [
   },
 ];
 
+const PLATFORM_SECTIONS: TcNavSection[] = [
+  {
+    key: 'plataforma',
+    title: 'Empresas',
+    sectionPath: '/super-admin',
+    roles: ['SUPER_ADMIN'],
+    groups: [
+      {
+        key: 'plataforma-main',
+        title: 'Empresas',
+        shortTitle: 'Empresas',
+        roles: ['SUPER_ADMIN'],
+        items: [
+          leaf('super-admin-companies', 'Empresas', '/super-admin', {
+            roles: ['SUPER_ADMIN'],
+            description: 'Alta y gestión de empresas de la plataforma.',
+          }),
+        ],
+      },
+    ],
+  },
+];
+
 export function getNavigationSections(
   role?: string | null,
 ): TcNavSection[] {
   const normalizedRole = normalizeRole(role);
   const base =
-    normalizedRole === 'TECHNICIAN' ? TECHNICIAN_SECTIONS : ADMIN_SECTIONS;
+    normalizedRole === 'TECHNICIAN'
+      ? TECHNICIAN_SECTIONS
+      : normalizedRole === 'SUPER_ADMIN'
+        ? PLATFORM_SECTIONS
+        : ADMIN_SECTIONS;
 
   return base
     .filter((section) => isAllowedForRole(normalizedRole, section.roles))
