@@ -113,8 +113,9 @@ model Company {
   slug      String?     @unique
   isActive  Boolean     @default(true)
   existe    Boolean     @default(true)
-  plan      CompanyPlan @default(BASIC)
-  createdAt DateTime    @default(now())
+  plan          CompanyPlan @default(BASIC)
+  invoicePrefix String?
+  createdAt     DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
   users                User[]
