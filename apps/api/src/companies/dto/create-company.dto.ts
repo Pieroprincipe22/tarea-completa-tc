@@ -1,5 +1,13 @@
 import { Transform } from 'class-transformer';
-import { IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsIn,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 // Fuente única de los planes válidos (se reutiliza en otros DTOs).
 export const COMPANY_PLANS = ['BASIC', 'PRO', 'ENTERPRISE'] as const;
@@ -26,4 +34,17 @@ export class CreateCompanyDto {
   @IsOptional()
   @IsIn(COMPANY_PLANS)
   plan?: CompanyPlanValue;
+
+  // Prefijo de facturación (ej. "HR" -> HR-2026-0001). Se normaliza a mayúsculas.
+  @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  @IsString()
+  @MinLength(1)
+  @MaxLength(8)
+  @Matches(/^[A-Z0-9]+$/, {
+    message: 'El prefijo solo puede contener letras y números (ej. HR, AP1).',
+  })
+  invoicePrefix?: string;
 }

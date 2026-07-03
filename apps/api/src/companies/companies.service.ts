@@ -27,6 +27,7 @@ export class CompaniesService {
           data: {
             name: dto.companyName.trim(),
             plan: dto.plan ?? 'BASIC',
+            invoicePrefix: dto.invoicePrefix ?? null,
           },
         });
 
@@ -78,6 +79,7 @@ export class CompaniesService {
         id: true,
         name: true,
         plan: true,
+        invoicePrefix: true,
         isActive: true,
         createdAt: true,
         _count: { select: { userCompanies: true } },
@@ -114,6 +116,12 @@ export class CompaniesService {
     return this.prisma.company.update({
       where: { id },
       data: { isActive },
+    });
+  }
+  async updateInvoicePrefix(id: string, invoicePrefix: string) {
+    return this.prisma.company.update({
+      where: { id },
+      data: { invoicePrefix },
     });
   }
 }

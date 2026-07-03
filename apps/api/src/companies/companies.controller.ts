@@ -13,6 +13,7 @@ import { CreateCompanyDto } from './dto/create-company.dto';
 import {
   SetCompanyStatusDto,
   UpdateCompanyPlanDto,
+  UpdateInvoicePrefixDto,
 } from './dto/update-company.dto';
 import { Tenant, TenantContext } from '../common/tenant.decorator';
 import { Roles } from '../common/roles.decorator';
@@ -45,8 +46,15 @@ export class CompaniesController {
   }
 
   // Activar / desactivar una empresa (cortar acceso sin borrar) = solo SUPER_ADMIN.
-  @Patch(':id/status')
+ // Cambiar el prefijo de facturación de una empresa = solo SUPER_ADMIN.
+  @Patch(':id/invoice-prefix')
   @Roles('SUPER_ADMIN')
+  updateInvoicePrefix(
+    @Param('id') id: string,
+    @Body() dto: UpdateInvoicePrefixDto,
+  ) {
+    return this.companies.updateInvoicePrefix(id, dto.invoicePrefix);
+  }
   setActive(@Param('id') id: string, @Body() dto: SetCompanyStatusDto) {
     return this.companies.setActive(id, dto.isActive);
   }

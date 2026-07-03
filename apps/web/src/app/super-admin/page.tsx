@@ -18,6 +18,7 @@ type CompanyRow = {
   id: string;
   name: string;
   plan: CompanyPlan;
+  invoicePrefix: string | null;
   isActive: boolean;
   createdAt?: string | null;
   userCount: number;
@@ -38,13 +39,24 @@ function asPlan(value: unknown): CompanyPlan {
 
 function parseCompany(value: unknown): CompanyRow {
   if (!isRecord(value)) {
-    return { id: '', name: 'Empresa', plan: 'BASIC', isActive: true, userCount: 0 };
+    return {
+      id: '',
+      name: 'Empresa',
+      plan: 'BASIC',
+      invoicePrefix: null,
+      isActive: true,
+      userCount: 0,
+    };
   }
   const count = isRecord(value._count) ? value._count.userCompanies : undefined;
   return {
     id: asStr(value.id),
     name: asStr(value.name, 'Empresa sin nombre'),
     plan: asPlan(value.plan),
+    invoicePrefix:
+      typeof value.invoicePrefix === 'string' && value.invoicePrefix
+        ? value.invoicePrefix
+        : null,
     isActive: typeof value.isActive === 'boolean' ? value.isActive : true,
     createdAt: typeof value.createdAt === 'string' ? value.createdAt : null,
     userCount: typeof count === 'number' ? count : 0,
@@ -74,6 +86,7 @@ const emptyForm = {
   ownerEmail: '',
   ownerPassword: '',
   plan: 'BASIC' as CompanyPlan,
+  invoicePrefix: '',
 };
 
 export default function SuperAdminPage() {
@@ -151,12 +164,14 @@ export default function SuperAdminPage() {
         ownerName: form.ownerName.trim() || undefined,
         ownerPassword,
         plan: form.plan,
+        invoicePrefix: form.invoicePrefix.trim() || undefined,
       });
 
       if (res.code < 200 || res.code >= 300) {
-        const msg = isRecord(res.json) && typeof res.json.message === 'string'
-          ? res.json.message
-          : `Error ${res.code} al crear la empresa`;
+        const msg =
+          isRecord(res.json) && typeof res.json.message === 'string'
+            ? res.json.message
+            : `Error ${res.code} al crear la empresa`;
         setFormError(msg);
         return;
       }
@@ -201,6 +216,37 @@ export default function SuperAdminPage() {
       });
       if (res.code < 200 || res.code >= 300) {
         setActionError(`No se pudo cambiar el estado (error ${res.code}).`);
+        return;
+      }
+      await loadCompanies();
+    } catch (e) {
+      setActionError(errMsg(e));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handlePrefixEdit(company: CompanyRow) {
+    const input = window.prompt(
+      `Prefijo de facturación para "${company.name}" (letras/números, máx. 8):`,
+      company.invoicePrefix ?? '',
+    );
+    if (input === null) return;
+
+    const prefix = input.trim().toUpperCase();
+    if (!/^[A-Z0-9]{1,8}$/.test(prefix)) {
+      setActionError('Prefijo inválido: solo letras y números, máximo 8 caracteres.');
+      return;
+    }
+
+    setActionError(null);
+    setBusyId(company.id);
+    try {
+      const res = await tcPatch(session, `/companies/${company.id}/invoice-prefix`, {
+        invoicePrefix: prefix,
+      });
+      if (res.code < 200 || res.code >= 300) {
+        setActionError(`No se pudo cambiar el prefijo (error ${res.code}).`);
         return;
       }
       await loadCompanies();
@@ -288,6 +334,18 @@ export default function SuperAdminPage() {
               </select>
             </Field>
 
+            <Field label="Prefijo de factura (ej. HR)">
+              <input
+                value={form.invoicePrefix}
+                onChange={(e) =>
+                  setField('invoicePrefix', e.target.value.toUpperCase())
+                }
+                placeholder="HR"
+                maxLength={8}
+                className="tc-input"
+              />
+            </Field>
+
             <Field label="Nombre del administrador (opcional)">
               <input
                 value={form.ownerName}
@@ -331,7 +389,11 @@ export default function SuperAdminPage() {
             </button>
             <button
               type="button"
-              onClick={() => { setShowForm(false); setForm(emptyForm); setFormError(null); }}
+              onClick={() => {
+                setShowForm(false);
+                setForm(emptyForm);
+                setFormError(null);
+              }}
               className="rounded-xl border border-slate-700 bg-slate-800/60 px-5 py-2.5 text-sm font-black text-slate-300 transition hover:bg-slate-800"
             >
               Cancelar
@@ -376,6 +438,7 @@ export default function SuperAdminPage() {
                   <tr className="border-b border-slate-800 text-[11px] font-black uppercase tracking-wide text-slate-500">
                     <th className="px-3 py-3">Empresa</th>
                     <th className="px-3 py-3">Plan</th>
+                    <th className="px-3 py-3">Prefijo</th>
                     <th className="px-3 py-3">Estado</th>
                     <th className="px-3 py-3">Usuarios</th>
                     <th className="px-3 py-3">Alta</th>
@@ -387,16 +450,31 @@ export default function SuperAdminPage() {
                     <tr key={c.id} className="border-b border-slate-800/60 last:border-0">
                       <td className="px-3 py-3 font-bold text-white">{c.name}</td>
                       <td className="px-3 py-3">
-                        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${planBadgeClass(c.plan)}`}>
+                        <span
+                          className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${planBadgeClass(c.plan)}`}
+                        >
                           {c.plan}
                         </span>
                       </td>
                       <td className="px-3 py-3">
-                        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${
-                          c.isActive
-                            ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-300'
-                            : 'border-rose-400/40 bg-rose-400/10 text-rose-300'
-                        }`}>
+                        <button
+                          type="button"
+                          disabled={busyId === c.id}
+                          onClick={() => void handlePrefixEdit(c)}
+                          title="Clic para editar el prefijo"
+                          className="rounded-lg border border-slate-700 bg-slate-800/50 px-2.5 py-1 font-mono text-xs font-bold text-slate-200 transition hover:border-sky-400/50 hover:text-sky-200 disabled:opacity-50"
+                        >
+                          {c.invoicePrefix ?? '— sin prefijo —'}
+                        </button>
+                      </td>
+                      <td className="px-3 py-3">
+                        <span
+                          className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${
+                            c.isActive
+                              ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-300'
+                              : 'border-rose-400/40 bg-rose-400/10 text-rose-300'
+                          }`}
+                        >
                           {c.isActive ? 'Activa' : 'Inactiva'}
                         </span>
                       </td>
@@ -407,7 +485,9 @@ export default function SuperAdminPage() {
                           <select
                             value={c.plan}
                             disabled={busyId === c.id}
-                            onChange={(e) => void handlePlanChange(c, e.target.value as CompanyPlan)}
+                            onChange={(e) =>
+                              void handlePlanChange(c, e.target.value as CompanyPlan)
+                            }
                             className="rounded-lg border border-slate-700 bg-slate-800/70 px-2 py-1.5 text-xs font-bold text-slate-200 disabled:opacity-50"
                           >
                             {PLANS.map((p) => (
