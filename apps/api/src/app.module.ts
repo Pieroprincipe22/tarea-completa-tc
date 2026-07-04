@@ -20,7 +20,7 @@ import { SitesModule } from './sites/sites.module';
 import { TechniciansModule } from './technicians/technicians.module';
 import { TenantModule } from './tenant/tenant.module';
 import { WorkOrdersModule } from './work-orders/work-orders.module';
-
+import { InvoicesModule } from './invoices/invoices.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -51,6 +51,7 @@ import { WorkOrdersModule } from './work-orders/work-orders.module';
     WorkOrdersModule,
     AttachmentsModule,
     AdminModule,
+    InvoicesModule,
   ],
   controllers: [AppController, HealthController],
   providers: [
