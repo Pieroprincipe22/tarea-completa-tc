@@ -30,6 +30,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # No confiamos en que el postinstall de @prisma/client genere el
+      # cliente real (frágil entre runners) — lo hacemos explícito.
+      - name: Generate Prisma Client
+        working-directory: apps/api
+        run: node node_modules/prisma/build/index.js generate
+
       - name: Typecheck (api, web, marketing)
         run: pnpm typecheck
 
@@ -95,6 +101,10 @@ jobs:
 
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
+
+      - name: Generate Prisma Client
+        working-directory: apps/api
+        run: node node_modules/prisma/build/index.js generate
 
       - name: Apply Prisma migrations
         working-directory: apps/api
