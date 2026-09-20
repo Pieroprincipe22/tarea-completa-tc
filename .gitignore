@@ -36,5 +36,7 @@ Thumbs.db
 # Marcador local del script de arranque
 .tc-setup-done
 
-# Marcador local del script de arranque
-.tc-setup-done
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/

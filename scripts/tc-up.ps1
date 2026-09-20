@@ -3,7 +3,7 @@
 #   infra (Docker) -> setup BD (solo 1ª vez) -> turbo (API + web)
 #
 # Uso:
-#   cd D:\tc-mantenimiento
+#   cd D:\01_Proyectos_Desarrollo\tc-mantenimiento
 #   .\scripts\tc-up.ps1            # arranque normal
 #   .\scripts\tc-up.ps1 -Setup     # fuerza reinstalar deps + migrar + seed
 

@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
+import * as Sentry from '@sentry/node';
 import type { Request, Response } from 'express';
 
 @Catch()
@@ -48,11 +49,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     // En el servidor sí registramos todo (con stack) para poder depurar.
+    // Solo mandamos a Sentry errores inesperados (5xx) — un 404 o un 400
+    // por validación no es un "error" real, es tráfico normal.
     if (!isHttp || status >= 500) {
       this.logger.error(
         `${req.method} ${req.url} -> ${status}`,
         exception instanceof Error ? exception.stack : String(exception),
       );
+
+      if (process.env.SENTRY_DSN) {
+        Sentry.captureException(exception);
+      }
     }
 
     res.status(status).json(body);

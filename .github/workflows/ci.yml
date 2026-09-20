@@ -1,0 +1,143 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Typecheck, lint & test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable Corepack (pnpm)
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck (api, web, marketing)
+        run: pnpm typecheck
+
+      - name: Lint (api, web, marketing)
+        run: pnpm lint
+
+      - name: Unit tests (api)
+        run: pnpm test
+
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    needs: quality
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: tc
+          POSTGRES_PASSWORD: tc
+          POSTGRES_DB: tc
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U tc -d tc"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://tc:tc@localhost:5433/tc?schema=public
+      JWT_ACCESS_SECRET: ci-only-secret-not-used-anywhere-real
+      JWT_ACCESS_EXPIRES_IN: 12h
+      ADMIN_KEY: ci-admin-key
+      CORS_ORIGINS: http://localhost:3001
+      PORT: 3002
+      NODE_ENV: test
+      # Falsas a propósito: el e2e no toca subida de archivos, y el
+      # S3Client del backend solo exige que no estén vacías para arrancar.
+      S3_ENDPOINT: http://localhost:9000
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY: ci-fake-access-key
+      S3_SECRET_KEY: ci-fake-secret-key
+      S3_BUCKET: tc
+      NEXT_PUBLIC_API_BASE: http://localhost:3002
+      E2E_SUPERADMIN_EMAIL: e2e-superadmin@tc-mantenimiento.test
+      E2E_SUPERADMIN_PASSWORD: CiSuperAdmin#2026
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable Corepack (pnpm)
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Apply Prisma migrations
+        working-directory: apps/api
+        run: node node_modules/prisma/build/index.js migrate deploy
+
+      - name: Start API
+        working-directory: apps/api
+        run: nohup pnpm exec nest start > /tmp/api.log 2>&1 &
+
+      - name: Wait for API
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3002/health && exit 0
+            sleep 2
+          done
+          echo "API never became healthy"; cat /tmp/api.log; exit 1
+
+      - name: Bootstrap e2e super-admin
+        run: |
+          curl -sf -X POST http://localhost:3002/admin/dev-user \
+            -H "Content-Type: application/json" \
+            -H "x-admin-key: ${{ env.ADMIN_KEY }}" \
+            -d '{"companyName":"CI Platform","email":"'"${{ env.E2E_SUPERADMIN_EMAIL }}"'","name":"CI Super Admin","password":"'"${{ env.E2E_SUPERADMIN_PASSWORD }}"'","role":"SUPER_ADMIN"}'
+
+      - name: Start web
+        working-directory: apps/web
+        run: nohup pnpm exec next dev -p 3001 > /tmp/web.log 2>&1 &
+
+      - name: Wait for web
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3001 && exit 0
+            sleep 2
+          done
+          echo "web never became healthy"; cat /tmp/web.log; exit 1
+
+      - name: Run Playwright tests
+        run: pnpm exec playwright test
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

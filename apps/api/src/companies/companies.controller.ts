@@ -45,8 +45,7 @@ export class CompaniesController {
     return this.companies.updatePlan(id, dto.plan);
   }
 
-  // Activar / desactivar una empresa (cortar acceso sin borrar) = solo SUPER_ADMIN.
- // Cambiar el prefijo de facturación de una empresa = solo SUPER_ADMIN.
+  // Cambiar el prefijo de facturación de una empresa = solo SUPER_ADMIN.
   @Patch(':id/invoice-prefix')
   @Roles('SUPER_ADMIN')
   updateInvoicePrefix(
@@ -55,6 +54,10 @@ export class CompaniesController {
   ) {
     return this.companies.updateInvoicePrefix(id, dto.invoicePrefix);
   }
+
+  // Activar / desactivar una empresa (cortar acceso sin borrar) = solo SUPER_ADMIN.
+  @Patch(':id/status')
+  @Roles('SUPER_ADMIN')
   setActive(@Param('id') id: string, @Body() dto: SetCompanyStatusDto) {
     return this.companies.setActive(id, dto.isActive);
   }

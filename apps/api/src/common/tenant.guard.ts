@@ -21,6 +21,8 @@ type AccessTokenPayload = {
 };
 
 type RequestWithTenant = {
+  method?: string;
+  url?: string;
   headers: Record<string, unknown>;
   cookies?: Record<string, unknown>;
   tenant?: {
@@ -140,21 +142,95 @@ export class TenantGuard implements CanActivate {
       },
     });
 
-    if (!membership || !membership.active || !membership.company?.isActive) {
-      throw new UnauthorizedException('No active membership for company');
+    if (membership && membership.active && membership.company?.isActive) {
+      // Camino normal: el usuario tiene membresía activa en la empresa pedida.
+      req.headers['x-user-id'] = userId;
+
+      req.tenant = {
+        companyId: membership.company.id,
+        companyName: membership.company.name,
+        userId,
+        role: membership.role,
+        email: payload.email ?? null,
+        name: payload.name ?? null,
+      };
+
+      return true;
     }
 
-    req.headers['x-user-id'] = userId;
+    // Bypass de plataforma: un SUPER_ADMIN puede operar sobre cualquier
+    // empresa activa aunque no tenga membresía en ella.
+    //
+    // Alcance (decisión explícita): como TenantGuard es un guard GLOBAL
+    // (ver main.ts), este bypass aplica a TODOS los endpoints tenant-aware,
+    // no solo a los de configuración de empresa. Es decir, un SUPER_ADMIN
+    // puede leer y escribir cualquier recurso de cualquier empresa activa
+    // con solo poner el header x-company-id, exactamente igual que si
+    // fuera ADMIN de esa empresa. Es el mecanismo que usa el panel de
+    // super-admin para gestionar empresas ajenas (ver /super-admin).
+    //
+    // Por el alcance tan amplio, cada vez que se activa queda registrado
+    // en AuditLog (ver bloque más abajo) para poder auditar quién entró
+    // a qué empresa y cuándo.
+    const superAdminMembership = await this.prisma.userCompany.findFirst({
+      where: {
+        userId,
+        role: 'SUPER_ADMIN',
+        active: true,
+        company: {
+          isActive: true,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
 
-    req.tenant = {
-      companyId: membership.company.id,
-      companyName: membership.company.name,
-      userId,
-      role: membership.role,
-      email: payload.email ?? null,
-      name: payload.name ?? null,
-    };
+    if (superAdminMembership) {
+      const targetCompany = await this.prisma.company.findUnique({
+        where: {
+          id: companyId,
+        },
+        select: {
+          id: true,
+          name: true,
+          isActive: true,
+        },
+      });
 
-    return true;
+      if (!targetCompany || !targetCompany.isActive) {
+        throw new UnauthorizedException('Empresa no encontrada o inactiva');
+      }
+
+      req.headers['x-user-id'] = userId;
+
+      req.tenant = {
+        companyId: targetCompany.id,
+        companyName: targetCompany.name,
+        userId,
+        role: 'SUPER_ADMIN',
+        email: payload.email ?? null,
+        name: payload.name ?? null,
+      };
+
+      // Fire-and-forget: un fallo al auditar nunca debe bloquear a un
+      // super-admin legítimo. No usamos await bloqueante a propósito.
+      this.prisma.auditLog
+        .create({
+          data: {
+            actorUserId: userId,
+            action: 'SUPER_ADMIN_BYPASS',
+            companyId: targetCompany.id,
+            targetPath: `${req.method ?? '?'} ${req.url ?? '?'}`,
+          },
+        })
+        .catch(() => {
+          // Ignorado a propósito: ver comentario de arriba.
+        });
+
+      return true;
+    }
+
+    throw new UnauthorizedException('No active membership for company');
   }
 }

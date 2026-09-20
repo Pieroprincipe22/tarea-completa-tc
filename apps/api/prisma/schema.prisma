@@ -581,6 +581,19 @@ model Invoice {
   @@index([companyId, status])
 }
 
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String
+  action      String
+  companyId   String?
+  targetPath  String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([actorUserId, createdAt])
+  @@index([companyId, createdAt])
+}
+
 model InvoiceItem {
   id                          String   @id @default(cuid())
   invoiceId                   String

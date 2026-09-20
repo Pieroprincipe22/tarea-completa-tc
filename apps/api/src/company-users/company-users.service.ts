@@ -7,6 +7,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { randomBytes, scryptSync } from 'node:crypto';
 import { PrismaService } from '../database/prisma.service';
+import { PLAN_LIMITS } from '../common/plan-limits';
 import { CreateCompanyUserDto } from './dto/create-company-user.dto';
 import { UpdateCompanyUserDto } from './dto/update-company-user.dto';
 
@@ -96,17 +97,6 @@ export class CompanyUsersService {
     return Math.min(parsed, max);
   }
 
-  private getTechnicianLimit(): number {
-    const rawValue = process.env.TC_MAX_TECHNICIANS_PER_COMPANY;
-    const parsed = Number.parseInt(String(rawValue ?? ''), 10);
-
-    if (!Number.isFinite(parsed) || parsed < 1) {
-      return 10;
-    }
-
-    return parsed;
-  }
-
   private async ensureCompanyExists(companyId: string) {
     const company = await this.prisma.company.findUnique({
       where: {
@@ -116,6 +106,7 @@ export class CompanyUsersService {
         id: true,
         name: true,
         isActive: true,
+        plan: true,
       },
     });
 
@@ -126,12 +117,24 @@ export class CompanyUsersService {
     return company;
   }
 
-  private async enforceTechnicianLimit(companyId: string, role: CompanyUserRole) {
+  private async enforceTechnicianLimit(
+    companyId: string,
+    role: CompanyUserRole,
+  ) {
     if (role !== 'TECHNICIAN') {
       return;
     }
 
-    const maxTechnicians = this.getTechnicianLimit();
+    const company = await this.prisma.company.findUniqueOrThrow({
+      where: {
+        id: companyId,
+      },
+      select: {
+        plan: true,
+      },
+    });
+
+    const maxTechnicians = PLAN_LIMITS[company.plan].maxTechnicians;
 
     const currentTechnicians = await this.prisma.userCompany.count({
       where: {
@@ -146,7 +149,7 @@ export class CompanyUsersService {
 
     if (currentTechnicians >= maxTechnicians) {
       throw new BadRequestException(
-        `Tu plan actual permite máximo ${maxTechnicians} técnico(s) activo(s).`,
+        `Tu plan ${company.plan} permite hasta ${maxTechnicians} técnicos`,
       );
     }
   }

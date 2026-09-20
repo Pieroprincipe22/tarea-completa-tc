@@ -1,10 +1,21 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import * as Sentry from '@sentry/node';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { TenantGuard } from './common/tenant.guard';
 import { AllExceptionsFilter } from './common/all-exceptions.filter';
+
+// Sin SENTRY_DSN, Sentry.init() no hace nada (SDK en modo no-op) — no hace
+// falta ninguna variable de entorno extra para desarrollo local.
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV ?? 'development',
+    tracesSampleRate: 0.1,
+  });
+}
 
 function getAllowedOrigins(): string[] {
   const raw =

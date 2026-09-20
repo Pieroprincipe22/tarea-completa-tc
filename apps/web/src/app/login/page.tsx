@@ -166,6 +166,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [checkingStoredSession, setCheckingStoredSession] = useState(true);
   const [loginData, setLoginData] = useState<LoginResponse | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -363,150 +365,191 @@ export default function LoginPage() {
     setLoginData(null);
   }
 
-  if (checkingStoredSession) {
-    return (
-      <main className="min-h-screen bg-slate-950 text-slate-100">
-        <div className="mx-auto flex min-h-screen max-w-md items-center px-6 py-10">
-          <div className="w-full rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
-            <h1 className="text-2xl font-semibold">Login</h1>
-            <p className="mt-2 text-sm text-slate-400">
-              Validando sesión guardada…
+  return (
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#020817] px-6 py-10 text-slate-100">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.22),transparent_34%),radial-gradient(circle_at_78%_8%,rgba(14,165,233,0.16),transparent_28%),radial-gradient(circle_at_50%_100%,rgba(2,132,199,0.10),transparent_38%)]" />
+      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(to_right,rgba(59,130,246,0.055)_1px,transparent_1px),linear-gradient(to_bottom,rgba(59,130,246,0.055)_1px,transparent_1px)] bg-[size:32px_32px] [mask-image:linear-gradient(to_bottom,rgba(0,0,0,0.55),transparent_78%)]" />
+
+      <div className="relative z-10 w-full max-w-md">
+        <div className="mb-8 flex items-center justify-center gap-3">
+          <div className="relative flex h-12 w-12 items-center justify-center">
+            <span className="absolute text-[38px] font-black tracking-tighter text-blue-500">
+              T
+            </span>
+            <span className="absolute left-5 text-[38px] font-black tracking-tighter text-sky-400">
+              C
+            </span>
+          </div>
+          <div className="leading-none">
+            <p className="text-lg font-black tracking-wide text-white">
+              TECHNICAL
+            </p>
+            <p className="text-lg font-black tracking-wide text-sky-300">
+              COMMAND
             </p>
           </div>
         </div>
-      </main>
-    );
-  }
 
-  return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="mx-auto flex min-h-screen max-w-md items-center px-6 py-10">
-        <div className="w-full rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
-          <div className="mb-6">
-            <h1 className="text-2xl font-semibold">Login</h1>
-            <p className="mt-2 text-sm text-slate-400">
-              Inicia sesión contra <code>/auth/login</code> y guarda la sesión
-              tenant real.
-            </p>
-          </div>
-
-          <form onSubmit={onSubmit} className="space-y-4">
-            <div>
-              <label
-                htmlFor="apiBase"
-                className="mb-1 block text-sm font-medium text-slate-300"
-              >
-                API Base
-              </label>
-              <input
-                id="apiBase"
-                value={form.apiBase}
-                onChange={(e) => onChange('apiBase', e.target.value)}
-                placeholder={DEFAULT_API_BASE}
-                autoComplete="off"
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none transition focus:border-sky-500"
-                disabled={loading}
-              />
+        <div className="w-full rounded-2xl border border-slate-800 bg-slate-900/70 p-8 shadow-2xl backdrop-blur">
+          {checkingStoredSession ? (
+            <div className="space-y-3 py-6 text-center">
+              <h1 className="text-xl font-semibold">Validando sesión…</h1>
+              <p className="text-sm text-slate-400">
+                Un momento, estamos comprobando si ya tienes una sesión
+                activa.
+              </p>
             </div>
-
-            <div>
-              <label
-                htmlFor="email"
-                className="mb-1 block text-sm font-medium text-slate-300"
-              >
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={form.email}
-                onChange={(e) => onChange('email', e.target.value)}
-                placeholder="tu@email.com"
-                autoComplete="email"
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none transition focus:border-sky-500"
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="password"
-                className="mb-1 block text-sm font-medium text-slate-300"
-              >
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={form.password}
-                onChange={(e) => onChange('password', e.target.value)}
-                placeholder="••••••••"
-                autoComplete="current-password"
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none transition focus:border-sky-500"
-                disabled={loading}
-              />
-            </div>
-
-            {loginData && loginData.companies.length > 1 ? (
-              <div>
-                <label
-                  htmlFor="company"
-                  className="mb-1 block text-sm font-medium text-slate-300"
-                >
-                  Empresa
-                </label>
-                <select
-                  id="company"
-                  value={form.selectedCompanyId}
-                  onChange={(e) => onChange('selectedCompanyId', e.target.value)}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none transition focus:border-sky-500"
-                  disabled={loading}
-                >
-                  {loginData.companies.map((company) => (
-                    <option key={company.companyId} value={company.companyId}>
-                      {company.name} · {company.role}
-                    </option>
-                  ))}
-                </select>
+          ) : (
+            <>
+              <div className="mb-6 text-center">
+                <h1 className="text-2xl font-semibold text-white">
+                  Iniciar sesión
+                </h1>
+                <p className="mt-1.5 text-sm text-slate-400">
+                  Accede al panel de gestión de mantenimiento
+                </p>
               </div>
-            ) : null}
 
-            {error ? (
-              <div className="rounded-xl border border-rose-900 bg-rose-950/50 px-3 py-2 text-sm text-rose-300">
-                {error}
-              </div>
-            ) : null}
+              <form onSubmit={onSubmit} className="space-y-4">
+                <div>
+                  <label
+                    htmlFor="email"
+                    className="mb-1 block text-sm font-medium text-slate-300"
+                  >
+                    Correo electrónico
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => onChange('email', e.target.value)}
+                    placeholder="nombre@empresa.com"
+                    autoComplete="email"
+                    autoFocus
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                    disabled={loading}
+                  />
+                </div>
 
-            <div className="flex gap-3 pt-2">
-              {!loginData ? (
+                <div>
+                  <label
+                    htmlFor="password"
+                    className="mb-1 block text-sm font-medium text-slate-300"
+                  >
+                    Contraseña
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={form.password}
+                      onChange={(e) => onChange('password', e.target.value)}
+                      placeholder="••••••••"
+                      autoComplete="current-password"
+                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 pr-16 text-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute inset-y-0 right-0 px-3 text-xs font-medium text-slate-400 transition hover:text-sky-300"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? 'Ocultar' : 'Mostrar'}
+                    </button>
+                  </div>
+                </div>
+
+                {loginData && loginData.companies.length > 1 ? (
+                  <div>
+                    <label
+                      htmlFor="company"
+                      className="mb-1 block text-sm font-medium text-slate-300"
+                    >
+                      Empresa
+                    </label>
+                    <select
+                      id="company"
+                      value={form.selectedCompanyId}
+                      onChange={(e) =>
+                        onChange('selectedCompanyId', e.target.value)
+                      }
+                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                      disabled={loading}
+                    >
+                      {loginData.companies.map((company) => (
+                        <option
+                          key={company.companyId}
+                          value={company.companyId}
+                        >
+                          {company.name} · {company.role}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+
+                {error ? (
+                  <div className="rounded-xl border border-rose-900 bg-rose-950/50 px-3 py-2 text-sm text-rose-300">
+                    {error}
+                  </div>
+                ) : null}
+
                 <button
-                  type="submit"
+                  type={loginData ? 'button' : 'submit'}
+                  onClick={loginData ? onContinueWithCompany : undefined}
                   disabled={loading}
-                  className="flex-1 rounded-xl bg-sky-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {loading ? 'Entrando…' : 'Entrar'}
+                  {loading
+                    ? 'Entrando…'
+                    : loginData
+                      ? 'Continuar'
+                      : 'Entrar'}
                 </button>
-              ) : (
+              </form>
+
+              <div className="mt-5 border-t border-slate-800 pt-4">
                 <button
                   type="button"
-                  onClick={onContinueWithCompany}
-                  disabled={loading}
-                  className="flex-1 rounded-xl bg-sky-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={() => setShowAdvanced((v) => !v)}
+                  className="text-xs font-medium text-slate-500 transition hover:text-slate-300"
                 >
-                  Continuar
+                  {showAdvanced ? 'Ocultar' : 'Opciones avanzadas'}
                 </button>
-              )}
 
-              <button
-                type="button"
-                onClick={onReset}
-                disabled={loading}
-                className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Limpiar
-              </button>
-            </div>
-          </form>
+                {showAdvanced ? (
+                  <div className="mt-3 space-y-3">
+                    <div>
+                      <label
+                        htmlFor="apiBase"
+                        className="mb-1 block text-xs font-medium text-slate-400"
+                      >
+                        API Base
+                      </label>
+                      <input
+                        id="apiBase"
+                        value={form.apiBase}
+                        onChange={(e) => onChange('apiBase', e.target.value)}
+                        placeholder={DEFAULT_API_BASE}
+                        autoComplete="off"
+                        className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-300 outline-none transition focus:border-sky-500"
+                        disabled={loading}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={onReset}
+                      disabled={loading}
+                      className="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Limpiar sesión guardada
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </main>

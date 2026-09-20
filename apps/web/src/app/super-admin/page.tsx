@@ -480,8 +480,15 @@ export default function SuperAdminPage() {
                       </td>
                       <td className="px-3 py-3 text-slate-300">{c.userCount}</td>
                       <td className="px-3 py-3 text-slate-400">{formatDate(c.createdAt)}</td>
-                      <td className="px-3 py-3">
+                       <td className="px-3 py-3">
                         <div className="flex items-center justify-end gap-2">
+                          
+                            <a href={`/super-admin/companies/${c.id}`}
+                            title="Configurar empresa"
+                            className="rounded-lg border border-slate-700 bg-slate-800/60 px-2.5 py-1.5 text-sm text-slate-300 transition hover:border-sky-400/50 hover:text-sky-200"
+                          >
+                            ⚙️
+                          </a>
                           <select
                             value={c.plan}
                             disabled={busyId === c.id}
