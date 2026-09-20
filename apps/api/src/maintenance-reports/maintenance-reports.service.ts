@@ -13,6 +13,8 @@ import {
   WorkOrderStatus,
 } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
+import { StorageService } from '../storage/storage.service';
+import { PdfService } from '../pdf/pdf.service';
 import { CreateMaintenanceReportDto } from './dto/create-maintenance-report.dto';
 import { ReviewMaintenanceReportDto } from './dto/review-maintenance-report.dto';
 import { UpdateMaintenanceReportItemDto } from './dto/update-maintenance-report-items.dto';
@@ -369,7 +371,11 @@ function serializeReport(report: ReportWithRelations) {
 
 @Injectable()
 export class MaintenanceReportsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+    private readonly pdf: PdfService,
+  ) {}
 
   private async ensureActiveUserInCompany(
     companyId: string,
@@ -933,6 +939,70 @@ export class MaintenanceReportsService {
     }
 
     return serializeReport(report);
+  }
+
+  // ---------------------------------------------------------------
+  // Genera el PDF, lo sube a MinIO (misma clave siempre -> se
+  // sobrescribe con el estado actual) y devuelve el buffer para la
+  // respuesta HTTP.
+  // ---------------------------------------------------------------
+  async getPdfBuffer(
+    companyId: string,
+    id: string,
+  ): Promise<{ buffer: Buffer; filename: string }> {
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+
+    const report = await this.prisma.maintenanceReport.findFirst({
+      where: { id, companyId: normalizedCompanyId },
+      include: {
+        ...reportInclude,
+        company: { select: { name: true } },
+      },
+    });
+
+    if (!report) {
+      throw new NotFoundException('Reporte no encontrado.');
+    }
+
+    const buffer = await this.pdf.renderMaintenanceReportPdf({
+      companyName: report.company.name,
+      title: report.title,
+      status: report.status,
+      customerName: report.customer?.name ?? null,
+      siteName: report.site?.name ?? null,
+      assetName: report.asset?.name ?? null,
+      technicianName: report.assignedTechnician?.name ?? null,
+      createdAt: report.createdAt,
+      completedAt: report.completedAt,
+      diagnosis: report.diagnosis,
+      workPerformed: report.workPerformed,
+      recommendations: report.recommendations,
+      observations: report.observations,
+      items: report.items.map((item) => ({
+        label: item.label ?? item.title ?? 'Punto',
+        status: item.status,
+        value: item.valueText ?? item.value ?? undefined,
+        notes: item.notes ?? undefined,
+      })),
+      materials: report.materials.map((m) => ({
+        name: m.name,
+        quantity: m.quantity,
+        unit: m.unit,
+        unitCost: m.unitCost ? Number(m.unitCost) : undefined,
+        totalCost: m.totalCost ? Number(m.totalCost) : undefined,
+      })),
+    });
+
+    const objectKey = `company/${companyId}/maintenance-reports/${id}.pdf`;
+    await this.storage.putObject(objectKey, buffer, 'application/pdf');
+
+    await this.prisma.maintenanceReport.update({
+      where: { id },
+      data: { pdfUrl: objectKey, pdfGeneratedAt: new Date() },
+    });
+
+    const filename = `informe-${report.title ?? id}.pdf`.replace(/[^\w.\-()]+/g, '_');
+    return { buffer, filename };
   }
 
   async updateReport(

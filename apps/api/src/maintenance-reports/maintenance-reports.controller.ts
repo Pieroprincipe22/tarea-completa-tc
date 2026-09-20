@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Header,
+  Param,
+  Patch,
+  Post,
+  StreamableFile,
+} from '@nestjs/common';
 import { MaintenanceReportsService } from './maintenance-reports.service';
 import { CreateMaintenanceReportDto } from './dto/create-maintenance-report.dto';
 import { ReviewMaintenanceReportDto } from './dto/review-maintenance-report.dto';
@@ -39,6 +48,15 @@ export class MaintenanceReportsController {
   @Get(':id')
   get(@Tenant() t: TenantContext, @Param('id') id: string) {
     return this.service.getById(t.companyId, id);
+  }
+
+  @Get(':id/pdf')
+  @Header('Content-Type', 'application/pdf')
+  async getPdf(@Tenant() t: TenantContext, @Param('id') id: string) {
+    const { buffer, filename } = await this.service.getPdfBuffer(t.companyId, id);
+    return new StreamableFile(buffer, {
+      disposition: `inline; filename="${filename}"`,
+    });
   }
 
   @Patch(':id')

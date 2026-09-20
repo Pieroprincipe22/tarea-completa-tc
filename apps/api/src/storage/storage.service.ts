@@ -10,7 +10,8 @@ export class StorageService {
   constructor() {
     const endpoint = process.env.S3_ENDPOINT || 'http://localhost:9000';
     const region = process.env.S3_REGION || 'us-east-1';
-    this.bucket = process.env.S3_BUCKET || 'tc';
+    // 'tc' solo (2 caracteres) es un nombre de bucket S3 inválido (mínimo 3).
+    this.bucket = process.env.S3_BUCKET || 'tc-mantenimiento';
 
     const accessKeyId = process.env.S3_ACCESS_KEY?.trim();
     const secretAccessKey = process.env.S3_SECRET_KEY?.trim();

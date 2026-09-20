@@ -400,6 +400,9 @@ model MaintenanceReport {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  pdfUrl         String?
+  pdfGeneratedAt DateTime?
+
   company            Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   workOrder          WorkOrder?                  @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
   template           MaintenanceTemplate?        @relation(fields: [templateId], references: [id], onDelete: SetNull)

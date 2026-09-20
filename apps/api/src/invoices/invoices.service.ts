@@ -4,6 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { StorageService } from '../storage/storage.service';
+import { PdfService } from '../pdf/pdf.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { InvoiceStatusValue } from './dto/update-invoice-status.dto';
 
@@ -14,7 +16,11 @@ function round2(n: number): number {
 
 @Injectable()
 export class InvoicesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+    private readonly pdf: PdfService,
+  ) {}
 
   // ---------------------------------------------------------------
   // Numeración: PREFIJO-AÑO-CORRELATIVO (ej. HR-2026-0001).
@@ -230,6 +236,75 @@ export class InvoicesService {
 
     if (!invoice) throw new NotFoundException('Factura no encontrada.');
     return invoice;
+  }
+
+  // ---------------------------------------------------------------
+  // Generar el PDF, subirlo a MinIO y devolver el buffer para la
+  // respuesta HTTP. La clave de almacenamiento es fija por factura, así
+  // que cada llamada simplemente sobrescribe con el estado actual.
+  // ---------------------------------------------------------------
+  async getPdfBuffer(companyId: string, id: string): Promise<{ buffer: Buffer; filename: string }> {
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id, companyId },
+      include: {
+        items: { orderBy: { sortOrder: 'asc' } },
+        workOrder: {
+          select: {
+            customer: { select: { name: true } },
+            site: { select: { name: true } },
+          },
+        },
+        maintenanceReport: {
+          select: {
+            customer: { select: { name: true } },
+            site: { select: { name: true } },
+          },
+        },
+        company: { select: { name: true } },
+      },
+    });
+
+    if (!invoice) throw new NotFoundException('Factura no encontrada.');
+
+    const customerName =
+      invoice.workOrder?.customer?.name ?? invoice.maintenanceReport?.customer?.name ?? null;
+    const siteName =
+      invoice.workOrder?.site?.name ?? invoice.maintenanceReport?.site?.name ?? null;
+
+    const buffer = await this.pdf.renderInvoicePdf({
+      companyName: invoice.company.name,
+      invoiceNumber: invoice.invoiceNumber,
+      status: invoice.status,
+      currency: invoice.currency,
+      createdAt: invoice.createdAt,
+      customerName,
+      siteName,
+      laborAmount: invoice.laborAmount,
+      materialsAmount: invoice.materialsAmount,
+      subtotal: invoice.subtotal,
+      taxRate: invoice.taxRate,
+      taxAmount: invoice.taxAmount,
+      total: invoice.total,
+      notes: invoice.notes,
+      items: invoice.items.map((item) => ({
+        description: item.description,
+        quantity: item.quantity,
+        unit: item.unit,
+        unitPrice: item.unitPrice,
+        lineTotal: item.lineTotal,
+      })),
+    });
+
+    const objectKey = `company/${companyId}/invoices/${id}.pdf`;
+    await this.storage.putObject(objectKey, buffer, 'application/pdf');
+
+    await this.prisma.invoice.update({
+      where: { id },
+      data: { pdfUrl: objectKey },
+    });
+
+    const filename = `${invoice.invoiceNumber ?? id}.pdf`;
+    return { buffer, filename };
   }
 
   // ---------------------------------------------------------------

@@ -37,7 +37,7 @@ describe('InvoicesService', () => {
         company: { findUnique: jest.fn().mockResolvedValue({ invoicePrefix: null }) },
       });
       const prisma = makePrisma(tx);
-      const service = new InvoicesService(prisma as any);
+      const service = new InvoicesService(prisma as any, {} as any, {} as any);
 
       await expect(
         service.create('company-1', {
@@ -50,7 +50,7 @@ describe('InvoicesService', () => {
     it('rechaza una factura vacía (sin mano de obra ni líneas)', async () => {
       const tx = makeTx();
       const prisma = makePrisma(tx);
-      const service = new InvoicesService(prisma as any);
+      const service = new InvoicesService(prisma as any, {} as any, {} as any);
 
       await expect(
         service.create('company-1', {
@@ -64,7 +64,7 @@ describe('InvoicesService', () => {
     it('numera la factura como PREFIJO-AÑO-0001 y calcula bien los totales', async () => {
       const tx = makeTx();
       const prisma = makePrisma(tx);
-      const service = new InvoicesService(prisma as any);
+      const service = new InvoicesService(prisma as any, {} as any, {} as any);
 
       await service.create('company-1', {
         taxRate: 21,
@@ -90,7 +90,7 @@ describe('InvoicesService', () => {
     it('calcula la mano de obra a partir de horas x tarifa cuando no hay importe directo', async () => {
       const tx = makeTx();
       const prisma = makePrisma(tx);
-      const service = new InvoicesService(prisma as any);
+      const service = new InvoicesService(prisma as any, {} as any, {} as any);
 
       await service.create('company-1', {
         taxRate: 0,
@@ -113,7 +113,7 @@ describe('InvoicesService', () => {
       const tx = makeTx();
       const prisma = makePrisma(tx);
       prisma.maintenanceReport.findFirst.mockResolvedValue(null);
-      const service = new InvoicesService(prisma as any);
+      const service = new InvoicesService(prisma as any, {} as any, {} as any);
 
       await expect(
         service.create('company-1', {
@@ -131,7 +131,7 @@ describe('InvoicesService', () => {
       const prisma = makePrisma(tx);
       prisma.invoice.findFirst.mockResolvedValue({ id: 'invoice-1' });
       prisma.invoice.update.mockResolvedValue({ id: 'invoice-1', status: 'PAID' });
-      const service = new InvoicesService(prisma as any);
+      const service = new InvoicesService(prisma as any, {} as any, {} as any);
 
       await service.updateStatus('company-1', 'invoice-1', 'PAID');
 
@@ -149,7 +149,7 @@ describe('InvoicesService', () => {
       const tx = makeTx();
       const prisma = makePrisma(tx);
       prisma.invoice.findFirst.mockResolvedValue(null);
-      const service = new InvoicesService(prisma as any);
+      const service = new InvoicesService(prisma as any, {} as any, {} as any);
 
       await expect(
         service.updateStatus('company-1', 'invoice-ajena', 'PAID'),

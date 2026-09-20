@@ -85,7 +85,7 @@ jobs:
       S3_REGION: us-east-1
       S3_ACCESS_KEY: ci-fake-access-key
       S3_SECRET_KEY: ci-fake-secret-key
-      S3_BUCKET: tc
+      S3_BUCKET: tc-mantenimiento
       NEXT_PUBLIC_API_BASE: http://localhost:3002
       E2E_SUPERADMIN_EMAIL: e2e-superadmin@tc-mantenimiento.test
       E2E_SUPERADMIN_PASSWORD: CiSuperAdmin#2026

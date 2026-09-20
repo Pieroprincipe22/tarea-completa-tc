@@ -559,6 +559,7 @@ export default function MaintenanceReportDetailPage() {
   const [reviewLoading, setReviewLoading] = useState<'approve' | 'reject' | null>(
     null,
   );
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const paths = useMemo(() => resolveCorePaths(session), [session]);
 
@@ -731,6 +732,40 @@ export default function MaintenanceReportDetailPage() {
     }
   }
 
+  async function downloadPdf() {
+    if (!session || !id) return;
+
+    setPdfLoading(true);
+    try {
+      const base = session.apiBase.endsWith('/')
+        ? session.apiBase.slice(0, -1)
+        : session.apiBase;
+
+      const res = await fetch(`${base}${paths.reports}/${id}/pdf`, {
+        headers: { 'x-company-id': session.companyId },
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        setActionState({
+          status: 'error',
+          message: `No se pudo generar el PDF (error ${res.status}).`,
+        });
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      // Le damos tiempo a la pestaña nueva a cargar el blob antes de liberarlo.
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error) {
+      setActionState({ status: 'error', message: errMsg(error) });
+    } finally {
+      setPdfLoading(false);
+    }
+  }
+
   if (!mounted) {
     return (
       <main className="min-h-screen bg-slate-950 p-6 text-white">
@@ -785,6 +820,15 @@ export default function MaintenanceReportDetailPage() {
               >
                 Lista de partes
               </Link>
+
+              <button
+                type="button"
+                onClick={() => void downloadPdf()}
+                disabled={pdfLoading}
+                className="inline-flex items-center justify-center rounded-2xl bg-sky-600 px-4 py-2 text-sm font-bold text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {pdfLoading ? 'Generando PDF…' : 'Descargar PDF'}
+              </button>
             </div>
           </div>
         </header>

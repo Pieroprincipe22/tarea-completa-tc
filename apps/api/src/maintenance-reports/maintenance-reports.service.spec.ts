@@ -30,7 +30,7 @@ describe('MaintenanceReportsService — permisos', () => {
   let service: any;
 
   beforeEach(() => {
-    service = new MaintenanceReportsService({} as any);
+    service = new MaintenanceReportsService({} as any, {} as any, {} as any);
   });
 
   describe('isAdmin()', () => {
