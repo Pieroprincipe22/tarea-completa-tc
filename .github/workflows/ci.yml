@@ -15,6 +15,12 @@ jobs:
     name: Typecheck, lint & test
     runs-on: ubuntu-latest
 
+    env:
+      # "prisma generate" no se conecta a esta URL (no necesita una BD real
+      # aquí), pero prisma.config.ts exige que DATABASE_URL exista para
+      # poder cargarse.
+      DATABASE_URL: postgresql://tc:tc@localhost:5433/tc?schema=public
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
