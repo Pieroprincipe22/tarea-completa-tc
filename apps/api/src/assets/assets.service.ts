@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { PlanLimitsService } from '../common/plan-limits.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 
 type AssetStatusValue = 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE' | 'RETIRED';
@@ -27,7 +28,10 @@ function normalizeAssetStatus(value?: string | null): AssetStatusValue | undefin
 
 @Injectable()
 export class AssetsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly planLimits: PlanLimitsService,
+  ) {}
 
   private ensureCompanyId(companyId?: string): string {
     const normalized = companyId?.trim();
@@ -151,6 +155,8 @@ export class AssetsService {
     if (!site) {
       throw new NotFoundException('Site no encontrado para esta company.');
     }
+
+    await this.planLimits.assertAssetLimit(normalizedCompanyId);
 
     const installationAt = dto.installationAt ? new Date(dto.installationAt) : null;
 

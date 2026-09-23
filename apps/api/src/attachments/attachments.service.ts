@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { AttachmentOwnerType } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { PlanLimitsService } from '../common/plan-limits.service';
 
 function sanitizeFilename(name: string) {
   return name.replace(/\\/g, '/').split('/').pop()!.replace(/[^\w.\-()]+/g, '_');
@@ -12,6 +13,7 @@ export class AttachmentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly planLimits: PlanLimitsService,
   ) {}
 
   private async assertWorkOrderTenant(companyId: string, workOrderId: string) {
@@ -68,6 +70,8 @@ export class AttachmentsService {
     if (!file?.buffer?.length) {
       throw new BadRequestException('File buffer missing');
     }
+
+    await this.planLimits.assertStorageLimit(companyId, file.size ?? file.buffer.length);
 
     const safeName = sanitizeFilename(file.originalname || 'file');
 

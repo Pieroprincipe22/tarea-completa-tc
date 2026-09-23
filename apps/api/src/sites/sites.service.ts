@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { PlanLimitsService } from '../common/plan-limits.service';
 import { CreateSiteDto } from './dto/create-site.dto';
 
 function normalizeNullableString(value?: string | null): string | null {
@@ -13,7 +14,10 @@ function normalizeNullableString(value?: string | null): string | null {
 
 @Injectable()
 export class SitesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly planLimits: PlanLimitsService,
+  ) {}
 
   private ensureCompanyId(companyId?: string): string {
     const normalized = companyId?.trim();
@@ -73,6 +77,8 @@ export class SitesService {
     if (!customer) {
       throw new NotFoundException('Customer not found');
     }
+
+    await this.planLimits.assertSiteLimit(normalizedCompanyId);
 
     const item = await this.prisma.site.create({
       data: {

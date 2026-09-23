@@ -18,11 +18,22 @@ import {
 import { Tenant, TenantContext } from '../common/tenant.decorator';
 import { Roles } from '../common/roles.decorator';
 import { RolesGuard } from '../common/roles.guard';
+import { PlanLimitsService } from '../common/plan-limits.service';
 
 @Controller('companies')
 @UseGuards(RolesGuard)
 export class CompaniesController {
-  constructor(private readonly companies: CompaniesService) {}
+  constructor(
+    private readonly companies: CompaniesService,
+    private readonly planLimits: PlanLimitsService,
+  ) {}
+
+  // Cuánto ha consumido la empresa actual frente a los límites de su plan.
+  @Get('current/usage')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  getCurrentUsage(@Tenant() t: TenantContext) {
+    return this.planLimits.getUsage(t.companyId);
+  }
 
   // Alta de empresas = operación de plataforma. Solo SUPER_ADMIN.
   @Post()

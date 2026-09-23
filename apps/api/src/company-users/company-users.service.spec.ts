@@ -8,12 +8,24 @@ type PrismaMock = {
   $transaction: jest.Mock;
 };
 
+type PlanLimitsMock = {
+  assertTechnicianLimit: jest.Mock;
+  assertAdminLimit: jest.Mock;
+};
+
 function makePrisma(): PrismaMock {
   return {
     company: { findUnique: jest.fn(), findUniqueOrThrow: jest.fn() },
     user: { findUnique: jest.fn(), findFirst: jest.fn(), create: jest.fn() },
     userCompany: { count: jest.fn() },
     $transaction: jest.fn(),
+  };
+}
+
+function makePlanLimits(): PlanLimitsMock {
+  return {
+    assertTechnicianLimit: jest.fn().mockResolvedValue(undefined),
+    assertAdminLimit: jest.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -26,11 +38,13 @@ const ACTIVE_COMPANY = {
 
 describe('CompanyUsersService', () => {
   let prisma: PrismaMock;
+  let planLimits: PlanLimitsMock;
   let service: CompanyUsersService;
 
   beforeEach(() => {
     prisma = makePrisma();
-    service = new CompanyUsersService(prisma as any);
+    planLimits = makePlanLimits();
+    service = new CompanyUsersService(prisma as any, planLimits as any);
   });
 
   describe('create()', () => {
@@ -47,10 +61,11 @@ describe('CompanyUsersService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
-    it('respeta el límite de técnicos del plan (BASIC = 5)', async () => {
+    it('respeta el límite de técnicos del plan', async () => {
       prisma.company.findUnique.mockResolvedValue(ACTIVE_COMPANY);
-      prisma.company.findUniqueOrThrow.mockResolvedValue({ plan: 'BASIC' });
-      prisma.userCompany.count.mockResolvedValue(5); // ya al límite
+      planLimits.assertTechnicianLimit.mockRejectedValue(
+        new BadRequestException('Tu plan BASIC permite hasta 5 técnicos.'),
+      );
 
       await expect(
         service.create('company-1', {
@@ -66,8 +81,6 @@ describe('CompanyUsersService', () => {
 
     it('permite crear un técnico por debajo del límite del plan', async () => {
       prisma.company.findUnique.mockResolvedValue(ACTIVE_COMPANY);
-      prisma.company.findUniqueOrThrow.mockResolvedValue({ plan: 'BASIC' });
-      prisma.userCompany.count.mockResolvedValue(4); // uno libre
       prisma.user.findUnique.mockResolvedValue(null);
       prisma.user.create.mockResolvedValue({ id: 'user-1' });
 
@@ -78,23 +91,27 @@ describe('CompanyUsersService', () => {
         role: 'TECHNICIAN',
       });
 
+      expect(planLimits.assertTechnicianLimit).toHaveBeenCalledWith('company-1');
       expect(prisma.user.create).toHaveBeenCalledTimes(1);
     });
 
-    it('no aplica el límite de técnicos al crear un ADMIN', async () => {
+    it('respeta el límite de administradores del plan al crear un ADMIN', async () => {
       prisma.company.findUnique.mockResolvedValue(ACTIVE_COMPANY);
-      prisma.user.findUnique.mockResolvedValue(null);
-      prisma.user.create.mockResolvedValue({ id: 'user-1' });
+      planLimits.assertAdminLimit.mockRejectedValue(
+        new BadRequestException('Tu plan BASIC permite hasta 2 administradores.'),
+      );
 
-      await service.create('company-1', {
-        name: 'Nueva Admin',
-        email: 'admin2@x.com',
-        password: 'secreto1',
-        role: 'ADMIN',
-      });
+      await expect(
+        service.create('company-1', {
+          name: 'Nueva Admin',
+          email: 'admin2@x.com',
+          password: 'secreto1',
+          role: 'ADMIN',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
 
-      expect(prisma.company.findUniqueOrThrow).not.toHaveBeenCalled();
-      expect(prisma.userCompany.count).not.toHaveBeenCalled();
+      expect(planLimits.assertTechnicianLimit).not.toHaveBeenCalled();
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
     });
 
     it('rechaza un email que ya tiene membresía activa en la misma empresa', async () => {
@@ -108,7 +125,7 @@ describe('CompanyUsersService', () => {
       });
 
       // role: ADMIN a propósito, para aislar el caso de "email duplicado"
-      // del chequeo de límite de técnicos (que se prueba aparte).
+      // del chequeo de límite de plan (que se prueba aparte).
       await expect(
         service.create('company-1', {
           name: 'Repetido',
@@ -129,8 +146,27 @@ describe('CompanyUsersService', () => {
           { id: 'm1', companyId: 'company-1', role: 'TECHNICIAN', active: false },
         ],
       });
-      prisma.company.findUniqueOrThrow.mockResolvedValue({ plan: 'BASIC' });
-      prisma.userCompany.count.mockResolvedValue(5);
+      planLimits.assertTechnicianLimit.mockRejectedValue(
+        new BadRequestException('Tu plan BASIC permite hasta 5 técnicos.'),
+      );
+
+      await expect(service.activate('company-1', 'user-1')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('vuelve a comprobar el límite de administradores al reactivar un admin', async () => {
+      prisma.company.findUnique.mockResolvedValue(ACTIVE_COMPANY);
+      prisma.user.findFirst.mockResolvedValue({
+        id: 'user-1',
+        memberships: [
+          { id: 'm1', companyId: 'company-1', role: 'ADMIN', active: false },
+        ],
+      });
+      planLimits.assertAdminLimit.mockRejectedValue(
+        new BadRequestException('Tu plan BASIC permite hasta 2 administradores.'),
+      );
 
       await expect(service.activate('company-1', 'user-1')).rejects.toBeInstanceOf(
         BadRequestException,

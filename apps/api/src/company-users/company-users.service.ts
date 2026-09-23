@@ -7,7 +7,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { randomBytes, scryptSync } from 'node:crypto';
 import { PrismaService } from '../database/prisma.service';
-import { PLAN_LIMITS } from '../common/plan-limits';
+import { PlanLimitsService } from '../common/plan-limits.service';
 import { CreateCompanyUserDto } from './dto/create-company-user.dto';
 import { UpdateCompanyUserDto } from './dto/update-company-user.dto';
 
@@ -23,7 +23,10 @@ type CompanyUserListQuery = {
 
 @Injectable()
 export class CompanyUsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly planLimits: PlanLimitsService,
+  ) {}
 
   private readonly userSelect = {
     id: true,
@@ -117,40 +120,14 @@ export class CompanyUsersService {
     return company;
   }
 
-  private async enforceTechnicianLimit(
-    companyId: string,
-    role: CompanyUserRole,
-  ) {
-    if (role !== 'TECHNICIAN') {
-      return;
-    }
-
-    const company = await this.prisma.company.findUniqueOrThrow({
-      where: {
-        id: companyId,
-      },
-      select: {
-        plan: true,
-      },
-    });
-
-    const maxTechnicians = PLAN_LIMITS[company.plan].maxTechnicians;
-
-    const currentTechnicians = await this.prisma.userCompany.count({
-      where: {
-        companyId,
-        role: 'TECHNICIAN',
-        active: true,
-        user: {
-          isActive: true,
-        },
-      },
-    });
-
-    if (currentTechnicians >= maxTechnicians) {
-      throw new BadRequestException(
-        `Tu plan ${company.plan} permite hasta ${maxTechnicians} técnicos`,
-      );
+  // Un solo punto de entrada para el límite de plan, sea cual sea el rol
+  // — así los tres sitios que necesitan comprobarlo (crear, reactivar,
+  // pasar de inactivo/otro rol a este) no se olvidan de ninguno.
+  private async enforceRoleLimit(companyId: string, role: CompanyUserRole) {
+    if (role === 'TECHNICIAN') {
+      await this.planLimits.assertTechnicianLimit(companyId);
+    } else {
+      await this.planLimits.assertAdminLimit(companyId);
     }
   }
 
@@ -284,7 +261,7 @@ export class CompanyUsersService {
     const role = this.normalizeRole(dto.role);
     const isActive = dto.isActive ?? true;
 
-    await this.enforceTechnicianLimit(companyId, role);
+    await this.enforceRoleLimit(companyId, role);
 
     const existingUser = await this.prisma.user.findUnique({
       where: {
@@ -416,15 +393,20 @@ export class CompanyUsersService {
     const nextRole = dto.role ? this.normalizeRole(dto.role) : undefined;
     const nextIsActive = dto.isActive;
 
-    const willBecomeActiveTechnician =
-      nextRole === 'TECHNICIAN' &&
-      (nextIsActive ?? currentMembership?.active ?? true);
+    // El rol/estado "efectivo" tras este update (si el DTO no los toca,
+    // quedan como estaban). Si eso los deja activos en un rol en el que
+    // NO estaban ya activos, es una plaza nueva para ese rol -> límite.
+    const effectiveRole = nextRole ?? currentMembership?.role;
+    const effectiveActive = nextIsActive ?? currentMembership?.active ?? true;
+    const wasAlreadyActiveInThatRole =
+      currentMembership?.role === effectiveRole && currentMembership.active;
 
-    const wasActiveTechnician =
-      currentMembership?.role === 'TECHNICIAN' && currentMembership.active;
-
-    if (willBecomeActiveTechnician && !wasActiveTechnician) {
-      await this.enforceTechnicianLimit(companyId, 'TECHNICIAN');
+    if (
+      (effectiveRole === 'ADMIN' || effectiveRole === 'TECHNICIAN') &&
+      effectiveActive &&
+      !wasAlreadyActiveInThatRole
+    ) {
+      await this.enforceRoleLimit(companyId, effectiveRole);
     }
 
     const data: Prisma.UserUpdateInput = {};
@@ -548,8 +530,8 @@ export class CompanyUsersService {
       (item) => item.companyId === companyId,
     );
 
-    if (membership?.role === 'TECHNICIAN') {
-      await this.enforceTechnicianLimit(companyId, 'TECHNICIAN');
+    if (membership?.role === 'TECHNICIAN' || membership?.role === 'ADMIN') {
+      await this.enforceRoleLimit(companyId, membership.role);
     }
 
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {

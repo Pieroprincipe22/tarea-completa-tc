@@ -56,6 +56,24 @@ type Load<T> =
   | { status: 'ok'; data: T }
   | { status: 'error'; error: string };
 
+type PlanUsage = {
+  plan: string;
+  limits: {
+    maxTechnicians: number;
+    maxAdmins: number;
+    maxSites: number;
+    maxAssets: number;
+    maxStorageMb: number;
+  };
+  usage: {
+    technicians: number;
+    admins: number;
+    sites: number;
+    assets: number;
+    storageMb: number;
+  };
+};
+
 const EMPTY_USERS: CompanyUser[] = [];
 
 const futureFeatures = [
@@ -185,6 +203,35 @@ function asStr(value: unknown, fallback = ''): string {
 
 function asBool(value: unknown, fallback = false): boolean {
   return typeof value === 'boolean' ? value : fallback;
+}
+
+function asNum(value: unknown, fallback = 0): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function parsePlanUsage(value: unknown): PlanUsage | null {
+  if (!isRecord(value)) return null;
+
+  const limits = isRecord(value.limits) ? value.limits : {};
+  const usage = isRecord(value.usage) ? value.usage : {};
+
+  return {
+    plan: asStr(value.plan, 'BASIC'),
+    limits: {
+      maxTechnicians: asNum(limits.maxTechnicians),
+      maxAdmins: asNum(limits.maxAdmins),
+      maxSites: asNum(limits.maxSites),
+      maxAssets: asNum(limits.maxAssets),
+      maxStorageMb: asNum(limits.maxStorageMb),
+    },
+    usage: {
+      technicians: asNum(usage.technicians),
+      admins: asNum(usage.admins),
+      sites: asNum(usage.sites),
+      assets: asNum(usage.assets),
+      storageMb: asNum(usage.storageMb),
+    },
+  };
 }
 
 function normalizeRole(role?: string | null): string {
@@ -430,6 +477,56 @@ function StatusBadge({ active }: { active: boolean }) {
   );
 }
 
+function PlanUsageBar({
+  label,
+  used,
+  max,
+  unit,
+}: {
+  label: string;
+  used: number;
+  max: number;
+  unit?: string;
+}) {
+  const ratio = max > 0 ? Math.min(used / max, 1) : 0;
+  const isFull = max > 0 && used >= max;
+  const isNearLimit = !isFull && ratio >= 0.8;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-black uppercase tracking-[0.14em] text-slate-400">
+          {label}
+        </span>
+        <span
+          className={[
+            'font-black',
+            isFull
+              ? 'text-rose-300'
+              : isNearLimit
+                ? 'text-amber-300'
+                : 'text-slate-300',
+          ].join(' ')}
+        >
+          {used}
+          {unit ?? ''} / {max}
+          {unit ?? ''}
+        </span>
+      </div>
+
+      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-800">
+        <div
+          className={[
+            'h-full rounded-full transition-all',
+            isFull ? 'bg-rose-400' : isNearLimit ? 'bg-amber-400' : 'bg-sky-400',
+          ].join(' ')}
+          style={{ width: `${Math.round(ratio * 100)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function ComingSoonCard({
   title,
   description,
@@ -463,6 +560,10 @@ export default function TeamUsersPage() {
   const [session, setSession] = useState<TcSession | null>(null);
 
   const [state, setState] = useState<Load<CompanyUser[]>>({
+    status: 'loading',
+  });
+
+  const [planUsageState, setPlanUsageState] = useState<Load<PlanUsage>>({
     status: 'loading',
   });
 
@@ -556,6 +657,52 @@ export default function TeamUsersPage() {
       cancelled = true;
     };
   }, [activeFilter, mounted, refreshKey, roleFilter, search, session]);
+
+  useEffect(() => {
+    if (!mounted || !session || !isAdminSession(session)) return;
+
+    let cancelled = false;
+
+    async function loadPlanUsage() {
+      try {
+        setPlanUsageState({ status: 'loading' });
+
+        const response = await tcGet(session, '/companies/current/usage');
+
+        if (cancelled) return;
+
+        if (response.code < 200 || response.code >= 300) {
+          setPlanUsageState({
+            status: 'error',
+            error: getServerMessage(response.json, `HTTP ${response.code}`),
+          });
+          return;
+        }
+
+        const parsed = parsePlanUsage(response.json);
+
+        if (!parsed) {
+          setPlanUsageState({
+            status: 'error',
+            error: 'Respuesta de uso de plan inválida.',
+          });
+          return;
+        }
+
+        setPlanUsageState({ status: 'ok', data: parsed });
+      } catch (error) {
+        if (!cancelled) {
+          setPlanUsageState({ status: 'error', error: errMsg(error) });
+        }
+      }
+    }
+
+    void loadPlanUsage();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mounted, refreshKey, session]);
 
   async function toggleActive(user: CompanyUser) {
     if (!session) {
@@ -738,6 +885,48 @@ export default function TeamUsersPage() {
             icon="key"
           />
         </section>
+
+        {planUsageState.status === 'ok' ? (
+          <section className="rounded-3xl border border-slate-800/90 bg-slate-900/55 p-5 shadow-[0_18px_60px_rgba(2,6,23,0.25)]">
+            <div className="flex flex-col gap-1 pb-4 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="text-lg font-black tracking-tight text-white">
+                Uso del plan
+              </h2>
+              <span className="w-fit rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-sky-300">
+                Plan {planUsageState.data.plan}
+              </span>
+            </div>
+
+            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
+              <PlanUsageBar
+                label="Técnicos"
+                used={planUsageState.data.usage.technicians}
+                max={planUsageState.data.limits.maxTechnicians}
+              />
+              <PlanUsageBar
+                label="Administradores"
+                used={planUsageState.data.usage.admins}
+                max={planUsageState.data.limits.maxAdmins}
+              />
+              <PlanUsageBar
+                label="Sitios"
+                used={planUsageState.data.usage.sites}
+                max={planUsageState.data.limits.maxSites}
+              />
+              <PlanUsageBar
+                label="Activos"
+                used={planUsageState.data.usage.assets}
+                max={planUsageState.data.limits.maxAssets}
+              />
+              <PlanUsageBar
+                label="Almacenamiento"
+                used={planUsageState.data.usage.storageMb}
+                max={planUsageState.data.limits.maxStorageMb}
+                unit=" MB"
+              />
+            </div>
+          </section>
+        ) : null}
 
         {message ? (
           <div className="rounded-2xl border border-sky-400/30 bg-sky-400/10 p-4 text-sm font-bold text-sky-100">
