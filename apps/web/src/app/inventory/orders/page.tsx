@@ -56,7 +56,7 @@ function cx(...classes: Array<string | false | null | undefined>): string {
 
 function ClipboardIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="1.8"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="M9 4h6l1 2h2a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2l1-2Z" />
       <path d="M9 4h6v4H9V4Z" />
       <path d="M8 13h8" />
@@ -67,7 +67,7 @@ function ClipboardIcon(props: IconProps) {
 
 function CubeIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="1.8"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="m12 3 7.5 4.2v9.6L12 21l-7.5-4.2V7.2L12 3Z" />
       <path d="M4.8 7.4 12 11.5l7.2-4.1" />
       <path d="M12 11.5V21" />
@@ -77,7 +77,7 @@ function CubeIcon(props: IconProps) {
 
 function InvoiceIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="1.8"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="M7 3h10a2 2 0 0 1 2 2v16l-3-2-2 2-2-2-2 2-2-2-3 2V5a2 2 0 0 1 2-2Z" />
       <path d="M9 8h6" />
       <path d="M9 12h6" />
@@ -88,7 +88,7 @@ function InvoiceIcon(props: IconProps) {
 
 function CalendarIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="1.8"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="M7 3v4" />
       <path d="M17 3v4" />
       <path d="M4 8h16" />
@@ -99,7 +99,7 @@ function CalendarIcon(props: IconProps) {
 
 function SearchIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="1.8"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="m21 21-4.3-4.3" />
       <path d="M10.8 18a7.2 7.2 0 1 0 0-14.4 7.2 7.2 0 0 0 0 14.4Z" />
     </svg>
@@ -108,7 +108,7 @@ function SearchIcon(props: IconProps) {
 
 function RefreshIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="1.8"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="M20 11a8 8 0 0 0-14.8-4" />
       <path d="M4 5v5h5" />
       <path d="M4 13a8 8 0 0 0 14.8 4" />
@@ -119,7 +119,7 @@ function RefreshIcon(props: IconProps) {
 
 function FilterIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="1.8"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="M4 5h16" />
       <path d="M7 12h10" />
       <path d="M10 19h4" />
@@ -129,7 +129,7 @@ function FilterIcon(props: IconProps) {
 
 function PlusIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="1.9"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="M12 5v14" />
       <path d="M5 12h14" />
     </svg>
@@ -138,7 +138,7 @@ function PlusIcon(props: IconProps) {
 
 function EyeIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="1.8"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
       <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
     </svg>
@@ -147,7 +147,7 @@ function EyeIcon(props: IconProps) {
 
 function ArrowIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="1.8"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="M5 12h14" />
       <path d="m13 6 6 6-6 6" />
     </svg>
@@ -156,26 +156,26 @@ function ArrowIcon(props: IconProps) {
 
 function getToneClasses(tone: MetricTone) {
   if (tone === 'violet') {
-    return 'border-violet-400/30 bg-violet-500/15 text-violet-300';
+    return 'border-special/30 bg-special-soft text-special';
   }
 
   if (tone === 'amber') {
-    return 'border-amber-400/30 bg-amber-500/15 text-amber-300';
+    return 'border-warning/30 bg-warning-soft text-warning';
   }
 
   if (tone === 'cyan') {
-    return 'border-cyan-400/30 bg-cyan-500/15 text-cyan-300';
+    return 'border-accent/30 bg-accent-soft text-accent';
   }
 
   if (tone === 'emerald') {
-    return 'border-emerald-400/30 bg-emerald-500/15 text-emerald-300';
+    return 'border-success/30 bg-success-soft text-success';
   }
 
   if (tone === 'rose') {
-    return 'border-rose-400/30 bg-rose-500/15 text-rose-300';
+    return 'border-danger/30 bg-danger-soft text-danger';
   }
 
-  return 'border-blue-400/30 bg-blue-600/20 text-blue-300';
+  return 'border-accent/30 bg-accent-soft text-accent';
 }
 
 function asStr(value: unknown, fallback = ''): string {
@@ -334,24 +334,24 @@ function formatReportStatus(status: string): string {
 function reportStatusBadgeClass(status: string): string {
   switch (status) {
     case 'SUBMITTED':
-      return 'bg-blue-600/20 text-blue-300';
+      return 'bg-accent-soft text-accent';
     case 'APPROVED':
-      return 'bg-emerald-500/15 text-emerald-300';
+      return 'bg-success-soft text-success';
     case 'REJECTED':
-      return 'bg-rose-500/15 text-rose-300';
+      return 'bg-danger-soft text-danger';
     case 'IN_PROGRESS':
-      return 'bg-cyan-500/15 text-cyan-300';
+      return 'bg-accent-soft text-accent';
     default:
-      return 'bg-slate-800 text-slate-300';
+      return 'bg-surface-3 text-ink-2';
   }
 }
 
 function invoiceBadgeClass(status: MaterialOrderRow['invoiceStatus']): string {
   if (status === 'UPLOADED') {
-    return 'bg-emerald-500/15 text-emerald-300';
+    return 'bg-success-soft text-success';
   }
 
-  return 'bg-amber-500/15 text-amber-300';
+  return 'bg-warning-soft text-warning';
 }
 
 function MetricCard({
@@ -368,11 +368,11 @@ function MetricCard({
   tone: MetricTone;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-800/90 bg-[#0c1728]/90 p-5 shadow-[0_18px_70px_rgba(2,6,23,0.20)]">
+    <div className="rounded-lg border border-line bg-surface-2 p-5 shadow-sm">
       <div className="flex items-start gap-4">
         <div
           className={cx(
-            'flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border',
+            'flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border',
             getToneClasses(tone),
           )}
         >
@@ -380,13 +380,13 @@ function MetricCard({
         </div>
 
         <div>
-          <p className="text-sm text-slate-300">{title}</p>
+          <p className="text-sm text-ink-2">{title}</p>
 
-          <p className="mt-3 text-3xl font-black tracking-tight text-white">
+          <p className="mt-3 text-3xl font-semibold tracking-tight text-ink">
             {value}
           </p>
 
-          <p className="mt-2 text-sm leading-6 text-slate-500">
+          <p className="mt-2 text-sm leading-6 text-subtle">
             {description}
           </p>
         </div>
@@ -408,7 +408,7 @@ function ActivityRow({
     <div className="flex items-start gap-3">
       <div
         className={cx(
-          'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border',
+          'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border',
           getToneClasses(tone),
         )}
       >
@@ -416,8 +416,8 @@ function ActivityRow({
       </div>
 
       <div>
-        <p className="text-sm font-black text-white">{title}</p>
-        <p className="mt-1 text-xs leading-5 text-slate-400">{description}</p>
+        <p className="text-sm font-semibold text-ink">{title}</p>
+        <p className="mt-1 text-xs leading-5 text-muted">{description}</p>
       </div>
     </div>
   );
@@ -514,7 +514,7 @@ export default function InventoryOrdersPage() {
 
   if (!mounted) {
     return (
-      <main className="min-h-[calc(100vh-74px)] bg-[#080f1d] p-6 text-slate-100">
+      <main className="min-h-[calc(100vh-74px)] bg-surface p-6 text-ink">
         Cargando pedidos…
       </main>
     );
@@ -522,19 +522,19 @@ export default function InventoryOrdersPage() {
 
   if (!session) {
     return (
-      <main className="min-h-[calc(100vh-74px)] bg-[#080f1d] p-6 text-slate-100">
-        <section className="mx-auto max-w-3xl rounded-2xl border border-amber-400/30 bg-amber-400/10 p-6">
-          <h1 className="text-2xl font-black text-white">
+      <main className="min-h-[calc(100vh-74px)] bg-surface p-6 text-ink">
+        <section className="mx-auto max-w-3xl rounded-lg border border-warning/30 bg-warning-soft p-6">
+          <h1 className="text-2xl font-semibold text-ink">
             Pedidos de materiales
           </h1>
 
-          <p className="mt-2 text-sm leading-6 text-amber-100">
+          <p className="mt-2 text-sm leading-6 text-warning">
             No hay sesión activa. Entra otra vez para revisar los pedidos.
           </p>
 
           <Link
             href="/login"
-            className="mt-5 inline-flex rounded-xl bg-blue-600 px-5 py-3 text-sm font-black text-white transition hover:bg-blue-500"
+            className="mt-5 inline-flex rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover"
           >
             Ir a login
           </Link>
@@ -544,20 +544,20 @@ export default function InventoryOrdersPage() {
   }
 
   return (
-    <main className="min-h-[calc(100vh-74px)] bg-[#080f1d] px-6 py-6 text-slate-100">
+    <main className="min-h-[calc(100vh-74px)] bg-surface px-6 py-6 text-ink">
       <div className="mx-auto max-w-[1400px] space-y-6">
         <section className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-5">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-blue-400/35 bg-blue-600/20 text-blue-300 shadow-[0_0_35px_rgba(37,99,235,0.20)]">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-accent/30 bg-accent-soft text-accent ">
               <ClipboardIcon className="h-8 w-8" />
             </div>
 
             <div>
-              <h1 className="text-4xl font-black tracking-tight text-white">
+              <h1 className="text-4xl font-semibold tracking-tight text-ink">
                 Pedidos
               </h1>
 
-              <p className="mt-2 text-base text-slate-400">
+              <p className="mt-2 text-base text-muted">
                 Revisa materiales solicitados desde partes técnicos, entregas y facturas.
               </p>
             </div>
@@ -566,7 +566,7 @@ export default function InventoryOrdersPage() {
           <div className="flex flex-wrap gap-3">
             <Link
               href="/inventory"
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-[#0c1728] px-5 py-3 text-sm font-black text-slate-200 transition hover:border-blue-400/50 hover:bg-blue-600/10"
+              className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface-2 px-5 py-3 text-sm font-semibold text-ink transition hover:border-accent/30 hover:bg-accent-soft"
             >
               Volver a inventario
             </Link>
@@ -575,7 +575,7 @@ export default function InventoryOrdersPage() {
               type="button"
               disabled
               title="Se conectará cuando creemos el flujo manual de pedidos."
-              className="inline-flex cursor-not-allowed items-center gap-2 rounded-xl bg-blue-600/50 px-5 py-3 text-sm font-black text-white opacity-70"
+              className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-white opacity-70"
             >
               <PlusIcon className="h-4 w-4" />
               Nuevo pedido
@@ -618,32 +618,32 @@ export default function InventoryOrdersPage() {
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[1fr_280px]">
-          <div className="rounded-2xl border border-slate-800/90 bg-[#0c1728]/90 shadow-[0_18px_70px_rgba(2,6,23,0.20)]">
-            <div className="flex flex-col gap-4 border-b border-slate-800/90 p-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="rounded-lg border border-line bg-surface-2 shadow-sm">
+            <div className="flex flex-col gap-4 border-b border-line p-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h2 className="text-2xl font-black text-white">
+                <h2 className="text-2xl font-semibold text-ink">
                   Pedidos de materiales
                 </h2>
 
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-subtle">
                   Listado generado desde materiales añadidos en partes de trabajo.
                 </p>
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row">
                 <div className="relative">
-                  <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
                   <input
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.target.value)}
                     placeholder="Buscar pedido..."
-                    className="h-11 w-full rounded-xl border border-slate-700 bg-[#080f1d] pl-11 pr-4 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/60 sm:w-64"
+                    className="h-11 w-full rounded-lg border border-line bg-surface pl-11 pr-4 text-sm text-ink outline-none transition placeholder:text-subtle focus:border-accent sm:w-64"
                   />
                 </div>
 
                 <button
                   type="button"
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-700 bg-[#080f1d] px-4 text-sm font-bold text-slate-300 transition hover:border-blue-400/50 hover:text-white"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 text-sm font-bold text-ink-2 transition hover:border-accent/30 hover:text-ink"
                 >
                   <FilterIcon className="h-4 w-4" />
                   Filtros
@@ -652,7 +652,7 @@ export default function InventoryOrdersPage() {
                 <button
                   type="button"
                   onClick={() => void loadOrders()}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-700 bg-[#080f1d] px-4 text-sm font-bold text-slate-300 transition hover:border-blue-400/50 hover:text-white"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 text-sm font-bold text-ink-2 transition hover:border-accent/30 hover:text-ink"
                 >
                   <RefreshIcon className="h-4 w-4" />
                   Recargar
@@ -661,28 +661,28 @@ export default function InventoryOrdersPage() {
             </div>
 
             {state.status === 'loading' ? (
-              <div className="p-10 text-center text-sm text-slate-400">
+              <div className="p-10 text-center text-sm text-muted">
                 Cargando pedidos…
               </div>
             ) : null}
 
             {state.status === 'error' ? (
-              <div className="m-5 rounded-xl border border-rose-400/30 bg-rose-400/10 p-5 text-sm text-rose-100">
+              <div className="m-5 rounded-lg border border-danger/30 bg-danger-soft p-5 text-sm text-danger">
                 {state.error}
               </div>
             ) : null}
 
             {state.status === 'ok' && filteredRows.length === 0 ? (
               <div className="p-10 text-center">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-blue-400/30 bg-blue-600/20 text-blue-300">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-lg border border-accent/30 bg-accent-soft text-accent">
                   <ClipboardIcon className="h-8 w-8" />
                 </div>
 
-                <p className="mt-5 text-lg font-black text-white">
+                <p className="mt-5 text-lg font-semibold text-ink">
                   No hay pedidos de materiales todavía.
                 </p>
 
-                <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+                <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-muted">
                   Cuando un técnico añada materiales en un parte de trabajo,
                   aparecerán aquí para que administración pueda revisar qué se
                   debe comprar o preparar desde almacén.
@@ -693,17 +693,17 @@ export default function InventoryOrdersPage() {
             {state.status === 'ok' && filteredRows.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="min-w-[1280px] text-left">
-                  <thead className="bg-[#101c30] text-sm text-slate-300">
+                  <thead className="bg-surface-3 text-sm text-ink-2">
                     <tr>
-                      <th className="px-5 py-4 font-black">Material</th>
-                      <th className="px-5 py-4 font-black">Cantidad</th>
-                      <th className="px-5 py-4 font-black">Marca / modelo</th>
-                      <th className="px-5 py-4 font-black">Referencia</th>
-                      <th className="px-5 py-4 font-black">Cliente / activo</th>
-                      <th className="px-5 py-4 font-black">Técnico</th>
-                      <th className="px-5 py-4 font-black">Entrega</th>
-                      <th className="px-5 py-4 font-black">Factura</th>
-                      <th className="px-5 py-4 font-black">Acciones</th>
+                      <th className="px-5 py-4 font-semibold">Material</th>
+                      <th className="px-5 py-4 font-semibold">Cantidad</th>
+                      <th className="px-5 py-4 font-semibold">Marca / modelo</th>
+                      <th className="px-5 py-4 font-semibold">Referencia</th>
+                      <th className="px-5 py-4 font-semibold">Cliente / activo</th>
+                      <th className="px-5 py-4 font-semibold">Técnico</th>
+                      <th className="px-5 py-4 font-semibold">Entrega</th>
+                      <th className="px-5 py-4 font-semibold">Factura</th>
+                      <th className="px-5 py-4 font-semibold">Acciones</th>
                     </tr>
                   </thead>
 
@@ -711,20 +711,20 @@ export default function InventoryOrdersPage() {
                     {filteredRows.map((row) => (
                       <tr
                         key={row.id}
-                        className="border-t border-slate-800/80 text-sm text-slate-300"
+                        className="border-t border-line text-sm text-ink-2"
                       >
                         <td className="px-5 py-4 align-top">
-                          <p className="font-black text-white">
+                          <p className="font-semibold text-ink">
                             {row.materialName}
                           </p>
 
-                          <p className="mt-1 text-xs text-slate-500">
+                          <p className="mt-1 text-xs text-subtle">
                             Parte: {row.reportTitle}
                           </p>
 
                           <span
                             className={cx(
-                              'mt-3 inline-flex rounded-lg px-3 py-1 text-xs font-black',
+                              'mt-3 inline-flex rounded-lg px-3 py-1 text-xs font-semibold',
                               reportStatusBadgeClass(row.reportStatus),
                             )}
                           >
@@ -732,7 +732,7 @@ export default function InventoryOrdersPage() {
                           </span>
                         </td>
 
-                        <td className="px-5 py-4 align-top font-black text-white">
+                        <td className="px-5 py-4 align-top font-semibold text-ink">
                           {formatQuantity(row.quantity, row.unit)}
                         </td>
 
@@ -745,13 +745,13 @@ export default function InventoryOrdersPage() {
                         </td>
 
                         <td className="px-5 py-4 align-top">
-                          <p className="font-black text-slate-200">
+                          <p className="font-semibold text-ink">
                             {row.customerName}
                           </p>
-                          <p className="mt-1 text-xs text-slate-500">
+                          <p className="mt-1 text-xs text-subtle">
                             Site: {row.siteName}
                           </p>
-                          <p className="mt-1 text-xs text-slate-500">
+                          <p className="mt-1 text-xs text-subtle">
                             Activo: {row.assetName}
                           </p>
                         </td>
@@ -762,7 +762,7 @@ export default function InventoryOrdersPage() {
 
                         <td className="px-5 py-4 align-top">
                           <p>Estimada: {formatDate(row.expectedDeliveryAt)}</p>
-                          <p className="mt-1 text-xs text-slate-500">
+                          <p className="mt-1 text-xs text-subtle">
                             Real: {formatDate(row.deliveredAt)}
                           </p>
                         </td>
@@ -770,7 +770,7 @@ export default function InventoryOrdersPage() {
                         <td className="px-5 py-4 align-top">
                           <span
                             className={cx(
-                              'inline-flex rounded-lg px-3 py-1 text-xs font-black',
+                              'inline-flex rounded-lg px-3 py-1 text-xs font-semibold',
                               invoiceBadgeClass(row.invoiceStatus),
                             )}
                           >
@@ -784,7 +784,7 @@ export default function InventoryOrdersPage() {
                           <div className="flex gap-2">
                             <Link
                               href={`/maintenance-reports/${row.reportId}`}
-                              className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700 bg-[#080f1d] text-slate-300 transition hover:border-blue-400/50 hover:text-blue-300"
+                              className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-surface text-ink-2 transition hover:border-accent/30 hover:text-accent"
                               aria-label="Abrir parte"
                             >
                               <EyeIcon className="h-4 w-4" />
@@ -793,7 +793,7 @@ export default function InventoryOrdersPage() {
                             {row.workOrderId ? (
                               <Link
                                 href={`/work-orders/${row.workOrderId}`}
-                                className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-700 bg-[#080f1d] px-3 text-xs font-black text-slate-300 transition hover:border-blue-400/50 hover:text-blue-300"
+                                className="inline-flex h-9 items-center gap-2 rounded-lg border border-line bg-surface px-3 text-xs font-semibold text-ink-2 transition hover:border-accent/30 hover:text-accent"
                               >
                                 Orden
                                 <ArrowIcon className="h-3 w-3" />
@@ -809,13 +809,13 @@ export default function InventoryOrdersPage() {
             ) : null}
 
             {state.status === 'ok' && filteredRows.length > 0 ? (
-              <div className="flex flex-col gap-4 border-t border-slate-800/80 p-5 text-sm text-slate-400 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-col gap-4 border-t border-line p-5 text-sm text-muted md:flex-row md:items-center md:justify-between">
                 <span>
                   Mostrando {filteredRows.length} pedido
                   {filteredRows.length === 1 ? '' : 's'}.
                 </span>
 
-                <span className="rounded-lg border border-slate-800 px-3 py-2 text-slate-500">
+                <span className="rounded-lg border border-line px-3 py-2 text-subtle">
                   Vista administrativa
                 </span>
               </div>
@@ -823,8 +823,8 @@ export default function InventoryOrdersPage() {
           </div>
 
           <aside className="space-y-6">
-            <div className="rounded-2xl border border-slate-800/90 bg-[#0c1728]/90 p-5 shadow-[0_18px_70px_rgba(2,6,23,0.20)]">
-              <h2 className="text-lg font-black text-white">
+            <div className="rounded-lg border border-line bg-surface-2 p-5 shadow-sm">
+              <h2 className="text-lg font-semibold text-ink">
                 Flujo de pedido
               </h2>
 
@@ -855,15 +855,15 @@ export default function InventoryOrdersPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-800/90 bg-[#0c1728]/90 p-5 shadow-[0_18px_70px_rgba(2,6,23,0.20)]">
-              <h2 className="text-lg font-black text-white">
+            <div className="rounded-lg border border-line bg-surface-2 p-5 shadow-sm">
+              <h2 className="text-lg font-semibold text-ink">
                 Acciones rápidas
               </h2>
 
               <div className="mt-5 space-y-3">
                 <Link
                   href="/inventory/warehouse"
-                  className="flex items-center justify-between rounded-xl border border-slate-800 bg-[#080f1d] px-4 py-3 text-sm font-black text-slate-300 transition hover:border-blue-400/40 hover:text-blue-300"
+                  className="flex items-center justify-between rounded-lg border border-line bg-surface px-4 py-3 text-sm font-semibold text-ink-2 transition hover:border-accent/30 hover:text-accent"
                 >
                   Ver almacén
                   <ArrowIcon className="h-4 w-4" />
@@ -871,7 +871,7 @@ export default function InventoryOrdersPage() {
 
                 <Link
                   href="/inventory/purchases"
-                  className="flex items-center justify-between rounded-xl border border-slate-800 bg-[#080f1d] px-4 py-3 text-sm font-black text-slate-300 transition hover:border-blue-400/40 hover:text-blue-300"
+                  className="flex items-center justify-between rounded-lg border border-line bg-surface px-4 py-3 text-sm font-semibold text-ink-2 transition hover:border-accent/30 hover:text-accent"
                 >
                   Ver compras
                   <ArrowIcon className="h-4 w-4" />
@@ -879,7 +879,7 @@ export default function InventoryOrdersPage() {
 
                 <Link
                   href="/inventory/movements"
-                  className="flex items-center justify-between rounded-xl border border-slate-800 bg-[#080f1d] px-4 py-3 text-sm font-black text-slate-300 transition hover:border-blue-400/40 hover:text-blue-300"
+                  className="flex items-center justify-between rounded-lg border border-line bg-surface px-4 py-3 text-sm font-semibold text-ink-2 transition hover:border-accent/30 hover:text-accent"
                 >
                   Ver movimientos
                   <ArrowIcon className="h-4 w-4" />

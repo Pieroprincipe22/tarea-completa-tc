@@ -53,23 +53,23 @@ const metricToneClasses: Record<
   }
 > = {
   sky: {
-    icon: 'border-sky-400/30 bg-sky-500/10 text-sky-300',
+    icon: 'border-accent/30 bg-accent-soft text-accent',
     glow: 'rgba(14,165,233,0.12)',
   },
   emerald: {
-    icon: 'border-emerald-400/30 bg-emerald-500/10 text-emerald-300',
+    icon: 'border-success/30 bg-success-soft text-success',
     glow: 'rgba(16,185,129,0.12)',
   },
   amber: {
-    icon: 'border-amber-400/30 bg-amber-500/10 text-amber-300',
+    icon: 'border-warning/30 bg-warning-soft text-warning',
     glow: 'rgba(245,158,11,0.12)',
   },
   rose: {
-    icon: 'border-rose-400/30 bg-rose-500/10 text-rose-300',
+    icon: 'border-danger/30 bg-danger-soft text-danger',
     glow: 'rgba(244,63,94,0.12)',
   },
   violet: {
-    icon: 'border-violet-400/30 bg-violet-500/10 text-violet-300',
+    icon: 'border-special/30 bg-special-soft text-special',
     glow: 'rgba(139,92,246,0.12)',
   },
 };
@@ -359,22 +359,22 @@ function StatusPill({
   return (
     <span
       className={cx(
-        'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-black',
-        loading && 'border-sky-400/40 bg-sky-400/10 text-sky-200',
+        'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold',
+        loading && 'border-accent/30 bg-accent-soft text-accent',
         !loading &&
           ok &&
-          'border-emerald-400/40 bg-emerald-400/10 text-emerald-300',
+          'border-success/30 bg-success-soft text-success',
         !loading &&
           !ok &&
-          'border-rose-400/40 bg-rose-400/10 text-rose-300',
+          'border-danger/30 bg-danger-soft text-danger',
       )}
     >
       <span
         className={cx(
           'h-1.5 w-1.5 rounded-full',
-          loading && 'bg-sky-300',
-          !loading && ok && 'bg-emerald-300',
-          !loading && !ok && 'bg-rose-300',
+          loading && 'bg-accent',
+          !loading && ok && 'bg-success',
+          !loading && !ok && 'bg-danger',
         )}
       />
       {text}
@@ -402,34 +402,33 @@ function MetricCard({
   const content = (
     <div
       className={cx(
-        'group relative h-full overflow-hidden rounded-3xl border border-slate-800/90 bg-slate-900/55 p-5 shadow-[0_22px_70px_rgba(2,6,23,0.30)] transition duration-200',
+        'group relative h-full overflow-hidden rounded-xl border border-line bg-surface p-5 shadow-sm transition duration-200',
         href &&
-          'hover:-translate-y-0.5 hover:border-sky-400/45 hover:bg-slate-900/75',
+          'hover:-translate-y-0.5 hover:border-accent/30 hover:bg-surface',
       )}
     >
       <div
         className="absolute inset-0 opacity-70"
         style={{
-          background: `radial-gradient(circle at top left, ${toneClass.glow}, transparent 38%)`,
         }}
       />
 
       <div className="relative flex items-start justify-between gap-4">
         <div>
-          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-subtle">
             {label}
           </p>
 
-          <p className="mt-4 text-4xl font-black tracking-tight text-white">
+          <p className="mt-4 text-4xl font-semibold tracking-tight text-ink">
             {value}
           </p>
 
-          <p className="mt-3 text-sm leading-6 text-slate-400">{helper}</p>
+          <p className="mt-3 text-sm leading-6 text-muted">{helper}</p>
         </div>
 
         <div
           className={cx(
-            'flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border',
+            'flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border',
             toneClass.icon,
           )}
         >
@@ -464,25 +463,25 @@ function QuickAccessCard({
   return (
     <Link
       href={href}
-      className="group relative overflow-hidden rounded-3xl border border-slate-800/90 bg-slate-900/45 p-5 shadow-[0_22px_70px_rgba(2,6,23,0.25)] transition duration-200 hover:-translate-y-0.5 hover:border-sky-400/45 hover:bg-slate-900/70"
+      className="group relative overflow-hidden rounded-xl border border-line bg-surface p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-accent/30 hover:bg-surface"
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.14),transparent_38%)] opacity-80" />
+      <div className="absolute inset-0 opacity-80" />
 
       <div className="relative flex gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-sky-400/25 bg-sky-500/10 text-sky-300">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-accent/30 bg-accent-soft text-accent">
           {icon}
         </div>
 
         <div className="min-w-0">
-          <h3 className="text-lg font-black tracking-tight text-white">
+          <h3 className="text-lg font-semibold tracking-tight text-ink">
             {title}
           </h3>
 
-          <p className="mt-2 text-sm leading-6 text-slate-400">
+          <p className="mt-2 text-sm leading-6 text-muted">
             {description}
           </p>
 
-          <span className="mt-4 inline-flex items-center gap-1 text-sm font-black text-sky-300 group-hover:text-sky-200">
+          <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-accent group-hover:text-accent">
             {label}
             <ChevronIcon className="h-4 w-4" />
           </span>
@@ -500,12 +499,12 @@ function SessionInfoCard({
   value: string;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-800/90 bg-slate-950/60 p-4">
-      <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">
+    <div className="rounded-lg border border-line bg-surface-2 p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-subtle">
         {label}
       </p>
 
-      <p className="mt-2 truncate text-sm font-bold text-slate-100">{value}</p>
+      <p className="mt-2 truncate text-sm font-bold text-ink">{value}</p>
     </div>
   );
 }
@@ -544,16 +543,16 @@ function SystemStatusCard({
   }
 
   return (
-    <div className="rounded-3xl border border-slate-800/90 bg-slate-950/60 p-5">
+    <div className="rounded-xl border border-line bg-surface-2 p-5">
       <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-400/25 bg-emerald-500/10 text-emerald-300">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-success/30 bg-success-soft text-success">
           <ShieldIcon className="h-6 w-6" />
         </div>
 
         <div>
-          <p className="text-sm font-black text-white">Estado del sistema</p>
+          <p className="text-sm font-semibold text-ink">Estado del sistema</p>
 
-          <p className="mt-2 text-sm leading-6 text-slate-400">
+          <p className="mt-2 text-sm leading-6 text-muted">
             Validación de API, sesión tenant y permisos operativos.
           </p>
         </div>
@@ -570,13 +569,13 @@ function SystemStatusCard({
       </div>
 
       {health.status === 'error' ? (
-        <p className="mt-4 text-xs leading-5 text-rose-300">
+        <p className="mt-4 text-xs leading-5 text-danger">
           API: {health.error}
         </p>
       ) : null}
 
       {tenant.status === 'error' ? (
-        <p className="mt-2 text-xs leading-5 text-rose-300">
+        <p className="mt-2 text-xs leading-5 text-danger">
           Tenant: {tenant.error}
         </p>
       ) : null}
@@ -709,7 +708,7 @@ export default function DashboardPage() {
 
   if (!mounted) {
     return (
-      <main className="min-h-screen bg-slate-950 p-6 text-slate-100">
+      <main className="min-h-screen bg-surface-2 p-6 text-ink">
         Cargando dashboard…
       </main>
     );
@@ -717,29 +716,29 @@ export default function DashboardPage() {
 
   if (!session) {
     return (
-      <main className="min-h-screen bg-slate-950 p-6 text-slate-100">
-        <section className="mx-auto max-w-3xl rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-[0_25px_80px_rgba(2,6,23,0.35)]">
-          <p className="text-[11px] font-black uppercase tracking-[0.28em] text-sky-400">
+      <main className="min-h-screen bg-surface-2 p-6 text-ink">
+        <section className="mx-auto max-w-3xl rounded-xl border border-line bg-surface p-6 shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-accent">
             TC Mantenimiento
           </p>
 
-          <h1 className="mt-4 text-3xl font-black tracking-tight text-white">
+          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-ink">
             Dashboard
           </h1>
 
-          <p className="mt-3 text-sm leading-7 text-slate-400">
+          <p className="mt-3 text-sm leading-7 text-muted">
             Tu panel principal del sistema. Para ver la operación necesitas una
             sesión tenant activa.
           </p>
 
-          <div className="mt-5 rounded-2xl border border-rose-400/30 bg-rose-500/10 p-4 text-sm font-bold text-rose-200">
+          <div className="mt-5 rounded-lg border border-danger/30 bg-danger-soft p-4 text-sm font-bold text-danger">
             Sin sesión tenant activa.
           </div>
 
           <div className="mt-5 flex flex-wrap gap-2">
             <Link
               href="/login"
-              className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-slate-950 hover:bg-slate-200"
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-hover"
             >
               Ir a login
             </Link>
@@ -747,7 +746,7 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => setSession(readTcSession())}
-              className="inline-flex items-center gap-2 rounded-2xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800"
+              className="inline-flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-bold text-ink hover:bg-surface-3"
             >
               <RefreshIcon className="h-4 w-4" />
               Releer sesión
@@ -763,23 +762,23 @@ export default function DashboardPage() {
   const role = session.role ?? (tenant.status === 'ok' ? tenant.data.role : '');
 
   return (
-    <main className="min-h-[calc(100vh-86px)] flex-1 bg-slate-950 px-6 py-8 text-slate-100 lg:px-8">
+    <main className="min-h-[calc(100vh-86px)] flex-1 bg-surface-2 px-6 py-8 text-ink lg:px-8">
       <div className="mx-auto max-w-7xl space-y-6">
-        <section className="relative overflow-hidden rounded-3xl border border-sky-500/45 bg-slate-900/70 p-8 shadow-[0_0_90px_rgba(14,165,233,0.13)]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.22),transparent_35%),linear-gradient(135deg,rgba(2,6,23,0.15),rgba(2,132,199,0.08))]" />
-          <div className="absolute right-0 top-0 h-full w-1/2 bg-[linear-gradient(rgba(56,189,248,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,0.08)_1px,transparent_1px)] bg-[size:24px_24px] opacity-40" />
+        <section className="relative overflow-hidden rounded-xl border border-accent/30 bg-surface p-8 ">
+          <div className="absolute inset-0 " />
+          <div className="absolute right-0 top-0 h-full w-1/2 opacity-40" />
 
           <div className="relative grid gap-8 lg:grid-cols-[1fr_360px] lg:items-center">
             <div>
-              <p className="text-[12px] font-black uppercase tracking-[0.28em] text-sky-400">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.28em] text-accent">
                 Plataforma operativa
               </p>
 
-              <h1 className="mt-5 text-4xl font-black tracking-tight text-white md:text-6xl">
+              <h1 className="mt-5 text-4xl font-semibold tracking-tight text-ink md:text-6xl">
                 Panel principal
               </h1>
 
-              <p className="mt-6 max-w-3xl text-base leading-8 text-slate-300">
+              <p className="mt-6 max-w-3xl text-base leading-8 text-ink-2">
                 Controla clientes, sites, activos, partes de trabajo, órdenes,
                 técnicos e inventario desde un solo punto operativo.
               </p>
@@ -787,39 +786,39 @@ export default function DashboardPage() {
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link
                   href="/maintenance-reports"
-                  className="rounded-2xl border border-slate-700 bg-slate-950/40 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800"
+                  className="rounded-lg border border-line bg-surface-2 px-4 py-2 text-sm font-bold text-ink hover:bg-surface-3"
                 >
                   Ver partes
                 </Link>
 
                 <Link
                   href="/work-orders"
-                  className="rounded-2xl border border-slate-700 bg-slate-950/40 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800"
+                  className="rounded-lg border border-line bg-surface-2 px-4 py-2 text-sm font-bold text-ink hover:bg-surface-3"
                 >
                   Ver órdenes
                 </Link>
 
                 <Link
                   href="/inventory"
-                  className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-slate-950 hover:bg-slate-200"
+                  className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-hover"
                 >
                   Inventario
                 </Link>
               </div>
             </div>
 
-            <div className="rounded-3xl border border-slate-700/80 bg-slate-950/65 p-6 shadow-[0_18px_60px_rgba(2,6,23,0.35)]">
+            <div className="rounded-xl border border-line bg-surface-2 p-6 shadow-sm">
               <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl border border-sky-400/25 bg-sky-500/10 text-2xl font-black text-sky-300">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-accent/30 bg-accent-soft text-2xl font-semibold text-accent">
                   {getInitials(session)}
                 </div>
 
                 <div className="min-w-0">
-                  <p className="truncate text-lg font-black text-white">
+                  <p className="truncate text-lg font-semibold text-ink">
                     {displayName}
                   </p>
 
-                  <p className="mt-1 truncate text-sm text-slate-400">
+                  <p className="mt-1 truncate text-sm text-muted">
                     {companyName}
                   </p>
                 </div>
@@ -882,17 +881,17 @@ export default function DashboardPage() {
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[1fr_360px]">
-          <div className="rounded-3xl border border-slate-800/90 bg-slate-900/35 p-6">
+          <div className="rounded-xl border border-line bg-surface p-6">
             <div>
-              <p className="text-[12px] font-black uppercase tracking-[0.28em] text-sky-400">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.28em] text-accent">
                 Accesos rápidos
               </p>
 
-              <h2 className="mt-2 text-2xl font-black tracking-tight text-white">
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-ink">
                 Módulos principales
               </h2>
 
-              <p className="mt-2 text-sm leading-7 text-slate-400">
+              <p className="mt-2 text-sm leading-7 text-muted">
                 Atajos para entrar directamente a las pantallas que más se usan
                 en la operación diaria.
               </p>
@@ -952,39 +951,39 @@ export default function DashboardPage() {
           <div className="space-y-6">
             <SystemStatusCard health={health} tenant={tenant} />
 
-            <div className="rounded-3xl border border-slate-800/90 bg-slate-900/35 p-6">
-              <p className="text-[12px] font-black uppercase tracking-[0.28em] text-sky-400">
+            <div className="rounded-xl border border-line bg-surface p-6">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.28em] text-accent">
                 Operación
               </p>
 
-              <h2 className="mt-2 text-2xl font-black tracking-tight text-white">
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-ink">
                 Flujo recomendado
               </h2>
 
               <div className="mt-5 space-y-4">
-                <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-                  <p className="text-sm font-black text-white">
+                <div className="rounded-lg border border-line bg-surface-2 p-4">
+                  <p className="text-sm font-semibold text-ink">
                     1. Parte técnico
                   </p>
-                  <p className="mt-1 text-sm leading-6 text-slate-400">
+                  <p className="mt-1 text-sm leading-6 text-muted">
                     El técnico registra diagnóstico, materiales y observaciones.
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-                  <p className="text-sm font-black text-white">
+                <div className="rounded-lg border border-line bg-surface-2 p-4">
+                  <p className="text-sm font-semibold text-ink">
                     2. Orden de trabajo
                   </p>
-                  <p className="mt-1 text-sm leading-6 text-slate-400">
+                  <p className="mt-1 text-sm leading-6 text-muted">
                     Administración revisa, aprueba y asigna el trabajo.
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-                  <p className="text-sm font-black text-white">
+                <div className="rounded-lg border border-line bg-surface-2 p-4">
+                  <p className="text-sm font-semibold text-ink">
                     3. Inventario
                   </p>
-                  <p className="mt-1 text-sm leading-6 text-slate-400">
+                  <p className="mt-1 text-sm leading-6 text-muted">
                     Se controlan pedidos, almacén y reposición de materiales.
                   </p>
                 </div>

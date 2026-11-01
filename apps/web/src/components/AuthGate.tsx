@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { isPublicRoute } from '@/lib/tc/public-routes';
 import { readTcSession } from '@/lib/tc/session';
 
 type TcSession = ReturnType<typeof readTcSession>;
@@ -34,9 +35,9 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   if (!mounted) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-6">
-        <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900/40 p-6 space-y-3">
+        <div className="w-full max-w-md rounded-lg border border-line bg-surface p-6 space-y-3">
           <h1 className="text-xl font-semibold">Cargando sesión...</h1>
-          <p className="text-sm text-slate-300">
+          <p className="text-sm text-ink-2">
             Esperando la sesión del navegador.
           </p>
         </div>
@@ -44,12 +45,12 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!session && pathname !== '/login') {
+  if (!session && !isPublicRoute(pathname)) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-6">
-        <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900/40 p-6 space-y-3">
+        <div className="w-full max-w-md rounded-lg border border-line bg-surface p-6 space-y-3">
           <h1 className="text-xl font-semibold">Sesión requerida</h1>
-          <p className="text-sm text-slate-300">
+          <p className="text-sm text-ink-2">
             Inicia sesión primero desde <code>/login</code>.
           </p>
           <Link className="underline" href="/login">

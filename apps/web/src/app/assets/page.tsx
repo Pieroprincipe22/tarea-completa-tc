@@ -152,15 +152,15 @@ function getStatusLabel(status?: AssetStatus | null): string {
 function getStatusClass(status?: AssetStatus | null): string {
   switch (status) {
     case 'ACTIVE':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+      return 'border-success/30 bg-success-soft text-success';
     case 'INACTIVE':
-      return 'border-slate-200 bg-slate-50 text-slate-600';
+      return 'border-line bg-surface-2 text-muted';
     case 'MAINTENANCE':
-      return 'border-amber-200 bg-amber-50 text-amber-700';
+      return 'border-warning/30 bg-warning-soft text-warning';
     case 'RETIRED':
-      return 'border-rose-200 bg-rose-50 text-rose-700';
+      return 'border-danger/30 bg-danger-soft text-danger';
     default:
-      return 'border-slate-200 bg-slate-50 text-slate-500';
+      return 'border-line bg-surface-2 text-muted';
   }
 }
 
@@ -268,9 +268,9 @@ export default function AssetsPage() {
 
   if (!mounted) {
     return (
-      <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
-        <div className="mx-auto w-full max-w-7xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Cargando sesión...</p>
+      <main className="min-h-screen bg-surface-2 px-4 py-6 text-ink sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-7xl rounded-xl border border-line bg-surface p-8 text-center shadow-sm">
+          <p className="text-sm font-medium text-muted">Cargando sesión...</p>
         </div>
       </main>
     );
@@ -278,16 +278,16 @@ export default function AssetsPage() {
 
   if (!session) {
     return (
-      <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
-        <div className="mx-auto w-full max-w-3xl rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Activos</p>
-          <h1 className="mt-1 text-2xl font-bold text-slate-950">Sesión no encontrada</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
+      <main className="min-h-screen bg-surface-2 px-4 py-6 text-ink sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-3xl rounded-xl border border-line bg-surface p-8 shadow-sm">
+          <p className="text-sm font-medium text-muted">Activos</p>
+          <h1 className="mt-1 text-2xl font-bold text-ink">Sesión no encontrada</h1>
+          <p className="mt-2 text-sm leading-6 text-muted">
             Para ver los activos necesitas iniciar sesión y tener una empresa activa.
           </p>
           <Link
             href="/login"
-            className="mt-5 inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+            className="mt-5 inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover"
           >
             Ir a login
           </Link>
@@ -297,16 +297,16 @@ export default function AssetsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-surface-2 px-4 py-6 text-ink sm:px-6 lg:px-8">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-500">Activos</p>
-              <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+              <p className="text-sm font-medium text-muted">Activos</p>
+              <h1 className="mt-1 text-2xl font-bold tracking-tight text-ink sm:text-3xl">
                 Gestión de equipos y máquinas
               </h1>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">
                 Consulta los equipos registrados, su ubicación, estado operativo y datos técnicos principales.
               </p>
             </div>
@@ -314,14 +314,14 @@ export default function AssetsPage() {
             <div className="flex flex-col gap-2 sm:flex-row">
               <Link
                 href={homePath}
-                className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink-2 transition hover:bg-surface-2"
               >
                 Volver al dashboard
               </Link>
 
               <Link
                 href="/assets/new"
-                className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover"
               >
                 Nuevo activo
               </Link>
@@ -330,32 +330,32 @@ export default function AssetsPage() {
         </section>
 
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm font-medium text-slate-500">Total registrados</p>
-            <p className="mt-3 text-3xl font-bold text-slate-950">{assets.length}</p>
+          <div className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+            <p className="text-sm font-medium text-muted">Total registrados</p>
+            <p className="mt-3 text-3xl font-bold text-ink">{assets.length}</p>
           </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm font-medium text-slate-500">Activos</p>
-            <p className="mt-3 text-3xl font-bold text-emerald-700">{activeCount}</p>
+          <div className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+            <p className="text-sm font-medium text-muted">Activos</p>
+            <p className="mt-3 text-3xl font-bold text-success">{activeCount}</p>
           </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm font-medium text-slate-500">En mantenimiento</p>
-            <p className="mt-3 text-3xl font-bold text-amber-700">{maintenanceCount}</p>
+          <div className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+            <p className="text-sm font-medium text-muted">En mantenimiento</p>
+            <p className="mt-3 text-3xl font-bold text-warning">{maintenanceCount}</p>
           </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm font-medium text-slate-500">Retirados</p>
-            <p className="mt-3 text-3xl font-bold text-rose-700">{retiredCount}</p>
+          <div className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+            <p className="text-sm font-medium text-muted">Retirados</p>
+            <p className="mt-3 text-3xl font-bold text-danger">{retiredCount}</p>
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-3 border-b border-slate-200 p-4 lg:flex-row lg:items-center lg:justify-between">
+        <section className="rounded-xl border border-line bg-surface shadow-sm">
+          <div className="flex flex-col gap-3 border-b border-line p-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-lg font-bold text-slate-950">Listado de activos</h2>
-              <p className="mt-1 text-sm text-slate-500">
+              <h2 className="text-lg font-bold text-ink">Listado de activos</h2>
+              <p className="mt-1 text-sm text-muted">
                 {filteredAssets.length} resultado{filteredAssets.length === 1 ? '' : 's'} encontrado
                 {filteredAssets.length === 1 ? '' : 's'}.
               </p>
@@ -366,13 +366,13 @@ export default function AssetsPage() {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Buscar por nombre, código, ubicación..."
-                className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400 sm:w-80"
+                className="h-11 w-full rounded-lg border border-line bg-surface px-4 text-sm outline-none transition placeholder:text-subtle focus:border-accent sm:w-80"
               />
 
               <select
                 value={statusFilter}
                 onChange={(event) => setStatusFilter(event.target.value as 'ALL' | AssetStatus)}
-                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-slate-400"
+                className="h-11 rounded-lg border border-line bg-surface px-4 text-sm outline-none transition focus:border-accent"
               >
                 <option value="ALL">Todos los estados</option>
                 {statusOptions.map((status) => (
@@ -386,18 +386,18 @@ export default function AssetsPage() {
 
           {state.status === 'loading' ? (
             <div className="p-8 text-center">
-              <p className="text-sm font-medium text-slate-500">Cargando activos...</p>
+              <p className="text-sm font-medium text-muted">Cargando activos...</p>
             </div>
           ) : state.status === 'error' ? (
             <div className="p-6">
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+              <div className="rounded-lg border border-danger/30 bg-danger-soft p-4 text-sm text-danger">
                 No se pudieron cargar los activos: {state.error}
               </div>
             </div>
           ) : filteredAssets.length === 0 ? (
             <div className="p-8 text-center">
-              <p className="text-sm font-semibold text-slate-700">No hay activos para mostrar.</p>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="text-sm font-semibold text-ink-2">No hay activos para mostrar.</p>
+              <p className="mt-1 text-sm text-muted">
                 Crea un activo nuevo o cambia los filtros de búsqueda.
               </p>
             </div>
@@ -405,30 +405,30 @@ export default function AssetsPage() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[980px] border-separate border-spacing-0">
                 <thead>
-                  <tr className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-                    <th className="border-b border-slate-200 px-4 py-3 font-semibold">Equipo</th>
-                    <th className="border-b border-slate-200 px-4 py-3 font-semibold">Código</th>
-                    <th className="border-b border-slate-200 px-4 py-3 font-semibold">Categoría</th>
-                    <th className="border-b border-slate-200 px-4 py-3 font-semibold">Ubicación</th>
-                    <th className="border-b border-slate-200 px-4 py-3 font-semibold">Estado</th>
-                    <th className="border-b border-slate-200 px-4 py-3 font-semibold">Instalación</th>
-                    <th className="border-b border-slate-200 px-4 py-3 text-right font-semibold">Acción</th>
+                  <tr className="bg-surface-2 text-left text-xs uppercase tracking-wide text-muted">
+                    <th className="border-b border-line px-4 py-3 font-semibold">Equipo</th>
+                    <th className="border-b border-line px-4 py-3 font-semibold">Código</th>
+                    <th className="border-b border-line px-4 py-3 font-semibold">Categoría</th>
+                    <th className="border-b border-line px-4 py-3 font-semibold">Ubicación</th>
+                    <th className="border-b border-line px-4 py-3 font-semibold">Estado</th>
+                    <th className="border-b border-line px-4 py-3 font-semibold">Instalación</th>
+                    <th className="border-b border-line px-4 py-3 text-right font-semibold">Acción</th>
                   </tr>
                 </thead>
 
                 <tbody>
                   {filteredAssets.map((asset) => (
-                    <tr key={asset.id} className="text-sm text-slate-700 transition hover:bg-slate-50">
-                      <td className="border-b border-slate-100 px-4 py-4">
-                        <div className="font-semibold text-slate-950">{asset.name}</div>
-                        <div className="mt-1 text-xs text-slate-500">{getAssetTechnicalInfo(asset)}</div>
+                    <tr key={asset.id} className="text-sm text-ink-2 transition hover:bg-surface-2">
+                      <td className="border-b border-line px-4 py-4">
+                        <div className="font-semibold text-ink">{asset.name}</div>
+                        <div className="mt-1 text-xs text-muted">{getAssetTechnicalInfo(asset)}</div>
                       </td>
 
-                      <td className="border-b border-slate-100 px-4 py-4">{getAssetCode(asset)}</td>
-                      <td className="border-b border-slate-100 px-4 py-4">{asset.category ?? '—'}</td>
-                      <td className="border-b border-slate-100 px-4 py-4">{getAssetLocation(asset)}</td>
+                      <td className="border-b border-line px-4 py-4">{getAssetCode(asset)}</td>
+                      <td className="border-b border-line px-4 py-4">{asset.category ?? '—'}</td>
+                      <td className="border-b border-line px-4 py-4">{getAssetLocation(asset)}</td>
 
-                      <td className="border-b border-slate-100 px-4 py-4">
+                      <td className="border-b border-line px-4 py-4">
                         <span
                           className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${getStatusClass(
                             asset.status,
@@ -438,14 +438,14 @@ export default function AssetsPage() {
                         </span>
                       </td>
 
-                      <td className="border-b border-slate-100 px-4 py-4">
+                      <td className="border-b border-line px-4 py-4">
                         {formatDate(asset.installationAt)}
                       </td>
 
-                      <td className="border-b border-slate-100 px-4 py-4 text-right">
+                      <td className="border-b border-line px-4 py-4 text-right">
                         <Link
                           href={`/assets/${asset.id}`}
-                          className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-white"
+                          className="inline-flex items-center justify-center rounded-lg border border-line px-3 py-2 text-xs font-semibold text-ink-2 transition hover:bg-surface"
                         >
                           Ver detalle
                         </Link>

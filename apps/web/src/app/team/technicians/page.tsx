@@ -339,7 +339,7 @@ function TechnicianInitials({ name }: { name: string }) {
     .toUpperCase();
 
   return (
-    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-sky-400/25 bg-sky-500/10 text-sm font-black text-sky-300">
+    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-accent/30 bg-accent-soft text-sm font-semibold text-accent">
       {initials || 'T'}
     </div>
   );
@@ -357,9 +357,9 @@ function MetricCard({
   icon: 'users' | 'shield' | 'calendar' | 'gauge';
 }) {
   return (
-    <div className="rounded-3xl border border-slate-800/90 bg-slate-900/55 p-5 shadow-[0_18px_60px_rgba(2,6,23,0.25)]">
+    <div className="rounded-xl border border-line bg-surface p-5 shadow-sm">
       <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-sky-400/25 bg-sky-500/10 text-sky-400">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-accent/30 bg-accent-soft text-accent">
           {icon === 'users' ? <UsersIcon className="h-6 w-6" /> : null}
           {icon === 'shield' ? <ShieldIcon className="h-6 w-6" /> : null}
           {icon === 'calendar' ? <CalendarIcon className="h-6 w-6" /> : null}
@@ -367,15 +367,15 @@ function MetricCard({
         </div>
 
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-subtle">
             {title}
           </p>
 
-          <p className="mt-2 text-3xl font-black tracking-tight text-white">
+          <p className="mt-2 text-3xl font-semibold tracking-tight text-ink">
             {value}
           </p>
 
-          <p className="mt-1 text-sm leading-6 text-slate-400">
+          <p className="mt-1 text-sm leading-6 text-muted">
             {description}
           </p>
         </div>
@@ -388,10 +388,10 @@ function StatusBadge({ active }: { active: boolean }) {
   return (
     <span
       className={[
-        'rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-wide',
+        'rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide',
         active
-          ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-300'
-          : 'border-rose-400/40 bg-rose-400/10 text-rose-300',
+          ? 'border-success/30 bg-success-soft text-success'
+          : 'border-danger/30 bg-danger-soft text-danger',
       ].join(' ')}
     >
       {active ? 'Activo' : 'Inactivo'}
@@ -407,19 +407,19 @@ function ComingSoonCard({
   description: string;
 }) {
   return (
-    <div className="rounded-3xl border border-slate-800/90 bg-slate-900/40 p-5 shadow-[0_18px_60px_rgba(2,6,23,0.20)]">
+    <div className="rounded-xl border border-line bg-surface p-5 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-lg font-black tracking-tight text-white">
+          <h3 className="text-lg font-semibold tracking-tight text-ink">
             {title}
           </h3>
 
-          <p className="mt-3 text-sm leading-6 text-slate-400">
+          <p className="mt-3 text-sm leading-6 text-muted">
             {description}
           </p>
         </div>
 
-        <span className="shrink-0 rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-amber-200">
+        <span className="shrink-0 rounded-full border border-warning/30 bg-warning-soft px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-warning">
           Próximo
         </span>
       </div>
@@ -567,8 +567,8 @@ export default function TeamTechniciansPage() {
 
   if (!mounted) {
     return (
-      <main className="min-h-[calc(100vh-86px)] flex-1 bg-slate-950 px-6 py-8 text-slate-100 lg:px-8">
-        <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 text-slate-300">
+      <main className="min-h-[calc(100vh-86px)] flex-1 bg-surface-2 px-6 py-8 text-ink lg:px-8">
+        <div className="rounded-xl border border-line bg-surface p-6 text-ink-2">
           Cargando sesión…
         </div>
       </main>
@@ -577,17 +577,17 @@ export default function TeamTechniciansPage() {
 
   if (!session) {
     return (
-      <main className="min-h-[calc(100vh-86px)] flex-1 bg-slate-950 px-6 py-8 text-slate-100 lg:px-8">
-        <section className="mx-auto max-w-3xl rounded-3xl border border-amber-400/30 bg-amber-400/10 p-6">
-          <h1 className="text-2xl font-black text-white">Técnicos</h1>
+      <main className="min-h-[calc(100vh-86px)] flex-1 bg-surface-2 px-6 py-8 text-ink lg:px-8">
+        <section className="mx-auto max-w-3xl rounded-xl border border-warning/30 bg-warning-soft p-6">
+          <h1 className="text-2xl font-semibold text-ink">Técnicos</h1>
 
-          <p className="mt-2 text-sm leading-6 text-amber-100">
+          <p className="mt-2 text-sm leading-6 text-warning">
             No hay sesión activa. Entra otra vez para ver el listado técnico.
           </p>
 
           <Link
             href="/login"
-            className="mt-5 inline-flex rounded-2xl bg-sky-500 px-5 py-3 text-sm font-black text-white transition hover:bg-sky-400"
+            className="mt-5 inline-flex rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover"
           >
             Ir a login
           </Link>
@@ -598,19 +598,19 @@ export default function TeamTechniciansPage() {
 
   if (!isAdminSession(session)) {
     return (
-      <main className="min-h-[calc(100vh-86px)] flex-1 bg-slate-950 px-6 py-8 text-slate-100 lg:px-8">
-        <section className="mx-auto max-w-3xl rounded-3xl border border-rose-400/30 bg-rose-400/10 p-6">
-          <h1 className="text-2xl font-black text-white">
+      <main className="min-h-[calc(100vh-86px)] flex-1 bg-surface-2 px-6 py-8 text-ink lg:px-8">
+        <section className="mx-auto max-w-3xl rounded-xl border border-danger/30 bg-danger-soft p-6">
+          <h1 className="text-2xl font-semibold text-ink">
             Acceso no permitido
           </h1>
 
-          <p className="mt-2 text-sm leading-6 text-rose-100">
+          <p className="mt-2 text-sm leading-6 text-danger">
             Esta sección solo está disponible para administradores.
           </p>
 
           <Link
             href={homePath}
-            className="mt-5 inline-flex rounded-2xl bg-sky-500 px-5 py-3 text-sm font-black text-white transition hover:bg-sky-400"
+            className="mt-5 inline-flex rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover"
           >
             Volver al panel
           </Link>
@@ -634,40 +634,40 @@ export default function TeamTechniciansPage() {
   );
 
   return (
-    <main className="min-h-[calc(100vh-86px)] flex-1 bg-slate-950 px-6 py-8 text-slate-100 lg:px-8">
+    <main className="min-h-[calc(100vh-86px)] flex-1 bg-surface-2 px-6 py-8 text-ink lg:px-8">
       <div className="mx-auto max-w-7xl space-y-6">
-        <section className="relative overflow-hidden rounded-3xl border border-sky-500/40 bg-slate-900/70 p-8 shadow-[0_0_80px_rgba(14,165,233,0.10)]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_32%)]" />
-          <div className="absolute right-0 top-0 h-full w-1/2 bg-[linear-gradient(rgba(56,189,248,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,0.07)_1px,transparent_1px)] bg-[size:24px_24px] opacity-40" />
+        <section className="relative overflow-hidden rounded-xl border border-accent/30 bg-surface p-8 ">
+          <div className="absolute inset-0 " />
+          <div className="absolute right-0 top-0 h-full w-1/2 opacity-40" />
 
           <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-[12px] font-black uppercase tracking-[0.28em] text-sky-400">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.28em] text-accent">
                 Personal
               </p>
 
-              <h1 className="mt-4 text-5xl font-black tracking-tight text-white">
+              <h1 className="mt-4 text-5xl font-semibold tracking-tight text-ink">
                 Técnicos
               </h1>
 
-              <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300">
+              <p className="mt-5 max-w-3xl text-base leading-8 text-ink-2">
                 Consulta el equipo técnico de la empresa, su estado operativo,
                 especialidad, disponibilidad, carga de trabajo y fecha de alta
                 dentro del sistema.
               </p>
             </div>
 
-            <div className="rounded-3xl border border-slate-700/80 bg-slate-950/65 p-5 shadow-[0_18px_60px_rgba(2,6,23,0.35)]">
+            <div className="rounded-xl border border-line bg-surface-2 p-5 shadow-sm">
               <div className="flex gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-sky-400/25 bg-sky-500/10 text-sky-300">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-accent/30 bg-accent-soft text-accent">
                   <UsersIcon className="h-7 w-7" />
                 </div>
 
                 <div>
-                  <p className="text-sm font-black text-white">
+                  <p className="text-sm font-semibold text-ink">
                     Foco del módulo
                   </p>
-                  <p className="mt-2 max-w-xs text-sm leading-6 text-slate-400">
+                  <p className="mt-2 max-w-xs text-sm leading-6 text-muted">
                     técnicos · disponibilidad · especialidad · carga · estado
                   </p>
                 </div>
@@ -707,19 +707,19 @@ export default function TeamTechniciansPage() {
         </section>
 
         {message ? (
-          <div className="rounded-2xl border border-sky-400/30 bg-sky-400/10 p-4 text-sm font-bold text-sky-100">
+          <div className="rounded-lg border border-accent/30 bg-accent-soft p-4 text-sm font-bold text-accent">
             {message}
           </div>
         ) : null}
 
-        <section className="rounded-3xl border border-slate-800/90 bg-slate-900/55 p-5 shadow-[0_22px_70px_rgba(2,6,23,0.30)]">
-          <div className="flex flex-col gap-4 border-b border-slate-800 pb-5 xl:flex-row xl:items-center xl:justify-between">
+        <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+          <div className="flex flex-col gap-4 border-b border-line pb-5 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <h2 className="text-2xl font-black tracking-tight text-white">
+              <h2 className="text-2xl font-semibold tracking-tight text-ink">
                 Listado de técnicos
               </h2>
 
-              <p className="mt-1 text-sm text-slate-400">
+              <p className="mt-1 text-sm text-muted">
                 Revisa técnicos activos, estado, especialidad, disponibilidad,
                 carga y fechas.
               </p>
@@ -730,13 +730,13 @@ export default function TeamTechniciansPage() {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Buscar técnico…"
-                className="h-11 rounded-2xl border border-slate-700 bg-slate-950/80 px-4 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-sky-400/70 focus:ring-2 focus:ring-sky-400/10"
+                className="h-11 rounded-lg border border-line bg-surface-2 px-4 text-sm text-ink outline-none transition placeholder:text-subtle focus:border-accent/30 focus:ring-2 focus:ring-accent/25"
               />
 
               <select
                 value={activeFilter}
                 onChange={(event) => setActiveFilter(event.target.value)}
-                className="h-11 rounded-2xl border border-slate-700 bg-slate-950/80 px-4 text-sm text-slate-100 outline-none transition focus:border-sky-400/70 focus:ring-2 focus:ring-sky-400/10"
+                className="h-11 rounded-lg border border-line bg-surface-2 px-4 text-sm text-ink outline-none transition focus:border-accent/30 focus:ring-2 focus:ring-accent/25"
               >
                 <option value="">Todos</option>
                 <option value="true">Activos</option>
@@ -745,7 +745,7 @@ export default function TeamTechniciansPage() {
 
               <Link
                 href="/team/users/new"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-sky-400/40 bg-sky-500/15 px-4 text-sm font-black text-sky-200 transition hover:bg-sky-500/25"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-accent/30 bg-accent-soft px-4 text-sm font-semibold text-accent transition hover:bg-accent-soft"
               >
                 <PlusIcon className="h-4 w-4" />
                 Alta de técnico
@@ -754,24 +754,24 @@ export default function TeamTechniciansPage() {
           </div>
 
           {state.status === 'loading' ? (
-            <div className="py-12 text-center text-sm text-slate-400">
+            <div className="py-12 text-center text-sm text-muted">
               Cargando técnicos…
             </div>
           ) : null}
 
           {state.status === 'error' ? (
-            <div className="mt-5 rounded-2xl border border-rose-400/30 bg-rose-400/10 p-4 text-sm text-rose-100">
+            <div className="mt-5 rounded-lg border border-danger/30 bg-danger-soft p-4 text-sm text-danger">
               {state.error}
             </div>
           ) : null}
 
           {state.status === 'ok' && technicians.length === 0 ? (
             <div className="py-12 text-center">
-              <p className="text-lg font-black text-white">
+              <p className="text-lg font-semibold text-ink">
                 No hay técnicos para mostrar.
               </p>
 
-              <p className="mt-2 text-sm text-slate-400">
+              <p className="mt-2 text-sm text-muted">
                 Puedes dar de alta un técnico desde el botón superior.
               </p>
             </div>
@@ -781,7 +781,7 @@ export default function TeamTechniciansPage() {
             <div className="overflow-x-auto">
               <table className="min-w-full border-separate border-spacing-y-3">
                 <thead>
-                  <tr className="text-left text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
+                  <tr className="text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-subtle">
                     <th className="px-4 py-2">Técnico</th>
                     <th className="px-4 py-2">Estado</th>
                     <th className="px-4 py-2">Especialidad</th>
@@ -801,23 +801,23 @@ export default function TeamTechniciansPage() {
                     return (
                       <tr
                         key={technician.id}
-                        className="rounded-2xl bg-slate-950/55 text-sm text-slate-300"
+                        className="rounded-lg bg-surface-2 text-sm text-ink-2"
                       >
-                        <td className="rounded-l-2xl border-y border-l border-slate-800 px-4 py-4">
+                        <td className="rounded-l-lg border-y border-l border-line px-4 py-4">
                           <div className="flex items-center gap-3">
                             <TechnicianInitials name={technician.name} />
 
                             <div>
-                              <p className="font-black text-white">
+                              <p className="font-semibold text-ink">
                                 {technician.name}
                               </p>
 
-                              <p className="mt-1 text-xs text-slate-500">
+                              <p className="mt-1 text-xs text-subtle">
                                 {technician.email}
                               </p>
 
                               {technician.phone ? (
-                                <p className="mt-1 text-xs text-slate-500">
+                                <p className="mt-1 text-xs text-subtle">
                                   Tel: {technician.phone}
                                 </p>
                               ) : null}
@@ -825,43 +825,43 @@ export default function TeamTechniciansPage() {
                           </div>
                         </td>
 
-                        <td className="border-y border-slate-800 px-4 py-4">
+                        <td className="border-y border-line px-4 py-4">
                           <StatusBadge active={active} />
                         </td>
 
-                        <td className="border-y border-slate-800 px-4 py-4">
-                          <span className="inline-flex items-center gap-2 rounded-full border border-slate-700/80 bg-slate-950/70 px-3 py-1 text-[11px] font-bold text-slate-300">
-                            <WrenchIcon className="h-3.5 w-3.5 text-sky-400" />
+                        <td className="border-y border-line px-4 py-4">
+                          <span className="inline-flex items-center gap-2 rounded-full border border-line bg-surface-2 px-3 py-1 text-[11px] font-bold text-ink-2">
+                            <WrenchIcon className="h-3.5 w-3.5 text-accent" />
                             {resolveSpecialty(technician)}
                           </span>
                         </td>
 
-                        <td className="border-y border-slate-800 px-4 py-4">
+                        <td className="border-y border-line px-4 py-4">
                           {getAvailability(active)}
                         </td>
 
-                        <td className="border-y border-slate-800 px-4 py-4">
+                        <td className="border-y border-line px-4 py-4">
                           {workload}
                         </td>
 
-                        <td className="border-y border-slate-800 px-4 py-4 capitalize">
+                        <td className="border-y border-line px-4 py-4 capitalize">
                           {formatMonth(technician.createdAt)}
                         </td>
 
-                        <td className="border-y border-slate-800 px-4 py-4 text-slate-400">
+                        <td className="border-y border-line px-4 py-4 text-muted">
                           {formatDate(technician.updatedAt)}
                         </td>
 
-                        <td className="rounded-r-2xl border-y border-r border-slate-800 px-4 py-4 text-right">
+                        <td className="rounded-r-lg border-y border-r border-line px-4 py-4 text-right">
                           <button
                             type="button"
                             disabled={actionLoadingId === technician.id}
                             onClick={() => void toggleActive(technician)}
                             className={[
-                              'inline-flex rounded-xl px-4 py-2 text-xs font-black transition disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500',
+                              'inline-flex rounded-lg px-4 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:bg-surface-3 disabled:text-subtle',
                               active
-                                ? 'border border-slate-700 bg-slate-950 text-slate-200 hover:bg-slate-800'
-                                : 'bg-sky-500 text-white hover:bg-sky-400',
+                                ? 'border border-line bg-surface-2 text-ink hover:bg-surface-3'
+                                : 'bg-accent text-white hover:bg-accent-hover',
                             ].join(' ')}
                           >
                             {actionLoadingId === technician.id
@@ -880,13 +880,13 @@ export default function TeamTechniciansPage() {
           ) : null}
         </section>
 
-        <section className="rounded-3xl border border-slate-800/90 bg-slate-900/30 p-5">
+        <section className="rounded-xl border border-line bg-surface p-5">
           <div className="mb-5">
-            <p className="text-[12px] font-black uppercase tracking-[0.28em] text-sky-400">
+            <p className="text-[12px] font-semibold uppercase tracking-[0.28em] text-accent">
               Próximamente
             </p>
 
-            <h2 className="mt-2 text-2xl font-black tracking-tight text-white">
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-ink">
               Futuras funciones del módulo técnico
             </h2>
           </div>

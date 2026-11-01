@@ -129,14 +129,14 @@ function Badge({
 }) {
   const cls =
     tone === 'ok'
-      ? 'bg-emerald-600/20 text-emerald-200 ring-emerald-600/30'
+      ? 'bg-success-soft text-success ring-success/25'
       : tone === 'warn'
-        ? 'bg-yellow-600/20 text-yellow-200 ring-yellow-600/30'
+        ? 'bg-warning-soft text-warning ring-warning/25'
         : tone === 'bad'
-          ? 'bg-rose-600/20 text-rose-200 ring-rose-600/30'
+          ? 'bg-danger-soft text-danger ring-danger/25'
           : tone === 'info'
-            ? 'bg-sky-600/20 text-sky-200 ring-sky-600/30'
-            : 'bg-slate-600/20 text-slate-200 ring-slate-600/30';
+            ? 'bg-accent-soft text-accent ring-accent/25'
+            : 'bg-line-strong text-ink ring-line-strong';
 
   return (
     <span
@@ -157,10 +157,10 @@ function MetricCard({
   helper: string;
 }) {
   return (
-    <div className="rounded-2xl bg-slate-900/60 p-4 ring-1 ring-white/10">
-      <div className="text-sm text-slate-400">{label}</div>
-      <div className="mt-2 text-3xl font-semibold text-white">{value}</div>
-      <div className="mt-2 text-xs text-slate-500">{helper}</div>
+    <div className="rounded-lg bg-surface p-4 ring-1 ring-line">
+      <div className="text-sm text-muted">{label}</div>
+      <div className="mt-2 text-3xl font-semibold text-ink">{value}</div>
+      <div className="mt-2 text-xs text-subtle">{helper}</div>
     </div>
   );
 }
@@ -175,11 +175,11 @@ function ReportSection({
   items: MaintenanceReport[];
 }) {
   return (
-    <section className="rounded-2xl bg-slate-900/60 p-5 ring-1 ring-white/10">
+    <section className="rounded-lg bg-surface p-5 ring-1 ring-line">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-white">{title}</h2>
-          <p className="mt-1 text-sm text-slate-400">{description}</p>
+          <h2 className="text-lg font-semibold text-ink">{title}</h2>
+          <p className="mt-1 text-sm text-muted">{description}</p>
         </div>
 
         <Badge tone={items.length > 0 ? 'info' : 'muted'}>
@@ -188,7 +188,7 @@ function ReportSection({
       </div>
 
       {items.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-white/10 px-4 py-4 text-sm text-slate-500">
+        <div className="rounded-lg border border-dashed border-line px-4 py-4 text-sm text-subtle">
           No hay registros en este bloque.
         </div>
       ) : (
@@ -196,12 +196,12 @@ function ReportSection({
           {items.map((report) => (
             <div
               key={report.id}
-              className="rounded-xl border border-white/10 bg-slate-950/40 p-4"
+              className="rounded-lg border border-line bg-surface-2 p-4"
             >
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-base font-semibold text-white">
+                    <h3 className="text-base font-semibold text-ink">
                       {report.templateName || report.title || 'Parte de trabajo'}
                     </h3>
 
@@ -210,26 +210,26 @@ function ReportSection({
                     </Badge>
                   </div>
 
-                  <div className="mt-3 grid gap-2 text-sm text-slate-300 md:grid-cols-2 xl:grid-cols-4">
+                  <div className="mt-3 grid gap-2 text-sm text-ink-2 md:grid-cols-2 xl:grid-cols-4">
                     <div>
-                      <span className="text-slate-500">Cliente:</span>{' '}
+                      <span className="text-subtle">Cliente:</span>{' '}
                       {report.customerName || '—'}
                     </div>
                     <div>
-                      <span className="text-slate-500">Site:</span>{' '}
+                      <span className="text-subtle">Site:</span>{' '}
                       {report.siteName || '—'}
                     </div>
                     <div>
-                      <span className="text-slate-500">Activo:</span>{' '}
+                      <span className="text-subtle">Activo:</span>{' '}
                       {report.assetName || '—'}
                     </div>
                     <div>
-                      <span className="text-slate-500">Técnico:</span>{' '}
+                      <span className="text-subtle">Técnico:</span>{' '}
                       {report.technicianName || '—'}
                     </div>
                   </div>
 
-                  <div className="mt-3 grid gap-2 text-xs text-slate-400 md:grid-cols-3">
+                  <div className="mt-3 grid gap-2 text-xs text-muted md:grid-cols-3">
                     <div>Creado: {formatDate(report.createdAt)}</div>
                     <div>Última fecha útil: {formatDate(report.performedAt)}</div>
                     <div>Completado: {formatDate(report.completedAt)}</div>
@@ -240,7 +240,7 @@ function ReportSection({
                   {report.workOrderId ? (
                     <Link
                       href={`/work-orders/${report.workOrderId}`}
-                      className="rounded-xl border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800"
+                      className="rounded-lg border border-line px-3 py-2 text-sm text-ink hover:bg-surface-3"
                     >
                       Ver orden
                     </Link>
@@ -248,7 +248,7 @@ function ReportSection({
 
                   <Link
                     href={`/maintenance-reports/${report.id}`}
-                    className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-500"
+                    className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover"
                   >
                     Abrir parte
                   </Link>
@@ -402,7 +402,7 @@ export default function MaintenanceReportsPage() {
   if (!mounted) {
     return (
       <div className="mx-auto max-w-7xl p-6">
-        <div className="rounded-2xl bg-slate-900/60 p-4 text-sm text-slate-400 ring-1 ring-white/10">
+        <div className="rounded-lg bg-surface p-4 text-sm text-muted ring-1 ring-line">
           Cargando sesión…
         </div>
       </div>
@@ -414,20 +414,20 @@ export default function MaintenanceReportsPage() {
       <div className="mx-auto max-w-7xl p-6">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-white">Partes de trabajo</h1>
-            <p className="mt-1 text-sm text-slate-400">
+            <h1 className="text-2xl font-semibold text-ink">Partes de trabajo</h1>
+            <p className="mt-1 text-sm text-muted">
               Panel administrativo de partes técnicos.
             </p>
           </div>
-          <Link href="/" className="text-sm text-slate-300 hover:text-white">
+          <Link href="/" className="text-sm text-ink-2 hover:text-ink">
             ← Dashboard
           </Link>
         </div>
 
-        <div className="mt-6 rounded-2xl bg-slate-900/60 p-4 ring-1 ring-white/10">
-          <div className="text-sm text-red-200">
+        <div className="mt-6 rounded-lg bg-surface p-4 ring-1 ring-line">
+          <div className="text-sm text-danger">
             Sin sesión tenant. Ve a{' '}
-            <Link className="text-white underline" href="/login">
+            <Link className="text-ink underline" href="/login">
               /login
             </Link>
             .
@@ -441,8 +441,8 @@ export default function MaintenanceReportsPage() {
     <div className="mx-auto max-w-7xl p-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold text-white">Partes de trabajo</h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <h1 className="text-3xl font-semibold text-ink">Partes de trabajo</h1>
+          <p className="mt-1 text-sm text-muted">
             Gestión separada de partes técnicos, revisión y facturación pendiente.
           </p>
         </div>
@@ -450,27 +450,27 @@ export default function MaintenanceReportsPage() {
         <div className="flex flex-wrap items-center gap-3">
           <Link
             href="/maintenance-reports/new"
-            className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
           >
             + Crear parte de trabajo
           </Link>
 
           <button
             type="button"
-            className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-white hover:bg-slate-800"
+            className="rounded-lg border border-line px-4 py-2 text-sm text-ink hover:bg-surface-3"
             onClick={() => setReloadKey((x) => x + 1)}
           >
             Actualizar
           </button>
 
-          <Link href="/" className="text-sm text-slate-300 hover:text-white">
+          <Link href="/" className="text-sm text-ink-2 hover:text-ink">
             ← Dashboard
           </Link>
         </div>
       </div>
 
       {state.status === 'error' ? (
-        <div className="mt-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+        <div className="mt-6 rounded-lg border border-danger/30 bg-danger-soft p-4 text-sm text-danger">
           {state.error}
         </div>
       ) : null}
@@ -502,18 +502,18 @@ export default function MaintenanceReportsPage() {
 
       <div className="mt-6 space-y-6">
         {state.status === 'loading' ? (
-          <div className="rounded-2xl bg-slate-900/60 p-4 text-sm text-slate-400 ring-1 ring-white/10">
+          <div className="rounded-lg bg-surface p-4 text-sm text-muted ring-1 ring-line">
             Cargando partes de trabajo…
           </div>
         ) : state.status === 'ok' && state.data.length === 0 ? (
-          <div className="rounded-2xl bg-slate-900/60 p-5 ring-1 ring-white/10">
-            <div className="text-sm text-slate-400">
+          <div className="rounded-lg bg-surface p-5 ring-1 ring-line">
+            <div className="text-sm text-muted">
               No hay partes todavía en esta company.
             </div>
 
             <Link
               href="/maintenance-reports/new"
-              className="mt-4 inline-flex rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
+              className="mt-4 inline-flex rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
             >
               Crear primer parte
             </Link>

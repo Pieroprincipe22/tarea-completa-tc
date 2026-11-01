@@ -1,5 +1,6 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import * as Sentry from '@sentry/node';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
@@ -29,9 +30,17 @@ function getAllowedOrigins(): string[] {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
   });
+
+  // Detrás de Caddy (u otro proxy) la IP real del cliente llega en X-Forwarded-For.
+  // Sin esto, el límite de intentos de login contaría a todos los usuarios como
+  // si fueran uno solo (la IP del proxy). TRUST_PROXY = nº de proxies delante.
+  const trustProxy = Number(process.env.TRUST_PROXY ?? 0);
+  if (trustProxy > 0) {
+    app.set('trust proxy', trustProxy);
+  }
 
   // Cabeceras de seguridad HTTP. Como esto es una API JSON consumida por un
   // frontend en otro origen, desactivamos CSP (corresponde al frontend) y

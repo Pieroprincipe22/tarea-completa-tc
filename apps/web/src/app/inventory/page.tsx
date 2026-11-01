@@ -42,43 +42,43 @@ const metricToneClasses: Record<
   }
 > = {
   sky: {
-    border: 'border-sky-400/40',
-    background: 'bg-sky-500/10',
-    text: 'text-sky-300',
-    icon: 'border-sky-400/30 bg-sky-500/10 text-sky-300',
-    dot: 'bg-sky-400',
+    border: 'border-accent/30',
+    background: 'bg-accent-soft',
+    text: 'text-accent',
+    icon: 'border-accent/30 bg-accent-soft text-accent',
+    dot: 'bg-accent',
     glow: 'rgba(14,165,233,0.16)',
   },
   emerald: {
-    border: 'border-emerald-400/40',
-    background: 'bg-emerald-500/10',
-    text: 'text-emerald-300',
-    icon: 'border-emerald-400/30 bg-emerald-500/10 text-emerald-300',
-    dot: 'bg-emerald-400',
+    border: 'border-success/30',
+    background: 'bg-success-soft',
+    text: 'text-success',
+    icon: 'border-success/30 bg-success-soft text-success',
+    dot: 'bg-success',
     glow: 'rgba(16,185,129,0.16)',
   },
   amber: {
-    border: 'border-amber-400/40',
-    background: 'bg-amber-500/10',
-    text: 'text-amber-300',
-    icon: 'border-amber-400/30 bg-amber-500/10 text-amber-300',
-    dot: 'bg-amber-400',
+    border: 'border-warning/30',
+    background: 'bg-warning-soft',
+    text: 'text-warning',
+    icon: 'border-warning/30 bg-warning-soft text-warning',
+    dot: 'bg-warning',
     glow: 'rgba(245,158,11,0.16)',
   },
   rose: {
-    border: 'border-rose-400/40',
-    background: 'bg-rose-500/10',
-    text: 'text-rose-300',
-    icon: 'border-rose-400/30 bg-rose-500/10 text-rose-300',
-    dot: 'bg-rose-400',
+    border: 'border-danger/30',
+    background: 'bg-danger-soft',
+    text: 'text-danger',
+    icon: 'border-danger/30 bg-danger-soft text-danger',
+    dot: 'bg-danger',
     glow: 'rgba(244,63,94,0.16)',
   },
   violet: {
-    border: 'border-violet-400/40',
-    background: 'bg-violet-500/10',
-    text: 'text-violet-300',
-    icon: 'border-violet-400/30 bg-violet-500/10 text-violet-300',
-    dot: 'bg-violet-400',
+    border: 'border-special/30',
+    background: 'bg-special-soft',
+    text: 'text-special',
+    icon: 'border-special/30 bg-special-soft text-special',
+    dot: 'bg-special',
     glow: 'rgba(139,92,246,0.16)',
   },
 };
@@ -307,10 +307,10 @@ function StatusPill({ status }: { status: InventoryModuleStatus }) {
   return (
     <span
       className={cx(
-        'rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-wide',
+        'rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide',
         isActive
-          ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-300'
-          : 'border-amber-400/40 bg-amber-400/10 text-amber-200',
+          ? 'border-success/30 bg-success-soft text-success'
+          : 'border-warning/30 bg-warning-soft text-warning',
       )}
     >
       {status}
@@ -324,35 +324,34 @@ function ShortcutCard({ item }: { item: InventoryShortcut }) {
   return (
     <div
       className={cx(
-        'relative overflow-hidden rounded-3xl border bg-slate-900/45 p-5 shadow-[0_22px_70px_rgba(2,6,23,0.30)]',
+        'relative overflow-hidden rounded-xl border bg-surface p-5 shadow-sm',
         tone.border,
       )}
     >
       <div
         className="absolute inset-0 opacity-80"
         style={{
-          background: `radial-gradient(circle at top left, ${tone.glow}, transparent 38%)`,
         }}
       />
 
       <div className="relative flex items-start justify-between gap-4">
         <div>
-          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-subtle">
             {item.label}
           </p>
 
-          <p className="mt-4 text-4xl font-black tracking-tight text-white">
+          <p className="mt-4 text-4xl font-semibold tracking-tight text-ink">
             {item.value}
           </p>
 
-          <p className="mt-3 text-sm leading-6 text-slate-400">
+          <p className="mt-3 text-sm leading-6 text-muted">
             {item.helper}
           </p>
         </div>
 
         <div
           className={cx(
-            'flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border',
+            'flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border',
             tone.icon,
           )}
         >
@@ -370,26 +369,25 @@ function ModuleCard({ item }: { item: InventoryModule }) {
   const content = (
     <div
       className={cx(
-        'group relative h-full overflow-hidden rounded-3xl border p-6 shadow-[0_22px_70px_rgba(2,6,23,0.32)] transition duration-200',
+        'group relative h-full overflow-hidden rounded-xl border p-6 shadow-sm transition duration-200',
         isActive
-          ? 'border-slate-800/90 bg-slate-900/55 hover:-translate-y-0.5 hover:border-sky-400/45 hover:bg-slate-900/75 hover:shadow-[0_28px_90px_rgba(14,165,233,0.12)]'
-          : 'border-slate-800/90 bg-slate-900/35',
+          ? 'border-line bg-surface hover:-translate-y-0.5 hover:border-accent/30 hover:bg-surface '
+          : 'border-line bg-surface',
       )}
     >
       <div
         className="absolute inset-0 opacity-80"
         style={{
-          background: `radial-gradient(circle at top left, ${tone.glow}, transparent 35%)`,
         }}
       />
 
       <div className="relative flex gap-5">
         <div
           className={cx(
-            'flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl border shadow-[0_0_35px_rgba(14,165,233,0.10)]',
+            'flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border ',
             isActive
               ? tone.icon
-              : 'border-slate-700/80 bg-slate-950/70 text-slate-500',
+              : 'border-line bg-surface-2 text-subtle',
           )}
         >
           <ModuleIcon type={item.key} />
@@ -397,28 +395,28 @@ function ModuleCard({ item }: { item: InventoryModule }) {
 
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-4">
-            <h2 className="text-2xl font-black tracking-tight text-white">
+            <h2 className="text-2xl font-semibold tracking-tight text-ink">
               {item.title}
             </h2>
 
             <StatusPill status={item.status} />
           </div>
 
-          <p className="mt-4 max-w-xl text-sm leading-7 text-slate-300">
+          <p className="mt-4 max-w-xl text-sm leading-7 text-ink-2">
             {item.description}
           </p>
 
           {isActive ? (
             <p
               className={cx(
-                'mt-6 text-sm font-black transition group-hover:text-sky-200',
+                'mt-6 text-sm font-semibold transition group-hover:text-accent',
                 tone.text,
               )}
             >
               Abrir módulo →
             </p>
           ) : (
-            <p className="mt-6 text-sm font-bold text-slate-500">
+            <p className="mt-6 text-sm font-bold text-subtle">
               Pendiente de implementación
             </p>
           )}
@@ -479,23 +477,23 @@ export default function InventoryPage() {
   ];
 
   return (
-    <main className="min-h-[calc(100vh-86px)] flex-1 bg-slate-950 px-6 py-8 text-slate-100 lg:px-8">
+    <main className="min-h-[calc(100vh-86px)] flex-1 bg-surface-2 px-6 py-8 text-ink lg:px-8">
       <div className="mx-auto max-w-7xl space-y-6">
-        <section className="relative overflow-hidden rounded-3xl border border-sky-500/50 bg-slate-900/70 p-8 shadow-[0_0_80px_rgba(14,165,233,0.12)]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.20),transparent_34%),linear-gradient(135deg,rgba(2,6,23,0.2),rgba(2,132,199,0.08))]" />
-          <div className="absolute right-0 top-0 h-full w-1/2 bg-[linear-gradient(rgba(56,189,248,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,0.08)_1px,transparent_1px)] bg-[size:24px_24px] opacity-40" />
+        <section className="relative overflow-hidden rounded-xl border border-accent bg-surface p-8 ">
+          <div className="absolute inset-0 " />
+          <div className="absolute right-0 top-0 h-full w-1/2 opacity-40" />
 
           <div className="relative grid gap-8 lg:grid-cols-[1fr_360px] lg:items-center">
             <div>
-              <p className="text-[12px] font-black uppercase tracking-[0.28em] text-sky-400">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.28em] text-accent">
                 Módulo operativo
               </p>
 
-              <h1 className="mt-5 text-5xl font-black tracking-tight text-white md:text-6xl">
+              <h1 className="mt-5 text-5xl font-semibold tracking-tight text-ink md:text-6xl">
                 Inventario
               </h1>
 
-              <p className="mt-6 max-w-3xl text-base leading-8 text-slate-300">
+              <p className="mt-6 max-w-3xl text-base leading-8 text-ink-2">
                 Centraliza almacén, pedidos, movimientos, compras y reposición
                 para que cada trabajo técnico tenga materiales controlados,
                 trazables y listos para usar.
@@ -504,32 +502,32 @@ export default function InventoryPage() {
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link
                   href="/inventory/warehouse"
-                  className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-slate-950 hover:bg-slate-200"
+                  className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-hover"
                 >
                   Abrir almacén
                 </Link>
 
                 <Link
                   href="/inventory/orders"
-                  className="rounded-2xl border border-slate-700 bg-slate-950/40 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800"
+                  className="rounded-lg border border-line bg-surface-2 px-4 py-2 text-sm font-bold text-ink hover:bg-surface-3"
                 >
                   Abrir pedidos
                 </Link>
               </div>
             </div>
 
-            <div className="rounded-3xl border border-slate-700/80 bg-slate-950/65 p-6 shadow-[0_18px_60px_rgba(2,6,23,0.35)]">
+            <div className="rounded-xl border border-line bg-surface-2 p-6 shadow-sm">
               <div className="flex gap-5">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl border border-sky-400/25 bg-sky-500/10 text-sky-300">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-accent/30 bg-accent-soft text-accent">
                   <TargetIcon className="h-8 w-8" />
                 </div>
 
                 <div>
-                  <p className="text-[12px] font-black uppercase tracking-[0.22em] text-sky-400">
+                  <p className="text-[12px] font-semibold uppercase tracking-[0.22em] text-accent">
                     Estructura del módulo
                   </p>
 
-                  <ul className="mt-4 space-y-3 text-sm text-slate-300">
+                  <ul className="mt-4 space-y-3 text-sm text-ink-2">
                     {inventoryModules.map((item) => {
                       const tone = metricToneClasses[item.tone];
 
@@ -557,15 +555,15 @@ export default function InventoryPage() {
 
         <section className="space-y-4">
           <div>
-            <p className="text-[12px] font-black uppercase tracking-[0.28em] text-sky-400">
+            <p className="text-[12px] font-semibold uppercase tracking-[0.28em] text-accent">
               Disponibles
             </p>
 
-            <h2 className="mt-2 text-2xl font-black tracking-tight text-white">
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-ink">
               Módulos activos
             </h2>
 
-            <p className="mt-2 text-sm leading-7 text-slate-400">
+            <p className="mt-2 text-sm leading-7 text-muted">
               Estas pantallas ya pueden usarse dentro del flujo operativo del
               proyecto.
             </p>
@@ -578,17 +576,17 @@ export default function InventoryPage() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-800/90 bg-slate-900/30 p-5">
+        <section className="rounded-xl border border-line bg-surface p-5">
           <div className="mb-5">
-            <p className="text-[12px] font-black uppercase tracking-[0.28em] text-sky-400">
+            <p className="text-[12px] font-semibold uppercase tracking-[0.28em] text-accent">
               Próximamente
             </p>
 
-            <h2 className="mt-2 text-2xl font-black tracking-tight text-white">
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-ink">
               Futuros módulos de inventario
             </h2>
 
-            <p className="mt-2 text-sm leading-6 text-slate-400">
+            <p className="mt-2 text-sm leading-6 text-muted">
               Estas funciones quedan separadas para desarrollo posterior, sin
               mezclarlas con almacén y pedidos.
             </p>

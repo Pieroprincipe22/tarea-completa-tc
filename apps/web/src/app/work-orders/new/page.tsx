@@ -478,9 +478,9 @@ export default function NewWorkOrderPage() {
 
   if (!mounted) {
     return (
-      <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
-        <div className="mx-auto w-full max-w-4xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <p className="text-sm font-medium text-slate-500">
+      <main className="min-h-screen bg-surface-2 px-4 py-6 text-ink sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-4xl rounded-xl border border-line bg-surface p-8 text-center shadow-sm">
+          <p className="text-sm font-medium text-muted">
             Cargando sesión...
           </p>
         </div>
@@ -490,24 +490,24 @@ export default function NewWorkOrderPage() {
 
   if (!session) {
     return (
-      <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
-        <div className="mx-auto w-full max-w-3xl rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">
+      <main className="min-h-screen bg-surface-2 px-4 py-6 text-ink sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-3xl rounded-xl border border-line bg-surface p-8 shadow-sm">
+          <p className="text-sm font-medium text-muted">
             Nueva orden de trabajo
           </p>
 
-          <h1 className="mt-1 text-2xl font-bold text-slate-950">
+          <h1 className="mt-1 text-2xl font-bold text-ink">
             Sesión no encontrada
           </h1>
 
-          <p className="mt-2 text-sm leading-6 text-slate-600">
+          <p className="mt-2 text-sm leading-6 text-muted">
             Para crear órdenes de trabajo necesitas iniciar sesión y tener una
             empresa activa.
           </p>
 
           <Link
             href="/login"
-            className="mt-5 inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+            className="mt-5 inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover"
           >
             Ir a login
           </Link>
@@ -517,20 +517,20 @@ export default function NewWorkOrderPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-surface-2 px-4 py-6 text-ink sm:px-6 lg:px-8">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-500">
+              <p className="text-sm font-medium text-muted">
                 Órdenes de trabajo
               </p>
 
-              <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+              <h1 className="mt-1 text-2xl font-bold tracking-tight text-ink sm:text-3xl">
                 Nueva orden de trabajo
               </h1>
 
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">
                 Crea una orden vinculada a cliente, site, activo y técnico
                 asignado.
               </p>
@@ -538,7 +538,7 @@ export default function NewWorkOrderPage() {
 
             <Link
               href="/work-orders"
-              className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink-2 transition hover:bg-surface-2"
             >
               Volver a órdenes
             </Link>
@@ -546,24 +546,24 @@ export default function NewWorkOrderPage() {
         </section>
 
         {loadState.status === 'error' ? (
-          <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700">
+          <div className="rounded-xl border border-danger/30 bg-danger-soft p-5 text-sm text-danger">
             {loadState.error}
           </div>
         ) : null}
 
         {technicianWarning ? (
-          <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
+          <div className="rounded-xl border border-warning/30 bg-warning-soft p-5 text-sm text-warning">
             {technicianWarning}
           </div>
         ) : null}
 
         <form
           onSubmit={handleSubmit}
-          className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
+          className="rounded-xl border border-line bg-surface p-5 shadow-sm"
         >
           <div className="grid gap-4 md:grid-cols-2">
             <label className="flex flex-col gap-2 md:col-span-2">
-              <span className="text-sm font-semibold text-slate-700">
+              <span className="text-sm font-semibold text-ink-2">
                 Título *
               </span>
 
@@ -571,12 +571,12 @@ export default function NewWorkOrderPage() {
                 value={form.title}
                 onChange={(event) => updateField('title', event.target.value)}
                 placeholder="Ejemplo: Revisión de fan coil habitación 407"
-                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400"
+                className="h-11 rounded-lg border border-line bg-surface px-4 text-sm outline-none transition placeholder:text-subtle focus:border-accent"
               />
             </label>
 
             <label className="flex flex-col gap-2">
-              <span className="text-sm font-semibold text-slate-700">
+              <span className="text-sm font-semibold text-ink-2">
                 Cliente
               </span>
 
@@ -584,7 +584,7 @@ export default function NewWorkOrderPage() {
                 value={form.customerId}
                 onChange={(event) => handleCustomerChange(event.target.value)}
                 disabled={loadState.status === 'loading'}
-                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-slate-400 disabled:bg-slate-100"
+                className="h-11 rounded-lg border border-line bg-surface px-4 text-sm outline-none transition focus:border-accent disabled:bg-surface-2"
               >
                 <option value="">Sin cliente específico</option>
                 {customers.map((customer) => (
@@ -596,7 +596,7 @@ export default function NewWorkOrderPage() {
             </label>
 
             <label className="flex flex-col gap-2">
-              <span className="text-sm font-semibold text-slate-700">
+              <span className="text-sm font-semibold text-ink-2">
                 Site / ubicación
               </span>
 
@@ -604,7 +604,7 @@ export default function NewWorkOrderPage() {
                 value={form.siteId}
                 onChange={(event) => handleSiteChange(event.target.value)}
                 disabled={loadState.status === 'loading'}
-                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-slate-400 disabled:bg-slate-100"
+                className="h-11 rounded-lg border border-line bg-surface px-4 text-sm outline-none transition focus:border-accent disabled:bg-surface-2"
               >
                 <option value="">Sin site específico</option>
                 {filteredSites.map((site) => (
@@ -617,7 +617,7 @@ export default function NewWorkOrderPage() {
             </label>
 
             <label className="flex flex-col gap-2">
-              <span className="text-sm font-semibold text-slate-700">
+              <span className="text-sm font-semibold text-ink-2">
                 Activo / máquina
               </span>
 
@@ -625,7 +625,7 @@ export default function NewWorkOrderPage() {
                 value={form.assetId}
                 onChange={(event) => handleAssetChange(event.target.value)}
                 disabled={loadState.status === 'loading'}
-                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-slate-400 disabled:bg-slate-100"
+                className="h-11 rounded-lg border border-line bg-surface px-4 text-sm outline-none transition focus:border-accent disabled:bg-surface-2"
               >
                 <option value="">Sin activo específico</option>
                 {filteredAssets.map((asset) => (
@@ -637,7 +637,7 @@ export default function NewWorkOrderPage() {
             </label>
 
             <label className="flex flex-col gap-2">
-              <span className="text-sm font-semibold text-slate-700">
+              <span className="text-sm font-semibold text-ink-2">
                 Técnico asignado
               </span>
 
@@ -647,7 +647,7 @@ export default function NewWorkOrderPage() {
                   updateField('assignedToId', event.target.value)
                 }
                 disabled={loadState.status === 'loading'}
-                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-slate-400 disabled:bg-slate-100"
+                className="h-11 rounded-lg border border-line bg-surface px-4 text-sm outline-none transition focus:border-accent disabled:bg-surface-2"
               >
                 <option value="">Sin asignar</option>
                 {technicians.map((technician) => (
@@ -659,7 +659,7 @@ export default function NewWorkOrderPage() {
             </label>
 
             <label className="flex flex-col gap-2">
-              <span className="text-sm font-semibold text-slate-700">
+              <span className="text-sm font-semibold text-ink-2">
                 Prioridad
               </span>
 
@@ -671,7 +671,7 @@ export default function NewWorkOrderPage() {
                     event.target.value as WorkOrderPriority,
                   )
                 }
-                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-slate-400"
+                className="h-11 rounded-lg border border-line bg-surface px-4 text-sm outline-none transition focus:border-accent"
               >
                 {PRIORITY_OPTIONS.map((priority) => (
                   <option key={priority.value} value={priority.value}>
@@ -682,7 +682,7 @@ export default function NewWorkOrderPage() {
             </label>
 
             <label className="flex flex-col gap-2">
-              <span className="text-sm font-semibold text-slate-700">
+              <span className="text-sm font-semibold text-ink-2">
                 Fecha programada
               </span>
 
@@ -692,12 +692,12 @@ export default function NewWorkOrderPage() {
                 onChange={(event) =>
                   updateField('scheduledAt', event.target.value)
                 }
-                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-slate-400"
+                className="h-11 rounded-lg border border-line bg-surface px-4 text-sm outline-none transition focus:border-accent"
               />
             </label>
 
             <label className="flex flex-col gap-2 md:col-span-2">
-              <span className="text-sm font-semibold text-slate-700">
+              <span className="text-sm font-semibold text-ink-2">
                 Descripción
               </span>
 
@@ -708,13 +708,13 @@ export default function NewWorkOrderPage() {
                 }
                 placeholder="Describe el trabajo a realizar, síntomas, instrucciones de acceso, materiales o prioridad operativa..."
                 rows={6}
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400"
+                className="rounded-lg border border-line bg-surface px-4 py-3 text-sm outline-none transition placeholder:text-subtle focus:border-accent"
               />
             </label>
           </div>
 
           {errorMessage ? (
-            <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+            <div className="mt-5 rounded-lg border border-danger/30 bg-danger-soft p-4 text-sm text-danger">
               {errorMessage}
             </div>
           ) : null}
@@ -722,7 +722,7 @@ export default function NewWorkOrderPage() {
           <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <Link
               href="/work-orders"
-              className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink-2 transition hover:bg-surface-2"
             >
               Cancelar
             </Link>
@@ -730,7 +730,7 @@ export default function NewWorkOrderPage() {
             <button
               type="submit"
               disabled={isSaving || loadState.status === 'loading'}
-              className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+              className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-accent-hover"
             >
               {isSaving ? 'Guardando...' : 'Crear orden'}
             </button>

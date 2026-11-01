@@ -29,7 +29,7 @@ function cx(...classes: Array<string | false | null | undefined>): string {
 
 function CubeIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="1.8"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="m12 3 7.5 4.2v9.6L12 21l-7.5-4.2V7.2L12 3Z" />
       <path d="M4.8 7.4 12 11.5l7.2-4.1" />
       <path d="M12 11.5V21" />
@@ -39,7 +39,7 @@ function CubeIcon(props: IconProps) {
 
 function WarehouseIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="1.8"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="M3.5 10.2 12 4l8.5 6.2" />
       <path d="M5 9.5V20h14V9.5" />
       <path d="M8 20v-7h8v7" />
@@ -50,7 +50,7 @@ function WarehouseIcon(props: IconProps) {
 
 function WarningIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="1.8"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="m12 3 10 18H2L12 3Z" />
       <path d="M12 9v5" />
       <path d="M12 17h.01" />
@@ -60,7 +60,7 @@ function WarningIcon(props: IconProps) {
 
 function ClipboardIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="1.8"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="M9 4h6l1 2h2a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2l1-2Z" />
       <path d="M9 4h6v4H9V4Z" />
       <path d="M8 13h8" />
@@ -71,7 +71,7 @@ function ClipboardIcon(props: IconProps) {
 
 function InvoiceIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="1.8"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="M7 3h10a2 2 0 0 1 2 2v16l-3-2-2 2-2-2-2 2-2-2-3 2V5a2 2 0 0 1 2-2Z" />
       <path d="M9 8h6" />
       <path d="M9 12h6" />
@@ -82,7 +82,7 @@ function InvoiceIcon(props: IconProps) {
 
 function PlusIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="1.9"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="M12 5v14" />
       <path d="M5 12h14" />
     </svg>
@@ -91,7 +91,7 @@ function PlusIcon(props: IconProps) {
 
 function SearchIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="1.8"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="m21 21-4.3-4.3" />
       <path d="M10.8 18a7.2 7.2 0 1 0 0-14.4 7.2 7.2 0 0 0 0 14.4Z" />
     </svg>
@@ -100,7 +100,7 @@ function SearchIcon(props: IconProps) {
 
 function FilterIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="1.8"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="M4 5h16" />
       <path d="M7 12h10" />
       <path d="M10 19h4" />
@@ -110,7 +110,7 @@ function FilterIcon(props: IconProps) {
 
 function EyeIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="1.8"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
       <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
     </svg>
@@ -119,7 +119,7 @@ function EyeIcon(props: IconProps) {
 
 function DotsIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="2.4"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="M12 6h.01" />
       <path d="M12 12h.01" />
       <path d="M12 18h.01" />
@@ -129,7 +129,7 @@ function DotsIcon(props: IconProps) {
 
 function ArrowIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="1.8"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="M5 12h14" />
       <path d="m13 6 6 6-6 6" />
     </svg>
@@ -138,26 +138,26 @@ function ArrowIcon(props: IconProps) {
 
 function getToneClasses(tone: MetricTone) {
   if (tone === 'violet') {
-    return 'border-violet-400/30 bg-violet-500/15 text-violet-300';
+    return 'border-special/30 bg-special-soft text-special';
   }
 
   if (tone === 'amber') {
-    return 'border-amber-400/30 bg-amber-500/15 text-amber-300';
+    return 'border-warning/30 bg-warning-soft text-warning';
   }
 
   if (tone === 'cyan') {
-    return 'border-cyan-400/30 bg-cyan-500/15 text-cyan-300';
+    return 'border-accent/30 bg-accent-soft text-accent';
   }
 
   if (tone === 'emerald') {
-    return 'border-emerald-400/30 bg-emerald-500/15 text-emerald-300';
+    return 'border-success/30 bg-success-soft text-success';
   }
 
   if (tone === 'rose') {
-    return 'border-rose-400/30 bg-rose-500/15 text-rose-300';
+    return 'border-danger/30 bg-danger-soft text-danger';
   }
 
-  return 'border-blue-400/30 bg-blue-600/20 text-blue-300';
+  return 'border-accent/30 bg-accent-soft text-accent';
 }
 
 const stockItems: StockItem[] = [
@@ -248,11 +248,11 @@ function MetricCard({
   tone: MetricTone;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-800/90 bg-[#0c1728]/90 p-5 shadow-[0_18px_70px_rgba(2,6,23,0.20)]">
+    <div className="rounded-lg border border-line bg-surface-2 p-5 shadow-sm">
       <div className="flex items-start gap-4">
         <div
           className={cx(
-            'flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border',
+            'flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border',
             getToneClasses(tone),
           )}
         >
@@ -260,13 +260,13 @@ function MetricCard({
         </div>
 
         <div>
-          <p className="text-sm text-slate-300">{title}</p>
+          <p className="text-sm text-ink-2">{title}</p>
 
-          <p className="mt-3 text-3xl font-black tracking-tight text-white">
+          <p className="mt-3 text-3xl font-semibold tracking-tight text-ink">
             {value}
           </p>
 
-          <p className="mt-2 text-sm leading-6 text-slate-500">
+          <p className="mt-2 text-sm leading-6 text-subtle">
             {description}
           </p>
         </div>
@@ -278,13 +278,13 @@ function MetricCard({
 function StatusBadge({ status }: { status: StockItem['status'] }) {
   const classes =
     status === 'En stock'
-      ? 'bg-emerald-500/15 text-emerald-300'
+      ? 'bg-success-soft text-success'
       : status === 'Bajo stock'
-        ? 'bg-amber-500/15 text-amber-300'
-        : 'bg-rose-500/15 text-rose-300';
+        ? 'bg-warning-soft text-warning'
+        : 'bg-danger-soft text-danger';
 
   return (
-    <span className={cx('rounded-lg px-3 py-1 text-xs font-black', classes)}>
+    <span className={cx('rounded-lg px-3 py-1 text-xs font-semibold', classes)}>
       {status}
     </span>
   );
@@ -293,14 +293,14 @@ function StatusBadge({ status }: { status: StockItem['status'] }) {
 function CategoryBadge({ category }: { category: string }) {
   const classes =
     category === 'Filtros'
-      ? 'bg-blue-600/20 text-blue-300'
+      ? 'bg-accent-soft text-accent'
       : category === 'Repuestos'
-        ? 'bg-violet-500/20 text-violet-300'
+        ? 'bg-special-soft text-special'
         : category === 'Refrigeración'
-          ? 'bg-cyan-500/20 text-cyan-300'
+          ? 'bg-accent-soft text-accent'
           : category === 'Compresores'
-            ? 'bg-blue-500/20 text-blue-300'
-            : 'bg-amber-500/20 text-amber-300';
+            ? 'bg-accent-soft text-accent'
+            : 'bg-warning-soft text-warning';
 
   return (
     <span className={cx('rounded-lg px-3 py-1 text-xs font-bold', classes)}>
@@ -314,7 +314,7 @@ function ActivityRow({ item }: { item: ActivityItem }) {
     <div className="flex items-start gap-3">
       <div
         className={cx(
-          'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border',
+          'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border',
           getToneClasses(item.tone),
         )}
       >
@@ -322,11 +322,11 @@ function ActivityRow({ item }: { item: ActivityItem }) {
       </div>
 
       <div>
-        <p className="text-sm font-black text-white">{item.title}</p>
-        <p className="mt-1 text-xs leading-5 text-slate-400">
+        <p className="text-sm font-semibold text-ink">{item.title}</p>
+        <p className="mt-1 text-xs leading-5 text-muted">
           {item.description}
         </p>
-        <p className="mt-1 text-xs text-slate-600">{item.time}</p>
+        <p className="mt-1 text-xs text-subtle">{item.time}</p>
       </div>
     </div>
   );
@@ -334,20 +334,20 @@ function ActivityRow({ item }: { item: ActivityItem }) {
 
 export default function InventoryWarehousePage() {
   return (
-    <main className="min-h-[calc(100vh-74px)] bg-[#080f1d] px-6 py-6 text-slate-100">
+    <main className="min-h-[calc(100vh-74px)] bg-surface px-6 py-6 text-ink">
       <div className="mx-auto max-w-[1400px] space-y-6">
         <section className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-5">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-blue-400/35 bg-blue-600/20 text-blue-300 shadow-[0_0_35px_rgba(37,99,235,0.20)]">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-accent/30 bg-accent-soft text-accent ">
               <WarehouseIcon className="h-8 w-8" />
             </div>
 
             <div>
-              <h1 className="text-4xl font-black tracking-tight text-white">
+              <h1 className="text-4xl font-semibold tracking-tight text-ink">
                 Almacén
               </h1>
 
-              <p className="mt-2 text-base text-slate-400">
+              <p className="mt-2 text-base text-muted">
                 Controla materiales, repuestos, consumibles, ubicaciones y stock mínimo.
               </p>
             </div>
@@ -356,14 +356,14 @@ export default function InventoryWarehousePage() {
           <div className="flex flex-wrap gap-3">
             <Link
               href="/inventory"
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-[#0c1728] px-5 py-3 text-sm font-black text-slate-200 transition hover:border-blue-400/50 hover:bg-blue-600/10"
+              className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface-2 px-5 py-3 text-sm font-semibold text-ink transition hover:border-accent/30 hover:bg-accent-soft"
             >
               Volver a inventario
             </Link>
 
             <button
               type="button"
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-[0_12px_35px_rgba(37,99,235,0.32)] transition hover:bg-blue-500"
+              className="inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover"
             >
               <PlusIcon className="h-4 w-4" />
               Nuevo material
@@ -406,30 +406,30 @@ export default function InventoryWarehousePage() {
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[1fr_280px]">
-          <div className="rounded-2xl border border-slate-800/90 bg-[#0c1728]/90 shadow-[0_18px_70px_rgba(2,6,23,0.20)]">
-            <div className="flex flex-col gap-4 border-b border-slate-800/90 p-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="rounded-lg border border-line bg-surface-2 shadow-sm">
+            <div className="flex flex-col gap-4 border-b border-line p-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h2 className="text-2xl font-black text-white">
+                <h2 className="text-2xl font-semibold text-ink">
                   Materiales de almacén
                 </h2>
 
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-subtle">
                   Stock actual, mínimos, ubicaciones, categorías y estado operativo.
                 </p>
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row">
                 <div className="relative">
-                  <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
                   <input
                     placeholder="Buscar material..."
-                    className="h-11 w-full rounded-xl border border-slate-700 bg-[#080f1d] pl-11 pr-4 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/60 sm:w-64"
+                    className="h-11 w-full rounded-lg border border-line bg-surface pl-11 pr-4 text-sm text-ink outline-none transition placeholder:text-subtle focus:border-accent sm:w-64"
                   />
                 </div>
 
                 <button
                   type="button"
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-700 bg-[#080f1d] px-4 text-sm font-bold text-slate-300 transition hover:border-blue-400/50 hover:text-white"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 text-sm font-bold text-ink-2 transition hover:border-accent/30 hover:text-ink"
                 >
                   <FilterIcon className="h-4 w-4" />
                   Filtros
@@ -439,15 +439,15 @@ export default function InventoryWarehousePage() {
 
             <div className="overflow-x-auto">
               <table className="min-w-full text-left">
-                <thead className="bg-[#101c30] text-sm text-slate-300">
+                <thead className="bg-surface-3 text-sm text-ink-2">
                   <tr>
-                    <th className="px-5 py-4 font-black">Material</th>
-                    <th className="px-5 py-4 font-black">Categoría</th>
-                    <th className="px-5 py-4 font-black">Ubicación</th>
-                    <th className="px-5 py-4 font-black">Stock actual</th>
-                    <th className="px-5 py-4 font-black">Estado</th>
-                    <th className="px-5 py-4 font-black">Valor total</th>
-                    <th className="px-5 py-4 font-black">Acciones</th>
+                    <th className="px-5 py-4 font-semibold">Material</th>
+                    <th className="px-5 py-4 font-semibold">Categoría</th>
+                    <th className="px-5 py-4 font-semibold">Ubicación</th>
+                    <th className="px-5 py-4 font-semibold">Stock actual</th>
+                    <th className="px-5 py-4 font-semibold">Estado</th>
+                    <th className="px-5 py-4 font-semibold">Valor total</th>
+                    <th className="px-5 py-4 font-semibold">Acciones</th>
                   </tr>
                 </thead>
 
@@ -455,17 +455,17 @@ export default function InventoryWarehousePage() {
                   {stockItems.map((item) => (
                     <tr
                       key={item.code}
-                      className="border-t border-slate-800/80 text-sm text-slate-300"
+                      className="border-t border-line text-sm text-ink-2"
                     >
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-800 text-slate-300">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-3 text-ink-2">
                             <CubeIcon className="h-5 w-5" />
                           </div>
 
                           <div>
-                            <p className="font-black text-white">{item.item}</p>
-                            <p className="mt-1 text-xs text-slate-500">
+                            <p className="font-semibold text-ink">{item.item}</p>
+                            <p className="mt-1 text-xs text-subtle">
                               {item.code}
                             </p>
                           </div>
@@ -477,24 +477,24 @@ export default function InventoryWarehousePage() {
                       </td>
 
                       <td className="px-5 py-4">
-                        <p className="font-semibold text-slate-200">
+                        <p className="font-semibold text-ink">
                           {item.location}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="mt-1 text-xs text-subtle">
                           Estante {item.code.slice(-2)}
                         </p>
                       </td>
 
                       <td className="px-5 py-4">
-                        <p className="font-black text-white">{item.stock}</p>
-                        <p className="mt-1 text-xs text-slate-500">{item.min}</p>
+                        <p className="font-semibold text-ink">{item.stock}</p>
+                        <p className="mt-1 text-xs text-subtle">{item.min}</p>
                       </td>
 
                       <td className="px-5 py-4">
                         <StatusBadge status={item.status} />
                       </td>
 
-                      <td className="px-5 py-4 font-semibold text-white">
+                      <td className="px-5 py-4 font-semibold text-ink">
                         {item.value}
                       </td>
 
@@ -502,7 +502,7 @@ export default function InventoryWarehousePage() {
                         <div className="flex gap-2">
                           <button
                             type="button"
-                            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700 bg-[#080f1d] text-slate-300 transition hover:border-blue-400/50 hover:text-blue-300"
+                            className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-surface text-ink-2 transition hover:border-accent/30 hover:text-accent"
                             aria-label={`Ver ${item.item}`}
                           >
                             <EyeIcon className="h-4 w-4" />
@@ -510,7 +510,7 @@ export default function InventoryWarehousePage() {
 
                           <button
                             type="button"
-                            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700 bg-[#080f1d] text-slate-300 transition hover:border-blue-400/50 hover:text-blue-300"
+                            className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-surface text-ink-2 transition hover:border-accent/30 hover:text-accent"
                             aria-label={`Opciones de ${item.item}`}
                           >
                             <DotsIcon className="h-4 w-4" />
@@ -525,15 +525,15 @@ export default function InventoryWarehousePage() {
           </div>
 
           <aside className="space-y-6">
-            <div className="rounded-2xl border border-slate-800/90 bg-[#0c1728]/90 p-5 shadow-[0_18px_70px_rgba(2,6,23,0.20)]">
+            <div className="rounded-lg border border-line bg-surface-2 p-5 shadow-sm">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-black text-white">
+                <h2 className="text-lg font-semibold text-ink">
                   Actividad reciente
                 </h2>
 
                 <Link
                   href="/inventory/movements"
-                  className="text-sm font-black text-blue-300 hover:text-blue-200"
+                  className="text-sm font-semibold text-accent hover:text-accent"
                 >
                   Ver todo
                 </Link>
@@ -546,15 +546,15 @@ export default function InventoryWarehousePage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-800/90 bg-[#0c1728]/90 p-5 shadow-[0_18px_70px_rgba(2,6,23,0.20)]">
-              <h2 className="text-lg font-black text-white">
+            <div className="rounded-lg border border-line bg-surface-2 p-5 shadow-sm">
+              <h2 className="text-lg font-semibold text-ink">
                 Acciones rápidas
               </h2>
 
               <div className="mt-5 space-y-3">
                 <Link
                   href="/inventory/orders"
-                  className="flex items-center justify-between rounded-xl border border-slate-800 bg-[#080f1d] px-4 py-3 text-sm font-black text-slate-300 transition hover:border-blue-400/40 hover:text-blue-300"
+                  className="flex items-center justify-between rounded-lg border border-line bg-surface px-4 py-3 text-sm font-semibold text-ink-2 transition hover:border-accent/30 hover:text-accent"
                 >
                   Crear pedido
                   <ArrowIcon className="h-4 w-4" />
@@ -562,7 +562,7 @@ export default function InventoryWarehousePage() {
 
                 <Link
                   href="/inventory/movements"
-                  className="flex items-center justify-between rounded-xl border border-slate-800 bg-[#080f1d] px-4 py-3 text-sm font-black text-slate-300 transition hover:border-blue-400/40 hover:text-blue-300"
+                  className="flex items-center justify-between rounded-lg border border-line bg-surface px-4 py-3 text-sm font-semibold text-ink-2 transition hover:border-accent/30 hover:text-accent"
                 >
                   Ver movimientos
                   <ArrowIcon className="h-4 w-4" />
@@ -570,7 +570,7 @@ export default function InventoryWarehousePage() {
 
                 <Link
                   href="/inventory/purchases"
-                  className="flex items-center justify-between rounded-xl border border-slate-800 bg-[#080f1d] px-4 py-3 text-sm font-black text-slate-300 transition hover:border-blue-400/40 hover:text-blue-300"
+                  className="flex items-center justify-between rounded-lg border border-line bg-surface px-4 py-3 text-sm font-semibold text-ink-2 transition hover:border-accent/30 hover:text-accent"
                 >
                   Ver compras
                   <ArrowIcon className="h-4 w-4" />

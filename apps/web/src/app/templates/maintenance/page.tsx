@@ -14,15 +14,15 @@ function TemplateCard({
   comingSoon,
 }: TemplateCardProps) {
   const content = (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 transition hover:bg-slate-800/60">
+    <div className="rounded-lg border border-line bg-surface p-5 transition hover:bg-surface-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-slate-100">{title}</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-400">{description}</p>
+          <h2 className="text-lg font-semibold text-ink">{title}</h2>
+          <p className="mt-2 text-sm leading-6 text-muted">{description}</p>
         </div>
 
         {comingSoon ? (
-          <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-300">
+          <span className="rounded-full border border-warning/30 bg-warning-soft px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-warning">
             Próximo
           </span>
         ) : null}
@@ -40,16 +40,16 @@ function TemplateCard({
 export default function MaintenanceTemplatesFuturePage() {
   return (
     <main className="space-y-6">
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
+      <section className="rounded-lg border border-line bg-surface p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+            <div className="text-xs font-medium uppercase tracking-[0.18em] text-subtle">
               Submódulo
             </div>
-            <h1 className="mt-2 text-3xl font-semibold text-slate-100">
+            <h1 className="mt-2 text-3xl font-semibold text-ink">
               Plantillas de mantenimiento
             </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-muted">
               Este bloque está pensado para evolucionar desde las plantillas de
               checklist actuales hacia una biblioteca técnica más potente:
               familias de plantillas, versiones, sectores, tipos de equipo y
@@ -57,9 +57,9 @@ export default function MaintenanceTemplatesFuturePage() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/50 px-4 py-3 text-sm text-slate-300">
-            <div className="font-medium text-slate-100">Foco del submódulo</div>
-            <div className="mt-1 text-slate-400">
+          <div className="rounded-lg border border-line bg-surface-2 px-4 py-3 text-sm text-ink-2">
+            <div className="font-medium text-ink">Foco del submódulo</div>
+            <div className="mt-1 text-muted">
               biblioteca · versiones · sectores · reutilización
             </div>
           </div>

@@ -659,7 +659,7 @@ export default function TechnicianWorkOrderReportPage() {
 
   if (!mounted) {
     return (
-      <main className="min-h-screen bg-slate-50 p-6 text-slate-900">
+      <main className="min-h-screen bg-surface-2 p-6 text-ink">
         Cargando sesión...
       </main>
     );
@@ -667,15 +667,15 @@ export default function TechnicianWorkOrderReportPage() {
 
   if (!session) {
     return (
-      <main className="min-h-screen bg-slate-50 p-6 text-slate-900">
-        <p className="text-sm font-semibold text-slate-500">Panel técnico</p>
-        <h1 className="mt-2 text-3xl font-black">Sesión no encontrada</h1>
-        <p className="mt-3 text-slate-600">
+      <main className="min-h-screen bg-surface-2 p-6 text-ink">
+        <p className="text-sm font-semibold text-muted">Panel técnico</p>
+        <h1 className="mt-2 text-3xl font-semibold">Sesión no encontrada</h1>
+        <p className="mt-3 text-muted">
           Para rellenar el parte necesitas iniciar sesión como técnico.
         </p>
         <Link
           href="/login"
-          className="mt-6 inline-flex rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700"
+          className="mt-6 inline-flex rounded-lg bg-accent px-5 py-3 text-sm font-bold text-white hover:bg-accent-hover"
         >
           Ir a login
         </Link>
@@ -685,15 +685,15 @@ export default function TechnicianWorkOrderReportPage() {
 
   if (!isTechnicianSession(session)) {
     return (
-      <main className="min-h-screen bg-slate-50 p-6 text-slate-900">
-        <p className="text-sm font-semibold text-slate-500">Panel técnico</p>
-        <h1 className="mt-2 text-3xl font-black">Esta vista es para técnicos</h1>
-        <p className="mt-3 text-slate-600">
+      <main className="min-h-screen bg-surface-2 p-6 text-ink">
+        <p className="text-sm font-semibold text-muted">Panel técnico</p>
+        <h1 className="mt-2 text-3xl font-semibold">Esta vista es para técnicos</h1>
+        <p className="mt-3 text-muted">
           Tu sesión actual no tiene rol técnico.
         </p>
         <Link
           href={homePath}
-          className="mt-6 inline-flex rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700"
+          className="mt-6 inline-flex rounded-lg bg-accent px-5 py-3 text-sm font-bold text-white hover:bg-accent-hover"
         >
           Volver al dashboard
         </Link>
@@ -705,18 +705,18 @@ export default function TechnicianWorkOrderReportPage() {
   const closed = isClosedReport(report);
 
   return (
-    <main className="min-h-screen bg-slate-50 p-4 text-slate-900 md:p-8">
+    <main className="min-h-screen bg-surface-2 p-4 text-ink md:p-8">
       <div className="mx-auto max-w-6xl space-y-6">
-        <header className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <header className="rounded-xl bg-surface p-6 shadow-sm ring-1 ring-line">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
-              <p className="text-sm font-semibold text-slate-500">
+              <p className="text-sm font-semibold text-muted">
                 Panel técnico
               </p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight">
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight">
                 Parte de trabajo
               </h1>
-              <p className="mt-2 max-w-3xl text-sm text-slate-600">
+              <p className="mt-2 max-w-3xl text-sm text-muted">
                 Rellena el trabajo realizado antes de enviar la orden al
                 administrador para revisión.
               </p>
@@ -725,14 +725,14 @@ export default function TechnicianWorkOrderReportPage() {
             <div className="flex flex-wrap gap-2">
               <Link
                 href={`/technician/dashboard/work-orders/${workOrderId}`}
-                className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-bold text-ink-2 hover:bg-surface-2"
               >
                 Volver al detalle
               </Link>
 
               <Link
                 href="/technician/dashboard/work-orders"
-                className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-bold text-ink-2 hover:bg-surface-2"
               >
                 Mis órdenes
               </Link>
@@ -741,80 +741,80 @@ export default function TechnicianWorkOrderReportPage() {
         </header>
 
         {state.status === 'loading' ? (
-          <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+          <section className="rounded-xl bg-surface p-6 shadow-sm ring-1 ring-line">
             Cargando parte de trabajo...
           </section>
         ) : state.status === 'error' ? (
-          <section className="rounded-3xl border border-rose-200 bg-rose-50 p-6 text-rose-700">
+          <section className="rounded-xl border border-danger/30 bg-danger-soft p-6 text-danger">
             {state.error}
           </section>
         ) : report ? (
           <>
             <section className="grid gap-4 md:grid-cols-4">
-              <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-                <p className="text-xs font-bold uppercase text-slate-400">
+              <div className="rounded-xl bg-surface p-5 shadow-sm ring-1 ring-line">
+                <p className="text-xs font-bold uppercase text-subtle">
                   Orden
                 </p>
-                <p className="mt-2 text-sm font-bold text-slate-900">
+                <p className="mt-2 text-sm font-bold text-ink">
                   {workOrder?.code || workOrder?.id || workOrderId}
                 </p>
-                <p className="mt-1 text-sm text-slate-600">
+                <p className="mt-1 text-sm text-muted">
                   {workOrder?.title || report.title || 'Orden de trabajo'}
                 </p>
               </div>
 
-              <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-                <p className="text-xs font-bold uppercase text-slate-400">
+              <div className="rounded-xl bg-surface p-5 shadow-sm ring-1 ring-line">
+                <p className="text-xs font-bold uppercase text-subtle">
                   Cliente
                 </p>
-                <p className="mt-2 text-sm font-bold text-slate-900">
+                <p className="mt-2 text-sm font-bold text-ink">
                   {displayName(report.customer ?? workOrder?.customer)}
                 </p>
               </div>
 
-              <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-                <p className="text-xs font-bold uppercase text-slate-400">
+              <div className="rounded-xl bg-surface p-5 shadow-sm ring-1 ring-line">
+                <p className="text-xs font-bold uppercase text-subtle">
                   Activo
                 </p>
-                <p className="mt-2 text-sm font-bold text-slate-900">
+                <p className="mt-2 text-sm font-bold text-ink">
                   {displayName(report.asset ?? workOrder?.asset)}
                 </p>
               </div>
 
-              <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-                <p className="text-xs font-bold uppercase text-slate-400">
+              <div className="rounded-xl bg-surface p-5 shadow-sm ring-1 ring-line">
+                <p className="text-xs font-bold uppercase text-subtle">
                   Estado del parte
                 </p>
-                <p className="mt-2 text-sm font-bold text-slate-900">
+                <p className="mt-2 text-sm font-bold text-ink">
                   {statusLabel(report.status)}
                 </p>
               </div>
             </section>
 
             {closed ? (
-              <section className="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
+              <section className="rounded-xl border border-warning/30 bg-warning-soft p-5 text-sm text-warning">
                 Este parte ya fue enviado o cerrado. No admite edición directa.
               </section>
             ) : null}
 
             {actionError ? (
-              <section className="rounded-3xl border border-rose-200 bg-rose-50 p-5 text-sm font-semibold text-rose-700">
+              <section className="rounded-xl border border-danger/30 bg-danger-soft p-5 text-sm font-semibold text-danger">
                 {actionError}
               </section>
             ) : null}
 
             {successMessage ? (
-              <section className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5 text-sm font-semibold text-emerald-700">
+              <section className="rounded-xl border border-success/30 bg-success-soft p-5 text-sm font-semibold text-success">
                 {successMessage}
               </section>
             ) : null}
 
-            <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-              <h2 className="text-xl font-black">Información del trabajo</h2>
+            <section className="rounded-xl bg-surface p-6 shadow-sm ring-1 ring-line">
+              <h2 className="text-xl font-semibold">Información del trabajo</h2>
 
               <div className="mt-6 grid gap-5">
                 <label className="grid gap-2">
-                  <span className="text-sm font-bold text-slate-700">
+                  <span className="text-sm font-bold text-ink-2">
                     Trabajo realizado *
                   </span>
                   <textarea
@@ -824,13 +824,13 @@ export default function TechnicianWorkOrderReportPage() {
                     }
                     disabled={closed}
                     rows={5}
-                    className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100"
+                    className="rounded-lg border border-line px-4 py-3 text-sm outline-none focus:border-accent disabled:bg-surface-2"
                     placeholder="Ejemplo: Se revisó la máquina, se limpió filtro, se comprobó funcionamiento y se dejó equipo operativo."
                   />
                 </label>
 
                 <label className="grid gap-2">
-                  <span className="text-sm font-bold text-slate-700">
+                  <span className="text-sm font-bold text-ink-2">
                     Diagnóstico *
                   </span>
                   <textarea
@@ -840,14 +840,14 @@ export default function TechnicianWorkOrderReportPage() {
                     }
                     disabled={closed}
                     rows={4}
-                    className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100"
+                    className="rounded-lg border border-line px-4 py-3 text-sm outline-none focus:border-accent disabled:bg-surface-2"
                     placeholder="Ejemplo: El equipo presenta suciedad en filtros y presión correcta. No se detectan fugas."
                   />
                 </label>
 
                 <div className="grid gap-5 md:grid-cols-2">
                   <label className="grid gap-2">
-                    <span className="text-sm font-bold text-slate-700">
+                    <span className="text-sm font-bold text-ink-2">
                       Horas trabajadas *
                     </span>
                     <input
@@ -859,13 +859,13 @@ export default function TechnicianWorkOrderReportPage() {
                         updateField('laborHours', event.target.value)
                       }
                       disabled={closed}
-                      className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100"
+                      className="rounded-lg border border-line px-4 py-3 text-sm outline-none focus:border-accent disabled:bg-surface-2"
                       placeholder="Ejemplo: 2.5"
                     />
                   </label>
 
                   <label className="grid gap-2">
-                    <span className="text-sm font-bold text-slate-700">
+                    <span className="text-sm font-bold text-ink-2">
                       Estado final *
                     </span>
                     <select
@@ -874,7 +874,7 @@ export default function TechnicianWorkOrderReportPage() {
                         updateField('finalStatus', event.target.value)
                       }
                       disabled={closed}
-                      className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100"
+                      className="rounded-lg border border-line px-4 py-3 text-sm outline-none focus:border-accent disabled:bg-surface-2"
                     >
                       <option value="">Seleccionar estado final</option>
                       {FINAL_STATUS_OPTIONS.map((item) => (
@@ -887,7 +887,7 @@ export default function TechnicianWorkOrderReportPage() {
                 </div>
 
                 <label className="grid gap-2">
-                  <span className="text-sm font-bold text-slate-700">
+                  <span className="text-sm font-bold text-ink-2">
                     Incidencias encontradas
                   </span>
                   <textarea
@@ -897,13 +897,13 @@ export default function TechnicianWorkOrderReportPage() {
                     }
                     disabled={closed}
                     rows={4}
-                    className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100"
+                    className="rounded-lg border border-line px-4 py-3 text-sm outline-none focus:border-accent disabled:bg-surface-2"
                     placeholder="Ejemplo: Falla tipo 2: la máquina no enfría correctamente. Se recomienda revisión posterior."
                   />
                 </label>
 
                 <label className="grid gap-2">
-                  <span className="text-sm font-bold text-slate-700">
+                  <span className="text-sm font-bold text-ink-2">
                     Recomendaciones
                   </span>
                   <textarea
@@ -913,13 +913,13 @@ export default function TechnicianWorkOrderReportPage() {
                     }
                     disabled={closed}
                     rows={4}
-                    className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100"
+                    className="rounded-lg border border-line px-4 py-3 text-sm outline-none focus:border-accent disabled:bg-surface-2"
                     placeholder="Ejemplo: Repetir limpieza en 30 días y revisar válvula de zona."
                   />
                 </label>
 
                 <label className="grid gap-2">
-                  <span className="text-sm font-bold text-slate-700">
+                  <span className="text-sm font-bold text-ink-2">
                     Observaciones internas del técnico
                   </span>
                   <textarea
@@ -929,18 +929,18 @@ export default function TechnicianWorkOrderReportPage() {
                     }
                     disabled={closed}
                     rows={3}
-                    className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100"
+                    className="rounded-lg border border-line px-4 py-3 text-sm outline-none focus:border-accent disabled:bg-surface-2"
                     placeholder="Notas internas para administración."
                   />
                 </label>
               </div>
             </section>
 
-            <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+            <section className="rounded-xl bg-surface p-6 shadow-sm ring-1 ring-line">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h2 className="text-xl font-black">Materiales usados</h2>
-                  <p className="mt-1 text-sm text-slate-600">
+                  <h2 className="text-xl font-semibold">Materiales usados</h2>
+                  <p className="mt-1 text-sm text-muted">
                     Añade solo los materiales realmente utilizados.
                   </p>
                 </div>
@@ -949,7 +949,7 @@ export default function TechnicianWorkOrderReportPage() {
                   <button
                     type="button"
                     onClick={addMaterial}
-                    className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                    className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-bold text-ink-2 hover:bg-surface-2"
                   >
                     Añadir material
                   </button>
@@ -958,18 +958,18 @@ export default function TechnicianWorkOrderReportPage() {
 
               <div className="mt-5 space-y-4">
                 {form.materials.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-300 p-5 text-sm text-slate-500">
+                  <div className="rounded-lg border border-dashed border-line p-5 text-sm text-muted">
                     No hay materiales añadidos.
                   </div>
                 ) : (
                   form.materials.map((material, index) => (
                     <div
                       key={`${material.id ?? 'material'}-${index}`}
-                      className="rounded-2xl border border-slate-200 p-4"
+                      className="rounded-lg border border-line p-4"
                     >
                       <div className="grid gap-4 md:grid-cols-4">
                         <label className="grid gap-2 md:col-span-2">
-                          <span className="text-xs font-bold uppercase text-slate-400">
+                          <span className="text-xs font-bold uppercase text-subtle">
                             Material
                           </span>
                           <input
@@ -978,13 +978,13 @@ export default function TechnicianWorkOrderReportPage() {
                               updateMaterial(index, 'name', event.target.value)
                             }
                             disabled={closed}
-                            className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100"
+                            className="rounded-lg border border-line px-4 py-3 text-sm outline-none focus:border-accent disabled:bg-surface-2"
                             placeholder="Ejemplo: Filtro G4"
                           />
                         </label>
 
                         <label className="grid gap-2">
-                          <span className="text-xs font-bold uppercase text-slate-400">
+                          <span className="text-xs font-bold uppercase text-subtle">
                             Cantidad
                           </span>
                           <input
@@ -1000,12 +1000,12 @@ export default function TechnicianWorkOrderReportPage() {
                               )
                             }
                             disabled={closed}
-                            className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100"
+                            className="rounded-lg border border-line px-4 py-3 text-sm outline-none focus:border-accent disabled:bg-surface-2"
                           />
                         </label>
 
                         <label className="grid gap-2">
-                          <span className="text-xs font-bold uppercase text-slate-400">
+                          <span className="text-xs font-bold uppercase text-subtle">
                             Unidad
                           </span>
                           <input
@@ -1014,14 +1014,14 @@ export default function TechnicianWorkOrderReportPage() {
                               updateMaterial(index, 'unit', event.target.value)
                             }
                             disabled={closed}
-                            className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100"
+                            className="rounded-lg border border-line px-4 py-3 text-sm outline-none focus:border-accent disabled:bg-surface-2"
                             placeholder="ud, m, kg..."
                           />
                         </label>
                       </div>
 
                       <label className="mt-4 grid gap-2">
-                        <span className="text-xs font-bold uppercase text-slate-400">
+                        <span className="text-xs font-bold uppercase text-subtle">
                           Observaciones del material
                         </span>
                         <input
@@ -1030,7 +1030,7 @@ export default function TechnicianWorkOrderReportPage() {
                             updateMaterial(index, 'notes', event.target.value)
                           }
                           disabled={closed}
-                          className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100"
+                          className="rounded-lg border border-line px-4 py-3 text-sm outline-none focus:border-accent disabled:bg-surface-2"
                           placeholder="Detalle opcional"
                         />
                       </label>
@@ -1039,7 +1039,7 @@ export default function TechnicianWorkOrderReportPage() {
                         <button
                           type="button"
                           onClick={() => removeMaterial(index)}
-                          className="mt-4 text-sm font-bold text-rose-600 hover:text-rose-700"
+                          className="mt-4 text-sm font-bold text-danger hover:text-danger"
                         >
                           Quitar material
                         </button>
@@ -1051,13 +1051,13 @@ export default function TechnicianWorkOrderReportPage() {
             </section>
 
             {!closed ? (
-              <section className="sticky bottom-4 rounded-3xl border border-slate-200 bg-white/95 p-4 shadow-lg backdrop-blur">
+              <section className="sticky bottom-4 rounded-xl border border-line bg-surface p-4 shadow-sm backdrop-blur">
                 <div className="flex flex-col gap-3 md:flex-row md:justify-end">
                   <button
                     type="button"
                     onClick={() => void saveReport(true)}
                     disabled={saving || submitting}
-                    className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-5 py-3 text-sm font-bold text-ink-2 hover:bg-surface-2 disabled:cursor-not-allowed disabled:bg-surface-2"
                   >
                     {saving ? 'Guardando...' : 'Guardar borrador'}
                   </button>
@@ -1066,7 +1066,7 @@ export default function TechnicianWorkOrderReportPage() {
                     type="button"
                     onClick={() => void submitReport()}
                     disabled={saving || submitting}
-                    className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                    className="inline-flex items-center justify-center rounded-lg bg-success px-5 py-3 text-sm font-bold text-white hover:bg-success/90 disabled:cursor-not-allowed disabled:bg-success/90"
                   >
                     {submitting ? 'Enviando...' : 'Guardar y enviar al admin'}
                   </button>

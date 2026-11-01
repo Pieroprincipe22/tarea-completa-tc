@@ -58,7 +58,7 @@ const ruleCards = [
 
 function RefreshIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="1.8"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="M21 12a9 9 0 0 1-15.2 6.5" />
       <path d="M3 12A9 9 0 0 1 18.2 5.5" />
       <path d="M18 2v4h-4" />
@@ -69,7 +69,7 @@ function RefreshIcon(props: IconProps) {
 
 function AlertIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="1.8"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="M12 9v4" />
       <path d="M12 17h.01" />
       <path d="M10.3 4.4 2.8 17.5A2 2 0 0 0 4.5 20h15a2 2 0 0 0 1.7-2.5L13.7 4.4a2 2 0 0 0-3.4 0Z" />
@@ -79,7 +79,7 @@ function AlertIcon(props: IconProps) {
 
 function SearchIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="1.8"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="m21 21-4.3-4.3" />
       <path d="M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z" />
     </svg>
@@ -88,7 +88,7 @@ function SearchIcon(props: IconProps) {
 
 function PlusIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor"strokeWidth="1.8"strokeLinecap="round"strokeLinejoin="round"aria-hidden="true" {...props}>
       <path d="M12 5v14" />
       <path d="M5 12h14" />
     </svg>
@@ -98,7 +98,7 @@ function PlusIcon(props: IconProps) {
 function priorityBadge(priority: string) {
   if (priority === 'CRITICAL') {
     return (
-      <span className="rounded-full border border-rose-400/30 bg-rose-500/10 px-3 py-1 text-xs font-black text-rose-300">
+      <span className="rounded-full border border-danger/30 bg-danger-soft px-3 py-1 text-xs font-semibold text-danger">
         Crítica
       </span>
     );
@@ -106,25 +106,25 @@ function priorityBadge(priority: string) {
 
   if (priority === 'HIGH') {
     return (
-      <span className="rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1 text-xs font-black text-amber-300">
+      <span className="rounded-full border border-warning/30 bg-warning-soft px-3 py-1 text-xs font-semibold text-warning">
         Alta
       </span>
     );
   }
 
   return (
-    <span className="rounded-full border border-sky-400/30 bg-sky-500/10 px-3 py-1 text-xs font-black text-sky-300">
+    <span className="rounded-full border border-accent/30 bg-accent-soft px-3 py-1 text-xs font-semibold text-accent">
       Media
     </span>
   );
 }
 
 function toneClass(tone: string) {
-  if (tone === 'emerald') return 'border-emerald-400/25 bg-emerald-500/10 text-emerald-300';
-  if (tone === 'amber') return 'border-amber-400/25 bg-amber-500/10 text-amber-300';
-  if (tone === 'rose') return 'border-rose-400/25 bg-rose-500/10 text-rose-300';
+  if (tone === 'emerald') return 'border-success/30 bg-success-soft text-success';
+  if (tone === 'amber') return 'border-warning/30 bg-warning-soft text-warning';
+  if (tone === 'rose') return 'border-danger/30 bg-danger-soft text-danger';
 
-  return 'border-sky-400/25 bg-sky-500/10 text-sky-300';
+  return 'border-accent/30 bg-accent-soft text-accent';
 }
 
 function KpiCard({
@@ -139,17 +139,17 @@ function KpiCard({
   tone: 'sky' | 'emerald' | 'amber' | 'rose';
 }) {
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-slate-800/90 bg-slate-900/45 p-5 shadow-[0_24px_80px_rgba(2,6,23,0.34)]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(244,63,94,0.13),transparent_34%)]" />
+    <div className="relative overflow-hidden rounded-xl border border-line bg-surface p-5 shadow-sm">
+      <div className="absolute inset-0 " />
 
       <div className="relative flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-slate-400">{label}</p>
-          <p className="mt-4 text-3xl font-black tracking-tight text-white">{value}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>
+          <p className="text-sm font-medium text-muted">{label}</p>
+          <p className="mt-4 text-3xl font-semibold tracking-tight text-ink">{value}</p>
+          <p className="mt-2 text-sm leading-6 text-subtle">{description}</p>
         </div>
 
-        <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border ${toneClass(tone)}`}>
+        <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border ${toneClass(tone)}`}>
           <RefreshIcon className="h-7 w-7" />
         </div>
       </div>
@@ -159,22 +159,22 @@ function KpiCard({
 
 export default function InventoryReplenishmentPage() {
   return (
-    <main className="min-h-[calc(100vh-86px)] flex-1 bg-slate-950 px-6 py-8 text-slate-100 lg:px-8">
+    <main className="min-h-[calc(100vh-86px)] flex-1 bg-surface-2 px-6 py-8 text-ink lg:px-8">
       <div className="mx-auto max-w-[1500px] space-y-6">
         <section className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-5">
-            <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-rose-400/30 bg-rose-500/10 text-rose-300 shadow-[0_0_45px_rgba(244,63,94,0.14)]">
+            <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-danger/30 bg-danger-soft text-danger ">
               <RefreshIcon className="h-9 w-9" />
             </div>
 
             <div>
-              <p className="text-[12px] font-black uppercase tracking-[0.28em] text-rose-300">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.28em] text-danger">
                 Inventario
               </p>
-              <h1 className="mt-2 text-4xl font-black tracking-tight text-white">
+              <h1 className="mt-2 text-4xl font-semibold tracking-tight text-ink">
                 Reposición
               </h1>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
+              <p className="mt-2 text-sm leading-6 text-muted">
                 Control de mínimos, material crítico y necesidades sugeridas de reposición.
               </p>
             </div>
@@ -183,7 +183,7 @@ export default function InventoryReplenishmentPage() {
           <div className="flex flex-wrap gap-3">
             <Link
               href="/inventory"
-              className="rounded-2xl border border-slate-700 bg-slate-900/70 px-4 py-3 text-sm font-black text-slate-200 transition hover:border-sky-400/40 hover:bg-sky-500/10"
+              className="rounded-lg border border-line bg-surface px-4 py-3 text-sm font-semibold text-ink transition hover:border-accent/30 hover:bg-accent-soft"
             >
               Volver a inventario
             </Link>
@@ -191,7 +191,7 @@ export default function InventoryReplenishmentPage() {
             <button
               type="button"
               disabled
-              className="inline-flex items-center gap-2 rounded-2xl bg-rose-500 px-5 py-3 text-sm font-black text-white opacity-60 shadow-[0_0_35px_rgba(244,63,94,0.20)]"
+              className="inline-flex items-center gap-2 rounded-lg bg-danger px-5 py-3 text-sm font-semibold text-white opacity-60 "
               title="Se activará cuando conectemos reglas reales de reposición."
             >
               <PlusIcon className="h-4 w-4" />
@@ -228,16 +228,16 @@ export default function InventoryReplenishmentPage() {
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[1fr_340px]">
-          <div className="overflow-hidden rounded-3xl border border-slate-800/90 bg-slate-900/45 shadow-[0_24px_80px_rgba(2,6,23,0.34)]">
-            <div className="flex flex-col gap-4 border-b border-slate-800/90 p-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
+            <div className="flex flex-col gap-4 border-b border-line p-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h2 className="text-2xl font-black text-white">Necesidades de reposición</h2>
-                <p className="mt-1 text-sm text-slate-400">
+                <h2 className="text-2xl font-semibold text-ink">Necesidades de reposición</h2>
+                <p className="mt-1 text-sm text-muted">
                   Vista preparada para calcular reposición según stock mínimo y consumo.
                 </p>
               </div>
 
-              <div className="flex h-11 items-center gap-3 rounded-2xl border border-slate-700 bg-slate-950/70 px-4 text-sm text-slate-400">
+              <div className="flex h-11 items-center gap-3 rounded-lg border border-line bg-surface-2 px-4 text-sm text-muted">
                 <SearchIcon className="h-4 w-4" />
                 Buscar material...
               </div>
@@ -246,7 +246,7 @@ export default function InventoryReplenishmentPage() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1050px] border-collapse text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-800/90 bg-slate-950/35 text-xs uppercase tracking-wide text-slate-500">
+                  <tr className="border-b border-line bg-surface-2 text-xs uppercase tracking-wide text-subtle">
                     <th className="px-5 py-4">Material</th>
                     <th className="px-5 py-4">Stock actual</th>
                     <th className="px-5 py-4">Stock mínimo</th>
@@ -261,36 +261,36 @@ export default function InventoryReplenishmentPage() {
                   {replenishmentRows.map((row) => (
                     <tr
                       key={row.sku}
-                      className="border-b border-slate-800/70 last:border-0 hover:bg-rose-500/[0.04]"
+                      className="border-b border-line last:border-0 hover:bg-danger-soft"
                     >
                       <td className="px-5 py-4">
-                        <p className="font-black text-slate-100">{row.material}</p>
-                        <p className="mt-1 text-xs text-slate-500">{row.sku}</p>
+                        <p className="font-semibold text-ink">{row.material}</p>
+                        <p className="mt-1 text-xs text-subtle">{row.sku}</p>
                       </td>
 
-                      <td className="px-5 py-4 font-black text-white">
+                      <td className="px-5 py-4 font-semibold text-ink">
                         {row.currentStock}
                       </td>
 
-                      <td className="px-5 py-4 text-slate-300">
+                      <td className="px-5 py-4 text-ink-2">
                         {row.minimumStock}
                       </td>
 
                       <td className="px-5 py-4">
-                        <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-black text-emerald-300">
+                        <span className="rounded-full border border-success/30 bg-success-soft px-3 py-1 text-xs font-semibold text-success">
                           {row.suggested}
                         </span>
                       </td>
 
                       <td className="px-5 py-4">{priorityBadge(row.priority)}</td>
 
-                      <td className="px-5 py-4 text-slate-300">{row.reason}</td>
+                      <td className="px-5 py-4 text-ink-2">{row.reason}</td>
 
                       <td className="px-5 py-4 text-right">
                         <button
                           type="button"
                           disabled
-                          className="rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-xs font-black text-slate-500"
+                          className="rounded-lg border border-line bg-surface-2 px-3 py-2 text-xs font-semibold text-subtle"
                         >
                           Crear compra
                         </button>
@@ -301,12 +301,12 @@ export default function InventoryReplenishmentPage() {
               </table>
             </div>
 
-            <div className="border-t border-slate-800/90 p-5">
-              <div className="rounded-2xl border border-rose-400/20 bg-rose-500/10 p-4">
-                <p className="text-sm font-black text-rose-300">
+            <div className="border-t border-line p-5">
+              <div className="rounded-lg border border-danger/30 bg-danger-soft p-4">
+                <p className="text-sm font-semibold text-danger">
                   Datos visuales temporales
                 </p>
-                <p className="mt-1 text-xs leading-5 text-slate-400">
+                <p className="mt-1 text-xs leading-5 text-muted">
                   Esta pantalla será automática cuando exista stock real y reglas de reposición.
                 </p>
               </div>
@@ -314,9 +314,9 @@ export default function InventoryReplenishmentPage() {
           </div>
 
           <aside className="space-y-6">
-            <section className="rounded-3xl border border-slate-800/90 bg-slate-900/45 p-5 shadow-[0_24px_80px_rgba(2,6,23,0.34)]">
-              <h2 className="text-lg font-black text-white">Reglas de reposición</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
+            <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+              <h2 className="text-lg font-semibold text-ink">Reglas de reposición</h2>
+              <p className="mt-2 text-sm leading-6 text-muted">
                 El sistema podrá sugerir compras según mínimos, prioridad, consumo y frecuencia de uso.
               </p>
 
@@ -324,16 +324,16 @@ export default function InventoryReplenishmentPage() {
                 {ruleCards.map((item) => (
                   <div
                     key={item.title}
-                    className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4"
+                    className="rounded-lg border border-line bg-surface-2 p-4"
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`flex h-9 w-9 items-center justify-center rounded-xl border ${toneClass(item.tone)}`}>
+                      <div className={`flex h-9 w-9 items-center justify-center rounded-lg border ${toneClass(item.tone)}`}>
                         <AlertIcon className="h-5 w-5" />
                       </div>
-                      <p className="font-black text-slate-100">{item.title}</p>
+                      <p className="font-semibold text-ink">{item.title}</p>
                     </div>
 
-                    <p className="mt-3 text-sm leading-6 text-slate-400">
+                    <p className="mt-3 text-sm leading-6 text-muted">
                       {item.description}
                     </p>
                   </div>
@@ -341,24 +341,24 @@ export default function InventoryReplenishmentPage() {
               </div>
             </section>
 
-            <section className="rounded-3xl border border-slate-800/90 bg-slate-900/45 p-5 shadow-[0_24px_80px_rgba(2,6,23,0.34)]">
-              <h2 className="text-lg font-black text-white">Modelo futuro</h2>
+            <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+              <h2 className="text-lg font-semibold text-ink">Modelo futuro</h2>
 
               <div className="mt-5 space-y-4">
-                <div className="rounded-2xl border border-sky-400/20 bg-sky-500/10 p-4">
-                  <p className="text-sm font-black text-sky-300">
+                <div className="rounded-lg border border-accent/30 bg-accent-soft p-4">
+                  <p className="text-sm font-semibold text-accent">
                     ReplenishmentRule
                   </p>
-                  <p className="mt-1 text-xs leading-5 text-slate-400">
+                  <p className="mt-1 text-xs leading-5 text-muted">
                     Reglas por material: mínimo, máximo, prioridad y proveedor preferido.
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-4">
-                  <p className="text-sm font-black text-emerald-300">
+                <div className="rounded-lg border border-success/30 bg-success-soft p-4">
+                  <p className="text-sm font-semibold text-success">
                     Compra sugerida
                   </p>
-                  <p className="mt-1 text-xs leading-5 text-slate-400">
+                  <p className="mt-1 text-xs leading-5 text-muted">
                     Conversión futura de reposición en compra real.
                   </p>
                 </div>

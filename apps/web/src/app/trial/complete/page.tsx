@@ -53,16 +53,16 @@ export default function TrialCompletePage() {
   return (
     <div className="mx-auto max-w-lg px-4 py-14">
       <h1 className="text-2xl font-semibold">Activando tu prueba…</h1>
-      <p className="mt-2 text-sm text-neutral-600">
+      <p className="mt-2 text-sm text-subtle">
         Estamos creando tu sesión y redirigiéndote a la app.
       </p>
 
       {err ? (
-        <div className="mt-6 rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+        <div className="mt-6 rounded-lg border border-line bg-surface-2 p-4 text-sm text-ink">
           {err}
         </div>
       ) : (
-        <div className="mt-6 text-sm text-neutral-600">Procesando…</div>
+        <div className="mt-6 text-sm text-subtle">Procesando…</div>
       )}
     </div>
   );

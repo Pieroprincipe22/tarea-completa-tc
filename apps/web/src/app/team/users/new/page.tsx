@@ -125,8 +125,8 @@ export default function NewTeamUserPage() {
 
   if (!mounted) {
     return (
-      <section className="mx-auto w-full max-w-6xl px-4 py-8 text-white sm:px-6 lg:px-8">
-        <div className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
+      <section className="mx-auto w-full max-w-6xl px-4 py-8 text-ink sm:px-6 lg:px-8">
+        <div className="rounded-xl border border-line bg-surface p-6">
           Cargando sesión...
         </div>
       </section>
@@ -135,17 +135,17 @@ export default function NewTeamUserPage() {
 
   if (!session) {
     return (
-      <section className="mx-auto w-full max-w-6xl px-4 py-8 text-white sm:px-6 lg:px-8">
-        <div className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
-          <p className="text-sm font-semibold text-slate-400">Personal</p>
+      <section className="mx-auto w-full max-w-6xl px-4 py-8 text-ink sm:px-6 lg:px-8">
+        <div className="rounded-xl border border-line bg-surface p-6">
+          <p className="text-sm font-semibold text-muted">Personal</p>
           <h1 className="mt-2 text-2xl font-bold">Sesión no encontrada</h1>
-          <p className="mt-3 text-slate-300">
+          <p className="mt-3 text-ink-2">
             Para dar de alta usuarios necesitas iniciar sesión como
             administrador.
           </p>
           <Link
             href="/login"
-            className="mt-5 inline-flex rounded-2xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-500"
+            className="mt-5 inline-flex rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover"
           >
             Ir a login
           </Link>
@@ -156,16 +156,16 @@ export default function NewTeamUserPage() {
 
   if (!isAdminSession(session)) {
     return (
-      <section className="mx-auto w-full max-w-6xl px-4 py-8 text-white sm:px-6 lg:px-8">
-        <div className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
-          <p className="text-sm font-semibold text-slate-400">Personal</p>
+      <section className="mx-auto w-full max-w-6xl px-4 py-8 text-ink sm:px-6 lg:px-8">
+        <div className="rounded-xl border border-line bg-surface p-6">
+          <p className="text-sm font-semibold text-muted">Personal</p>
           <h1 className="mt-2 text-2xl font-bold">Acceso no permitido</h1>
-          <p className="mt-3 text-slate-300">
+          <p className="mt-3 text-ink-2">
             Esta sección solo está disponible para administradores.
           </p>
           <Link
             href={homePath}
-            className="mt-5 inline-flex rounded-2xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-500"
+            className="mt-5 inline-flex rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover"
           >
             Volver al panel
           </Link>
@@ -175,10 +175,10 @@ export default function NewTeamUserPage() {
   }
 
   return (
-    <section className="mx-auto w-full max-w-6xl px-4 py-8 text-white sm:px-6 lg:px-8">
+    <section className="mx-auto w-full max-w-6xl px-4 py-8 text-ink sm:px-6 lg:px-8">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.28em] text-slate-500">
+          <p className="text-sm font-semibold uppercase tracking-[0.28em] text-subtle">
             Personal
           </p>
 
@@ -186,7 +186,7 @@ export default function NewTeamUserPage() {
             Dar de alta a nuevo usuario
           </h1>
 
-          <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
+          <p className="mt-3 max-w-3xl text-sm leading-7 text-muted">
             Crea un usuario para tu empresa. Puede ser técnico de campo o
             administrador interno, según el rol asignado.
           </p>
@@ -195,14 +195,14 @@ export default function NewTeamUserPage() {
         <div className="flex flex-wrap gap-3">
           <Link
             href="/team/technicians"
-            className="inline-flex items-center justify-center rounded-2xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-bold text-slate-200 transition hover:bg-slate-800"
+            className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-5 py-3 text-sm font-bold text-ink transition hover:bg-surface-3"
           >
             Ver técnicos
           </Link>
 
           <Link
             href="/team/users"
-            className="inline-flex items-center justify-center rounded-2xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-bold text-slate-200 transition hover:bg-slate-800"
+            className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-5 py-3 text-sm font-bold text-ink transition hover:bg-surface-3"
           >
             Ver usuarios
           </Link>
@@ -210,15 +210,15 @@ export default function NewTeamUserPage() {
       </div>
 
       {message ? (
-        <div className="mb-6 rounded-2xl border border-sky-800 bg-sky-950/40 p-4 text-sm font-semibold text-sky-100">
+        <div className="mb-6 rounded-lg border border-accent bg-accent-soft p-4 text-sm font-semibold text-accent">
           {message}
         </div>
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
-          <div className="mb-6 border-b border-slate-800 pb-5">
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-sky-400">
+        <section className="rounded-xl border border-line bg-surface p-6">
+          <div className="mb-6 border-b border-line pb-5">
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-accent">
               Alta de usuario
             </p>
 
@@ -226,7 +226,7 @@ export default function NewTeamUserPage() {
               Datos del nuevo usuario
             </h2>
 
-            <p className="mt-2 text-sm leading-6 text-slate-400">
+            <p className="mt-2 text-sm leading-6 text-muted">
               Define nombre, email, contraseña inicial y rol. El usuario podrá
               iniciar sesión con estos datos cuando esté activo.
             </p>
@@ -234,7 +234,7 @@ export default function NewTeamUserPage() {
 
           <form onSubmit={handleCreateUser} className="grid gap-5">
             <div>
-              <label className="text-sm font-semibold text-slate-200">
+              <label className="text-sm font-semibold text-ink">
                 Nombre completo
               </label>
               <input
@@ -246,12 +246,12 @@ export default function NewTeamUserPage() {
                   }))
                 }
                 placeholder="Ejemplo: Juan Técnico"
-                className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-sky-500"
+                className="mt-2 w-full rounded-lg border border-line bg-surface-2 px-4 py-3 text-sm text-ink outline-none transition placeholder:text-subtle focus:border-accent"
               />
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-slate-200">
+              <label className="text-sm font-semibold text-ink">
                 Email
               </label>
               <input
@@ -264,12 +264,12 @@ export default function NewTeamUserPage() {
                   }))
                 }
                 placeholder="usuario@empresa.com"
-                className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-sky-500"
+                className="mt-2 w-full rounded-lg border border-line bg-surface-2 px-4 py-3 text-sm text-ink outline-none transition placeholder:text-subtle focus:border-accent"
               />
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-slate-200">
+              <label className="text-sm font-semibold text-ink">
                 Contraseña inicial
               </label>
               <input
@@ -282,12 +282,12 @@ export default function NewTeamUserPage() {
                   }))
                 }
                 placeholder="Mínimo 6 caracteres"
-                className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-sky-500"
+                className="mt-2 w-full rounded-lg border border-line bg-surface-2 px-4 py-3 text-sm text-ink outline-none transition placeholder:text-subtle focus:border-accent"
               />
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-slate-200">
+              <label className="text-sm font-semibold text-ink">
                 Rol del usuario
               </label>
               <select
@@ -298,14 +298,14 @@ export default function NewTeamUserPage() {
                     role: event.target.value as 'TECHNICIAN' | 'ADMIN',
                   }))
                 }
-                className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-500"
+                className="mt-2 w-full rounded-lg border border-line bg-surface-2 px-4 py-3 text-sm text-ink outline-none transition focus:border-accent"
               >
                 <option value="TECHNICIAN">Técnico</option>
                 <option value="ADMIN">Administrador / Oficina</option>
               </select>
             </div>
 
-            <label className="flex items-center gap-3 rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm font-semibold text-slate-200">
+            <label className="flex items-center gap-3 rounded-lg border border-line bg-surface-2 px-4 py-3 text-sm font-semibold text-ink">
               <input
                 type="checkbox"
                 checked={form.isActive}
@@ -323,46 +323,46 @@ export default function NewTeamUserPage() {
             <button
               type="submit"
               disabled={submitLoading}
-              className="rounded-2xl bg-sky-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:bg-slate-600"
+              className="rounded-lg bg-accent px-5 py-3 text-sm font-bold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-accent-hover"
             >
               {submitLoading ? 'Creando usuario...' : 'Crear usuario'}
             </button>
           </form>
         </section>
 
-        <aside className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
-          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">
+        <aside className="rounded-xl border border-line bg-surface p-6">
+          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-subtle">
             Rol seleccionado
           </p>
 
-          <div className="mt-4 rounded-2xl border border-sky-800 bg-sky-950/40 p-4">
+          <div className="mt-4 rounded-lg border border-accent bg-accent-soft p-4">
             <p className="text-lg font-bold">
               {form.role === 'TECHNICIAN'
                 ? 'Técnico'
                 : 'Administrador / Oficina'}
             </p>
 
-            <p className="mt-3 text-sm leading-7 text-slate-300">
+            <p className="mt-3 text-sm leading-7 text-ink-2">
               {roleDescription(form.role)}
             </p>
           </div>
 
           <div className="mt-6 space-y-4">
-            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
-              <p className="text-sm font-bold text-slate-200">
+            <div className="rounded-lg border border-line bg-surface-2 p-4">
+              <p className="text-sm font-bold text-ink">
                 Técnico
               </p>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
+              <p className="mt-2 text-sm leading-6 text-subtle">
                 Ideal para personal de campo, mantenimiento, instalaciones,
                 revisiones y partes de trabajo.
               </p>
             </div>
 
-            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
-              <p className="text-sm font-bold text-slate-200">
+            <div className="rounded-lg border border-line bg-surface-2 p-4">
+              <p className="text-sm font-bold text-ink">
                 Administrador / Oficina
               </p>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
+              <p className="mt-2 text-sm leading-6 text-subtle">
                 Ideal para encargados, administración, planificación, clientes,
                 activos y gestión operativa.
               </p>

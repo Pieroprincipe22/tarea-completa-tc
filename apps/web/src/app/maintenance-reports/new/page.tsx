@@ -266,7 +266,7 @@ export default function NewMaintenanceReportPage() {
   if (!mounted) {
     return (
       <div className="mx-auto max-w-3xl p-6">
-        <div className="rounded-2xl bg-slate-900/60 p-4 text-sm text-slate-400 ring-1 ring-white/10">
+        <div className="rounded-lg bg-surface p-4 text-sm text-muted ring-1 ring-line">
           Cargando sesión…
         </div>
       </div>
@@ -278,17 +278,17 @@ export default function NewMaintenanceReportPage() {
       <div className="mx-auto max-w-3xl p-6">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-white">New Maintenance Report</h1>
-            <p className="mt-1 text-sm text-slate-400">Crear reporte desde template.</p>
+            <h1 className="text-2xl font-semibold text-ink">New Maintenance Report</h1>
+            <p className="mt-1 text-sm text-muted">Crear reporte desde template.</p>
           </div>
-          <Link href={backHref} className="text-sm text-slate-300 hover:text-white">
+          <Link href={backHref} className="text-sm text-ink-2 hover:text-ink">
             ← Volver
           </Link>
         </div>
 
-        <div className="mt-6 rounded-2xl bg-slate-900/60 p-4 text-sm text-red-200 ring-1 ring-white/10">
+        <div className="mt-6 rounded-lg bg-surface p-4 text-sm text-danger ring-1 ring-line">
           No hay sesión tenant. Ve a{' '}
-          <Link href="/login" className="text-white underline">
+          <Link href="/login" className="text-ink underline">
             /login
           </Link>
           .
@@ -301,39 +301,39 @@ export default function NewMaintenanceReportPage() {
     <div className="mx-auto max-w-3xl p-6">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-white">
+          <h1 className="text-2xl font-semibold text-ink">
             {workOrderId ? 'Nuevo parte de trabajo' : 'New Maintenance Report'}
           </h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-muted">
             {workOrderId
               ? 'Crear parte técnico vinculado a una work order.'
               : 'Crear reporte desde un template existente.'}
           </p>
         </div>
 
-        <Link href={backHref} className="text-sm text-slate-300 hover:text-white">
+        <Link href={backHref} className="text-sm text-ink-2 hover:text-ink">
           ← Volver
         </Link>
       </div>
 
-      <div className="mt-6 rounded-2xl bg-slate-900/60 p-5 ring-1 ring-white/10">
+      <div className="mt-6 rounded-lg bg-surface p-5 ring-1 ring-line">
         {workOrderId ? (
-          <div className="mb-5 rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm text-blue-200">
+          <div className="mb-5 rounded-lg border border-accent/30 bg-accent-soft px-4 py-3 text-sm text-accent">
             Este parte quedará vinculado a la work order{' '}
             <span className="font-mono">{workOrderId}</span>.
           </div>
         ) : null}
 
         {loadStatus === 'loading' ? (
-          <div className="text-sm text-slate-400">Cargando catálogos…</div>
+          <div className="text-sm text-muted">Cargando catálogos…</div>
         ) : loadStatus === 'error' ? (
-          <div className="text-sm text-red-200">{loadError}</div>
+          <div className="text-sm text-danger">{loadError}</div>
         ) : (
           <form className="space-y-5" onSubmit={onSubmit}>
             <div>
-              <label className="mb-2 block text-sm text-slate-300">Template</label>
+              <label className="mb-2 block text-sm text-ink-2">Template</label>
               <select
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none"
+                className="w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-ink outline-none"
                 value={templateId}
                 onChange={(e) => setTemplateId(e.target.value)}
               >
@@ -347,9 +347,9 @@ export default function NewMaintenanceReportPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm text-slate-300">Customer</label>
+              <label className="mb-2 block text-sm text-ink-2">Customer</label>
               <select
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
+                className="w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-ink outline-none disabled:opacity-70"
                 value={customerId}
                 onChange={(e) => onChangeCustomer(e.target.value)}
                 disabled={lockCustomer}
@@ -364,9 +364,9 @@ export default function NewMaintenanceReportPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm text-slate-300">Site</label>
+              <label className="mb-2 block text-sm text-ink-2">Site</label>
               <select
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
+                className="w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-ink outline-none disabled:opacity-70"
                 value={siteId}
                 onChange={(e) => onChangeSite(e.target.value)}
                 disabled={lockSite || !customerId}
@@ -381,9 +381,9 @@ export default function NewMaintenanceReportPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm text-slate-300">Asset</label>
+              <label className="mb-2 block text-sm text-ink-2">Asset</label>
               <select
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none disabled:opacity-70"
+                className="w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-ink outline-none disabled:opacity-70"
                 value={assetId}
                 onChange={(e) => setAssetId(e.target.value)}
                 disabled={lockAsset || !siteId}
@@ -398,9 +398,9 @@ export default function NewMaintenanceReportPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm text-slate-300">Notes</label>
+              <label className="mb-2 block text-sm text-ink-2">Notes</label>
               <textarea
-                className="min-h-28 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none"
+                className="min-h-28 w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-ink outline-none"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Notas iniciales del reporte"
@@ -408,7 +408,7 @@ export default function NewMaintenanceReportPage() {
             </div>
 
             {submitStatus === 'error' && (
-              <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+              <div className="rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">
                 {submitError}
               </div>
             )}
@@ -417,7 +417,7 @@ export default function NewMaintenanceReportPage() {
               <button
                 type="submit"
                 disabled={submitStatus === 'saving'}
-                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-60"
+                className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-60"
               >
                 {submitStatus === 'saving'
                   ? 'Creating…'
@@ -428,7 +428,7 @@ export default function NewMaintenanceReportPage() {
 
               <Link
                 href={backHref}
-                className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800"
+                className="rounded-lg border border-line px-4 py-2 text-sm text-ink hover:bg-surface-3"
               >
                 Cancel
               </Link>

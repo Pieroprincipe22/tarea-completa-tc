@@ -183,9 +183,9 @@ export default function NewSitePage() {
 
   if (!mounted) {
     return (
-      <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
-        <div className="mx-auto w-full max-w-4xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <p className="text-sm font-medium text-slate-500">
+      <main className="min-h-screen bg-surface-2 px-4 py-6 text-ink sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-4xl rounded-xl border border-line bg-surface p-8 text-center shadow-sm">
+          <p className="text-sm font-medium text-muted">
             Cargando sesión...
           </p>
         </div>
@@ -195,19 +195,19 @@ export default function NewSitePage() {
 
   if (!session) {
     return (
-      <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
-        <div className="mx-auto w-full max-w-3xl rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Nuevo site</p>
-          <h1 className="mt-1 text-2xl font-bold text-slate-950">
+      <main className="min-h-screen bg-surface-2 px-4 py-6 text-ink sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-3xl rounded-xl border border-line bg-surface p-8 shadow-sm">
+          <p className="text-sm font-medium text-muted">Nuevo site</p>
+          <h1 className="mt-1 text-2xl font-bold text-ink">
             Sesión no encontrada
           </h1>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
+          <p className="mt-2 text-sm leading-6 text-muted">
             Para crear sites necesitas iniciar sesión y tener una empresa activa.
           </p>
 
           <Link
             href="/login"
-            className="mt-5 inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+            className="mt-5 inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover"
           >
             Ir a login
           </Link>
@@ -217,16 +217,16 @@ export default function NewSitePage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-surface-2 px-4 py-6 text-ink sm:px-6 lg:px-8">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-500">Sites</p>
-              <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+              <p className="text-sm font-medium text-muted">Sites</p>
+              <h1 className="mt-1 text-2xl font-bold tracking-tight text-ink sm:text-3xl">
                 Nuevo site / ubicación
               </h1>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">
                 Registra una ubicación operativa del cliente, como hotel,
                 edificio, planta, sala técnica, local u oficina.
               </p>
@@ -234,7 +234,7 @@ export default function NewSitePage() {
 
             <Link
               href="/sites"
-              className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink-2 transition hover:bg-surface-2"
             >
               Volver a sites
             </Link>
@@ -243,11 +243,11 @@ export default function NewSitePage() {
 
         <form
           onSubmit={handleSubmit}
-          className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
+          className="rounded-xl border border-line bg-surface p-5 shadow-sm"
         >
           <div className="grid gap-4 md:grid-cols-2">
             <label className="flex flex-col gap-2 md:col-span-2">
-              <span className="text-sm font-semibold text-slate-700">
+              <span className="text-sm font-semibold text-ink-2">
                 Cliente *
               </span>
 
@@ -257,7 +257,7 @@ export default function NewSitePage() {
                   updateField('customerId', event.target.value)
                 }
                 disabled={isLoadingCustomers || customers.length === 0}
-                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-slate-400 disabled:bg-slate-100"
+                className="h-11 rounded-lg border border-line bg-surface px-4 text-sm outline-none transition focus:border-accent disabled:bg-surface-2"
               >
                 <option value="">
                   {isLoadingCustomers
@@ -274,7 +274,7 @@ export default function NewSitePage() {
             </label>
 
             <label className="flex flex-col gap-2 md:col-span-2">
-              <span className="text-sm font-semibold text-slate-700">
+              <span className="text-sm font-semibold text-ink-2">
                 Nombre del site *
               </span>
 
@@ -282,12 +282,12 @@ export default function NewSitePage() {
                 value={form.name}
                 onChange={(event) => updateField('name', event.target.value)}
                 placeholder="Ejemplo: Hotel Sol - Edificio Principal"
-                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400"
+                className="h-11 rounded-lg border border-line bg-surface px-4 text-sm outline-none transition placeholder:text-subtle focus:border-accent"
               />
             </label>
 
             <label className="flex flex-col gap-2 md:col-span-2">
-              <span className="text-sm font-semibold text-slate-700">
+              <span className="text-sm font-semibold text-ink-2">
                 Dirección
               </span>
 
@@ -295,12 +295,12 @@ export default function NewSitePage() {
                 value={form.address}
                 onChange={(event) => updateField('address', event.target.value)}
                 placeholder="Calle, número, zona..."
-                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400"
+                className="h-11 rounded-lg border border-line bg-surface px-4 text-sm outline-none transition placeholder:text-subtle focus:border-accent"
               />
             </label>
 
             <label className="flex flex-col gap-2">
-              <span className="text-sm font-semibold text-slate-700">
+              <span className="text-sm font-semibold text-ink-2">
                 Ciudad
               </span>
 
@@ -308,12 +308,12 @@ export default function NewSitePage() {
                 value={form.city}
                 onChange={(event) => updateField('city', event.target.value)}
                 placeholder="Madrid, Barcelona, Málaga..."
-                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400"
+                className="h-11 rounded-lg border border-line bg-surface px-4 text-sm outline-none transition placeholder:text-subtle focus:border-accent"
               />
             </label>
 
             <label className="flex flex-col gap-2">
-              <span className="text-sm font-semibold text-slate-700">
+              <span className="text-sm font-semibold text-ink-2">
                 País
               </span>
 
@@ -321,12 +321,12 @@ export default function NewSitePage() {
                 value={form.country}
                 onChange={(event) => updateField('country', event.target.value)}
                 placeholder="España"
-                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400"
+                className="h-11 rounded-lg border border-line bg-surface px-4 text-sm outline-none transition placeholder:text-subtle focus:border-accent"
               />
             </label>
 
             <label className="flex flex-col gap-2 md:col-span-2">
-              <span className="text-sm font-semibold text-slate-700">
+              <span className="text-sm font-semibold text-ink-2">
                 Notas
               </span>
 
@@ -335,25 +335,25 @@ export default function NewSitePage() {
                 onChange={(event) => updateField('notes', event.target.value)}
                 placeholder="Observaciones de acceso, recepción, horarios, contacto interno, restricciones..."
                 rows={5}
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400"
+                className="rounded-lg border border-line bg-surface px-4 py-3 text-sm outline-none transition placeholder:text-subtle focus:border-accent"
               />
             </label>
           </div>
 
           {errorMessage ? (
-            <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+            <div className="mt-5 rounded-lg border border-danger/30 bg-danger-soft p-4 text-sm text-danger">
               {errorMessage}
             </div>
           ) : null}
 
           {successMessage ? (
-            <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+            <div className="mt-5 rounded-lg border border-success/30 bg-success-soft p-4 text-sm text-success">
               {successMessage}
             </div>
           ) : null}
 
           {customers.length === 0 && !isLoadingCustomers ? (
-            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+            <div className="mt-5 rounded-lg border border-warning/30 bg-warning-soft p-4 text-sm text-warning">
               No hay clientes disponibles. Primero crea un cliente para poder
               vincular este site.
             </div>
@@ -362,7 +362,7 @@ export default function NewSitePage() {
           <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <Link
               href="/sites"
-              className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink-2 transition hover:bg-surface-2"
             >
               Cancelar
             </Link>
@@ -370,7 +370,7 @@ export default function NewSitePage() {
             <button
               type="submit"
               disabled={isSaving || isLoadingCustomers || customers.length === 0}
-              className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+              className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-accent-hover"
             >
               {isSaving ? 'Guardando...' : 'Crear site'}
             </button>

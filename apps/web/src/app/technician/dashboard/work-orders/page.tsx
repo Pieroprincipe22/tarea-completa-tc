@@ -193,35 +193,35 @@ function formatPriority(priority?: WorkOrderPriority | null): string {
 function statusBadgeClass(status?: WorkOrderStatus | null): string {
   switch (status) {
     case 'OPEN':
-      return 'border-amber-200 bg-amber-50 text-amber-700';
+      return 'border-warning/30 bg-warning-soft text-warning';
     case 'ASSIGNED':
-      return 'border-sky-200 bg-sky-50 text-sky-700';
+      return 'border-accent/30 bg-accent-soft text-accent';
     case 'PENDING':
-      return 'border-purple-200 bg-purple-50 text-purple-700';
+      return 'border-special/30 bg-special-soft text-special';
     case 'IN_PROGRESS':
-      return 'border-blue-200 bg-blue-50 text-blue-700';
+      return 'border-accent/30 bg-accent-soft text-accent';
     case 'DONE':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+      return 'border-success/30 bg-success-soft text-success';
     case 'CANCELLED':
     case 'CANCELED':
-      return 'border-rose-200 bg-rose-50 text-rose-700';
+      return 'border-danger/30 bg-danger-soft text-danger';
     default:
-      return 'border-slate-200 bg-slate-50 text-slate-600';
+      return 'border-line bg-surface-2 text-muted';
   }
 }
 
 function priorityBadgeClass(priority?: WorkOrderPriority | null): string {
   switch (priority) {
     case 'LOW':
-      return 'border-slate-200 bg-slate-50 text-slate-600';
+      return 'border-line bg-surface-2 text-muted';
     case 'MEDIUM':
-      return 'border-yellow-200 bg-yellow-50 text-yellow-700';
+      return 'border-warning/30 bg-warning-soft text-warning';
     case 'HIGH':
-      return 'border-orange-200 bg-orange-50 text-orange-700';
+      return 'border-warning/30 bg-warning-soft text-warning';
     case 'URGENT':
-      return 'border-rose-200 bg-rose-50 text-rose-700';
+      return 'border-danger/30 bg-danger-soft text-danger';
     default:
-      return 'border-slate-200 bg-slate-50 text-slate-600';
+      return 'border-line bg-surface-2 text-muted';
   }
 }
 
@@ -414,7 +414,7 @@ export default function TechnicianWorkOrdersPage() {
 
   if (!mounted) {
     return (
-      <main className="min-h-screen bg-slate-50 p-6 text-slate-900">
+      <main className="min-h-screen bg-surface-2 p-6 text-ink">
         Cargando sesión...
       </main>
     );
@@ -422,15 +422,15 @@ export default function TechnicianWorkOrdersPage() {
 
   if (!session) {
     return (
-      <main className="min-h-screen bg-slate-50 p-6 text-slate-900">
-        <p className="text-sm font-semibold text-slate-500">Panel técnico</p>
-        <h1 className="mt-2 text-3xl font-black">Sesión no encontrada</h1>
-        <p className="mt-3 text-slate-600">
+      <main className="min-h-screen bg-surface-2 p-6 text-ink">
+        <p className="text-sm font-semibold text-muted">Panel técnico</p>
+        <h1 className="mt-2 text-3xl font-semibold">Sesión no encontrada</h1>
+        <p className="mt-3 text-muted">
           Para ver tus órdenes de trabajo necesitas iniciar sesión como técnico.
         </p>
         <Link
           href="/login"
-          className="mt-6 inline-flex rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700"
+          className="mt-6 inline-flex rounded-lg bg-accent px-5 py-3 text-sm font-bold text-white hover:bg-accent-hover"
         >
           Ir a login
         </Link>
@@ -440,15 +440,15 @@ export default function TechnicianWorkOrdersPage() {
 
   if (!isTechnicianSession(session)) {
     return (
-      <main className="min-h-screen bg-slate-50 p-6 text-slate-900">
-        <p className="text-sm font-semibold text-slate-500">Panel técnico</p>
-        <h1 className="mt-2 text-3xl font-black">Esta vista es para técnicos</h1>
-        <p className="mt-3 text-slate-600">
+      <main className="min-h-screen bg-surface-2 p-6 text-ink">
+        <p className="text-sm font-semibold text-muted">Panel técnico</p>
+        <h1 className="mt-2 text-3xl font-semibold">Esta vista es para técnicos</h1>
+        <p className="mt-3 text-muted">
           Tu sesión actual no tiene rol técnico. Vuelve al panel principal.
         </p>
         <Link
           href={homePath}
-          className="mt-6 inline-flex rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700"
+          className="mt-6 inline-flex rounded-lg bg-accent px-5 py-3 text-sm font-bold text-white hover:bg-accent-hover"
         >
           Volver al dashboard
         </Link>
@@ -457,18 +457,18 @@ export default function TechnicianWorkOrdersPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 p-4 text-slate-900 md:p-8">
+    <main className="min-h-screen bg-surface-2 p-4 text-ink md:p-8">
       <div className="mx-auto max-w-7xl space-y-6">
-        <header className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <header className="rounded-xl bg-surface p-6 shadow-sm ring-1 ring-line">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
-              <p className="text-sm font-semibold text-slate-500">
+              <p className="text-sm font-semibold text-muted">
                 Panel técnico
               </p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight">
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight">
                 Mis órdenes de trabajo
               </h1>
-              <p className="mt-2 max-w-3xl text-sm text-slate-600">
+              <p className="mt-2 max-w-3xl text-sm text-muted">
                 Aquí aparecen únicamente las órdenes asignadas a tu usuario
                 técnico. Primero inicia el trabajo y después rellena el parte.
               </p>
@@ -476,7 +476,7 @@ export default function TechnicianWorkOrdersPage() {
 
             <Link
               href="/technician/dashboard"
-              className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+              className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-bold text-ink-2 hover:bg-surface-2"
             >
               Volver al panel técnico
             </Link>
@@ -484,61 +484,61 @@ export default function TechnicianWorkOrdersPage() {
         </header>
 
         <section className="grid gap-4 md:grid-cols-5">
-          <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+          <div className="rounded-xl bg-surface p-5 shadow-sm ring-1 ring-line">
+            <p className="text-xs font-bold uppercase tracking-wide text-subtle">
               Total asignadas
             </p>
-            <p className="mt-2 text-3xl font-black">{workOrders.length}</p>
+            <p className="mt-2 text-3xl font-semibold">{workOrders.length}</p>
           </div>
 
-          <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+          <div className="rounded-xl bg-surface p-5 shadow-sm ring-1 ring-line">
+            <p className="text-xs font-bold uppercase tracking-wide text-subtle">
               Pendientes
             </p>
-            <p className="mt-2 text-3xl font-black text-amber-600">
+            <p className="mt-2 text-3xl font-semibold text-warning">
               {pendingCount}
             </p>
           </div>
 
-          <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+          <div className="rounded-xl bg-surface p-5 shadow-sm ring-1 ring-line">
+            <p className="text-xs font-bold uppercase tracking-wide text-subtle">
               En progreso
             </p>
-            <p className="mt-2 text-3xl font-black text-blue-600">
+            <p className="mt-2 text-3xl font-semibold text-accent">
               {inProgressCount}
             </p>
           </div>
 
-          <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+          <div className="rounded-xl bg-surface p-5 shadow-sm ring-1 ring-line">
+            <p className="text-xs font-bold uppercase tracking-wide text-subtle">
               En revisión
             </p>
-            <p className="mt-2 text-3xl font-black text-purple-600">
+            <p className="mt-2 text-3xl font-semibold text-special">
               {reviewCount}
             </p>
           </div>
 
-          <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+          <div className="rounded-xl bg-surface p-5 shadow-sm ring-1 ring-line">
+            <p className="text-xs font-bold uppercase tracking-wide text-subtle">
               Finalizadas
             </p>
-            <p className="mt-2 text-3xl font-black text-emerald-600">
+            <p className="mt-2 text-3xl font-semibold text-success">
               {doneCount}
             </p>
           </div>
         </section>
 
         {actionError ? (
-          <section className="rounded-3xl border border-rose-200 bg-rose-50 p-5 text-sm font-semibold text-rose-700">
+          <section className="rounded-xl border border-danger/30 bg-danger-soft p-5 text-sm font-semibold text-danger">
             {actionError}
           </section>
         ) : null}
 
-        <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <section className="rounded-xl bg-surface p-6 shadow-sm ring-1 ring-line">
           <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div>
-              <h2 className="text-xl font-black">Órdenes asignadas</h2>
-              <p className="mt-1 text-sm text-slate-600">
+              <h2 className="text-xl font-semibold">Órdenes asignadas</h2>
+              <p className="mt-1 text-sm text-muted">
                 {workOrders.length} orden
                 {workOrders.length === 1 ? '' : 'es'} en tu bandeja de trabajo.
               </p>
@@ -547,19 +547,19 @@ export default function TechnicianWorkOrdersPage() {
 
           <div className="mt-6">
             {state.status === 'loading' ? (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">
+              <div className="rounded-lg border border-line bg-surface-2 p-6 text-sm text-muted">
                 Cargando tus órdenes...
               </div>
             ) : state.status === 'error' ? (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
+              <div className="rounded-lg border border-danger/30 bg-danger-soft p-6 text-sm text-danger">
                 {state.error}
               </div>
             ) : workOrders.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center">
-                <p className="text-lg font-bold text-slate-900">
+              <div className="rounded-lg border border-dashed border-line p-8 text-center">
+                <p className="text-lg font-bold text-ink">
                   No tienes órdenes asignadas.
                 </p>
-                <p className="mt-2 text-sm text-slate-500">
+                <p className="mt-2 text-sm text-muted">
                   Cuando el administrador te asigne una orden, aparecerá aquí.
                 </p>
               </div>
@@ -571,7 +571,7 @@ export default function TechnicianWorkOrdersPage() {
                   return (
                     <article
                       key={order.id}
-                      className="rounded-3xl border border-slate-200 bg-white p-5 transition hover:border-blue-200 hover:shadow-sm"
+                      className="rounded-xl border border-line bg-surface p-5 transition hover:border-accent/30 hover:shadow-sm"
                     >
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div className="min-w-0 flex-1">
@@ -593,17 +593,17 @@ export default function TechnicianWorkOrdersPage() {
                             </span>
 
                             {order.code ? (
-                              <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">
+                              <span className="inline-flex rounded-full border border-line bg-surface-2 px-3 py-1 text-xs font-bold text-muted">
                                 {order.code}
                               </span>
                             ) : null}
                           </div>
 
-                          <h3 className="mt-3 text-xl font-black text-slate-900">
+                          <h3 className="mt-3 text-xl font-semibold text-ink">
                             {order.title}
                           </h3>
 
-                          <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">
+                          <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted">
                             {order.description?.trim()
                               ? order.description
                               : 'Sin descripción registrada.'}
@@ -611,43 +611,43 @@ export default function TechnicianWorkOrdersPage() {
 
                           <div className="mt-4 grid gap-3 text-sm md:grid-cols-4">
                             <div>
-                              <p className="text-xs font-bold uppercase text-slate-400">
+                              <p className="text-xs font-bold uppercase text-subtle">
                                 Cliente
                               </p>
-                              <p className="mt-1 font-semibold text-slate-700">
+                              <p className="mt-1 font-semibold text-ink-2">
                                 {displayName(order.customer)}
                               </p>
                             </div>
 
                             <div>
-                              <p className="text-xs font-bold uppercase text-slate-400">
+                              <p className="text-xs font-bold uppercase text-subtle">
                                 Site
                               </p>
-                              <p className="mt-1 font-semibold text-slate-700">
+                              <p className="mt-1 font-semibold text-ink-2">
                                 {displaySite(order.site)}
                               </p>
                             </div>
 
                             <div>
-                              <p className="text-xs font-bold uppercase text-slate-400">
+                              <p className="text-xs font-bold uppercase text-subtle">
                                 Activo
                               </p>
-                              <p className="mt-1 font-semibold text-slate-700">
+                              <p className="mt-1 font-semibold text-ink-2">
                                 {displayAsset(order.asset)}
                               </p>
                             </div>
 
                             <div>
-                              <p className="text-xs font-bold uppercase text-slate-400">
+                              <p className="text-xs font-bold uppercase text-subtle">
                                 Programado
                               </p>
-                              <p className="mt-1 font-semibold text-slate-700">
+                              <p className="mt-1 font-semibold text-ink-2">
                                 {formatDateTime(scheduledDate)}
                               </p>
                             </div>
                           </div>
 
-                          <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-slate-500">
+                          <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-muted">
                             {order.startedAt ? (
                               <span>
                                 Inicio: {formatDateTime(order.startedAt)}
@@ -661,7 +661,7 @@ export default function TechnicianWorkOrdersPage() {
                             ) : null}
 
                             {order.status === 'PENDING' ? (
-                              <span className="text-purple-600">
+                              <span className="text-special">
                                 Parte enviado. Esperando revisión del admin.
                               </span>
                             ) : null}
@@ -671,7 +671,7 @@ export default function TechnicianWorkOrdersPage() {
                         <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
                           <Link
                             href={`/technician/dashboard/work-orders/${order.id}`}
-                            className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                            className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink-2 transition hover:bg-surface-2"
                           >
                             Ver detalle
                           </Link>
@@ -681,7 +681,7 @@ export default function TechnicianWorkOrdersPage() {
                               type="button"
                               onClick={() => void handleAction(order.id, 'start')}
                               disabled={actionLoadingId !== null}
-                              className="inline-flex items-center justify-center rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                              className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-accent-hover"
                             >
                               {actionLoadingId === order.id
                                 ? 'Actualizando...'
@@ -692,7 +692,7 @@ export default function TechnicianWorkOrdersPage() {
                           {canFillReport(order) ? (
                             <Link
                               href={`/technician/dashboard/work-orders/${order.id}/report`}
-                              className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                              className="inline-flex items-center justify-center rounded-lg bg-success px-4 py-2 text-sm font-semibold text-white transition hover:bg-success/90"
                             >
                               Rellenar parte
                             </Link>
@@ -703,7 +703,7 @@ export default function TechnicianWorkOrdersPage() {
                               type="button"
                               onClick={() => void handleAction(order.id, 'reopen')}
                               disabled={actionLoadingId !== null}
-                              className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                              className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink-2 transition hover:bg-surface-2 disabled:cursor-not-allowed disabled:bg-surface-2"
                             >
                               {actionLoadingId === order.id
                                 ? 'Actualizando...'

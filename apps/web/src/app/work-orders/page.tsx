@@ -165,35 +165,35 @@ function formatDate(input?: string | null): string {
 function statusBadgeClass(status: string): string {
   switch (status) {
     case 'OPEN':
-      return 'border-amber-500/40 bg-amber-500/10 text-amber-300';
+      return 'border-warning/30 bg-warning-soft text-warning';
     case 'ASSIGNED':
-      return 'border-sky-500/40 bg-sky-500/10 text-sky-300';
+      return 'border-accent/30 bg-accent-soft text-accent';
     case 'PENDING':
-      return 'border-slate-500/40 bg-slate-500/10 text-slate-200';
+      return 'border-line-strong bg-line-strong text-ink';
     case 'IN_PROGRESS':
-      return 'border-blue-500/40 bg-blue-500/10 text-blue-300';
+      return 'border-accent/30 bg-accent-soft text-accent';
     case 'DONE':
-      return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
+      return 'border-success/30 bg-success-soft text-success';
     case 'CANCELLED':
     case 'CANCELED':
-      return 'border-rose-500/40 bg-rose-500/10 text-rose-300';
+      return 'border-danger/30 bg-danger-soft text-danger';
     default:
-      return 'border-slate-700 bg-slate-800 text-slate-200';
+      return 'border-line bg-surface-3 text-ink';
   }
 }
 
 function priorityBadgeClass(priority: string | null): string {
   switch (priority) {
     case 'LOW':
-      return 'border-slate-600 bg-slate-800 text-slate-200';
+      return 'border-line-strong bg-surface-3 text-ink';
     case 'MEDIUM':
-      return 'border-yellow-500/40 bg-yellow-500/10 text-yellow-300';
+      return 'border-warning/30 bg-warning-soft text-warning';
     case 'HIGH':
-      return 'border-orange-500/40 bg-orange-500/10 text-orange-300';
+      return 'border-warning/30 bg-warning-soft text-warning';
     case 'URGENT':
-      return 'border-rose-500/40 bg-rose-500/10 text-rose-300';
+      return 'border-danger/30 bg-danger-soft text-danger';
     default:
-      return 'border-slate-700 bg-slate-800 text-slate-200';
+      return 'border-line bg-surface-3 text-ink';
   }
 }
 
@@ -330,7 +330,7 @@ export default function WorkOrdersPage() {
 
   if (!mounted) {
     return (
-      <main className="min-h-screen bg-slate-950 p-6 text-slate-100">
+      <main className="min-h-screen bg-surface-2 p-6 text-ink">
         Cargando sesión…
       </main>
     );
@@ -338,14 +338,14 @@ export default function WorkOrdersPage() {
 
   if (!session) {
     return (
-      <main className="min-h-screen bg-slate-950 p-6 text-slate-100">
-        <section className="mx-auto max-w-3xl rounded-3xl border border-slate-800 bg-slate-900 p-6">
-          <h1 className="text-2xl font-black">Work Orders</h1>
-          <p className="mt-2 text-slate-400">Sin sesión tenant. Ve a /login.</p>
+      <main className="min-h-screen bg-surface-2 p-6 text-ink">
+        <section className="mx-auto max-w-3xl rounded-xl border border-line bg-surface p-6">
+          <h1 className="text-2xl font-semibold">Work Orders</h1>
+          <p className="mt-2 text-muted">Sin sesión tenant. Ve a /login.</p>
 
           <Link
             href="/login"
-            className="mt-4 inline-flex rounded-2xl bg-white px-4 py-2 text-sm font-black text-slate-950 hover:bg-slate-200"
+            className="mt-4 inline-flex rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-hover"
           >
             Ir a /login
           </Link>
@@ -356,23 +356,23 @@ export default function WorkOrdersPage() {
 
   if (isTechnicianSession(session)) {
     return (
-      <main className="min-h-screen bg-slate-950 p-6 text-slate-100">
+      <main className="min-h-screen bg-surface-2 p-6 text-ink">
         Redirigiendo al panel técnico…
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 p-6 text-slate-100">
+    <main className="min-h-screen bg-surface-2 p-6 text-ink">
       <div className="mx-auto max-w-7xl space-y-6">
-        <header className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
+        <header className="rounded-xl border border-line bg-surface p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className="text-sm font-bold uppercase tracking-[0.25em] text-slate-500">
+              <p className="text-sm font-bold uppercase tracking-[0.25em] text-subtle">
                 Operaciones
               </p>
-              <h1 className="mt-2 text-3xl font-black">Work Orders</h1>
-              <p className="mt-1 text-sm text-slate-400">
+              <h1 className="mt-2 text-3xl font-semibold">Work Orders</h1>
+              <p className="mt-1 text-sm text-muted">
                 Vista administrativa de todas las órdenes de trabajo.
               </p>
             </div>
@@ -380,14 +380,14 @@ export default function WorkOrdersPage() {
             <div className="flex flex-wrap gap-2">
               <Link
                 href="/work-orders/new"
-                className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-slate-950 hover:bg-slate-200"
+                className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-hover"
               >
                 + Nueva Work Order
               </Link>
 
               <Link
                 href={homeHref}
-                className="rounded-2xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800"
+                className="rounded-lg border border-line px-4 py-2 text-sm font-bold text-ink hover:bg-surface-3"
               >
                 Dashboard
               </Link>
@@ -395,13 +395,13 @@ export default function WorkOrdersPage() {
           </div>
         </header>
 
-        <section className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
+        <section className="rounded-xl border border-line bg-surface p-5">
           <div className="flex flex-col gap-3 lg:flex-row">
             <input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               placeholder="Buscar por título o descripción"
-              className="h-11 flex-1 rounded-2xl border border-slate-700 bg-slate-950 px-4 text-sm text-slate-100 outline-none focus:border-slate-500"
+              className="h-11 flex-1 rounded-lg border border-line bg-surface-2 px-4 text-sm text-ink outline-none focus:border-accent"
             />
 
             <select
@@ -409,7 +409,7 @@ export default function WorkOrdersPage() {
               onChange={(event) =>
                 setStatusFilter(event.target.value as StatusFilterValue)
               }
-              className="h-11 rounded-2xl border border-slate-700 bg-slate-950 px-4 text-sm text-slate-100 outline-none focus:border-slate-500"
+              className="h-11 rounded-lg border border-line bg-surface-2 px-4 text-sm text-ink outline-none focus:border-accent"
             >
               <option value="">Todos los estados</option>
               <option value="OPEN">Abiertas</option>
@@ -426,14 +426,14 @@ export default function WorkOrdersPage() {
                 setSearchTerm('');
                 setStatusFilter('');
               }}
-              className="h-11 rounded-2xl border border-slate-700 px-4 text-sm font-bold text-slate-200 hover:bg-slate-800"
+              className="h-11 rounded-lg border border-line px-4 text-sm font-bold text-ink hover:bg-surface-3"
             >
               Limpiar
             </button>
           </div>
 
           {state.status === 'ok' ? (
-            <p className="mt-4 text-sm text-slate-400">
+            <p className="mt-4 text-sm text-muted">
               {state.data.length} work order
               {state.data.length === 1 ? '' : 's'} encontrada
               {state.data.length === 1 ? '' : 's'}.
@@ -442,12 +442,12 @@ export default function WorkOrdersPage() {
 
           {actionState.status !== 'idle' ? (
             <div
-              className={`mt-4 rounded-2xl border p-4 text-sm ${
+              className={`mt-4 rounded-lg border p-4 text-sm ${
                 actionState.status === 'success'
-                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+                  ? 'border-success/30 bg-success-soft text-success'
                   : actionState.status === 'error'
-                    ? 'border-rose-500/40 bg-rose-500/10 text-rose-200'
-                    : 'border-blue-500/40 bg-blue-500/10 text-blue-200'
+                    ? 'border-danger/30 bg-danger-soft text-danger'
+                    : 'border-accent/30 bg-accent-soft text-accent'
               }`}
             >
               {actionState.message}
@@ -455,24 +455,24 @@ export default function WorkOrdersPage() {
           ) : null}
         </section>
 
-        <section className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
+        <section className="rounded-xl border border-line bg-surface p-5">
           {state.status === 'loading' ? (
-            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-6 text-slate-300">
+            <div className="rounded-lg border border-line bg-surface-2 p-6 text-ink-2">
               Cargando…
             </div>
           ) : state.status === 'error' ? (
-            <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-6 text-rose-200">
+            <div className="rounded-lg border border-danger/30 bg-danger-soft p-6 text-danger">
               {state.error}
             </div>
           ) : state.data.length === 0 ? (
-            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-6 text-slate-300">
+            <div className="rounded-lg border border-line bg-surface-2 p-6 text-ink-2">
               No hay work orders.
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1180px] border-collapse text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-800 text-xs uppercase tracking-wide text-slate-500">
+                  <tr className="border-b border-line text-xs uppercase tracking-wide text-subtle">
                     <th className="px-3 py-3">#</th>
                     <th className="px-3 py-3">Título</th>
                     <th className="px-3 py-3">Cliente</th>
@@ -490,45 +490,45 @@ export default function WorkOrdersPage() {
                   {state.data.map((order, index) => (
                     <tr
                       key={order.id}
-                      className="border-b border-slate-800/80 align-top last:border-0"
+                      className="border-b border-line align-top last:border-0"
                     >
-                      <td className="px-3 py-4 text-slate-300">{index + 1}</td>
+                      <td className="px-3 py-4 text-ink-2">{index + 1}</td>
 
                       <td className="px-3 py-4">
-                        <p className="max-w-[260px] font-black text-slate-100">
+                        <p className="max-w-[260px] font-semibold text-ink">
                           {order.title}
                         </p>
 
                         {order.description ? (
-                          <p className="mt-1 max-w-[260px] text-xs leading-5 text-slate-400">
+                          <p className="mt-1 max-w-[260px] text-xs leading-5 text-muted">
                             {order.description}
                           </p>
                         ) : null}
                       </td>
 
-                      <td className="px-3 py-4 font-bold text-slate-200">
+                      <td className="px-3 py-4 font-bold text-ink">
                         {order.customer?.name ?? '—'}
                       </td>
 
                       <td className="px-3 py-4">
-                        <p className="font-bold text-slate-200">
+                        <p className="font-bold text-ink">
                           {order.site?.name ?? '—'}
                         </p>
 
                         {order.site?.address ? (
-                          <p className="mt-1 text-xs text-slate-500">
+                          <p className="mt-1 text-xs text-subtle">
                             {order.site.address}
                           </p>
                         ) : null}
                       </td>
 
-                      <td className="px-3 py-4 text-slate-300">
+                      <td className="px-3 py-4 text-ink-2">
                         {getAssignedName(order)}
                       </td>
 
                       <td className="px-3 py-4">
                         <span
-                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${statusBadgeClass(
+                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusBadgeClass(
                             order.status,
                           )}`}
                         >
@@ -538,7 +538,7 @@ export default function WorkOrdersPage() {
 
                       <td className="px-3 py-4">
                         <span
-                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${priorityBadgeClass(
+                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${priorityBadgeClass(
                             order.priority,
                           )}`}
                         >
@@ -546,11 +546,11 @@ export default function WorkOrdersPage() {
                         </span>
                       </td>
 
-                      <td className="px-3 py-4 text-slate-300">
+                      <td className="px-3 py-4 text-ink-2">
                         {formatDate(order.scheduledAt)}
                       </td>
 
-                      <td className="px-3 py-4 text-slate-300">
+                      <td className="px-3 py-4 text-ink-2">
                         {formatDate(order.updatedAt)}
                       </td>
 
@@ -558,7 +558,7 @@ export default function WorkOrdersPage() {
                         <div className="flex justify-end gap-2">
                           <Link
                             href={`/work-orders/${order.id}`}
-                            className="rounded-xl border border-slate-600 px-3 py-2 text-xs font-black text-slate-100 hover:bg-slate-800"
+                            className="rounded-lg border border-line-strong px-3 py-2 text-xs font-semibold text-ink hover:bg-surface-3"
                           >
                             Ver detalle
                           </Link>
@@ -567,7 +567,7 @@ export default function WorkOrdersPage() {
                             type="button"
                             onClick={() => void handleDelete(order)}
                             disabled={deletingId === order.id}
-                            className="rounded-xl border border-rose-500/50 bg-rose-500/10 px-3 py-2 text-xs font-black text-rose-200 hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="rounded-lg border border-danger bg-danger-soft px-3 py-2 text-xs font-semibold text-danger hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             {deletingId === order.id ? 'Eliminando…' : 'Eliminar'}
                           </button>

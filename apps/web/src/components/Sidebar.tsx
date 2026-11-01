@@ -22,30 +22,25 @@ function cx(...classes: Array<string | false | null | undefined>): string {
 function LogoMark({ homeHref }: { homeHref: string }) {
   return (
     <Link href={homeHref} className="flex items-center gap-3">
-      <div className="relative flex h-12 w-12 items-center justify-center">
-        <span className="absolute text-[38px] font-black tracking-tighter text-blue-500">
-          T
+      <span
+        aria-hidden="true"
+        className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent font-mono text-sm font-medium text-white"
+      >
+        AP
+      </span>
+      <span className="leading-tight">
+        <span className="block text-base font-semibold text-ink">AnPi Tech</span>
+        <span className="block font-mono text-[11px] uppercase tracking-[0.12em] text-subtle">
+          Mantenimiento
         </span>
-        <span className="absolute left-5 text-[38px] font-black tracking-tighter text-sky-400">
-          C
-        </span>
-      </div>
-
-      <div className="leading-none">
-        <p className="text-lg font-black tracking-wide text-white">
-          TECHNICAL
-        </p>
-        <p className="text-lg font-black tracking-wide text-sky-300">
-          COMMAND
-        </p>
-      </div>
+      </span>
     </Link>
   );
 }
 
 function HomeIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor" {...props}>
       <path
         d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3V10.5Z"
         strokeWidth="1.8"
@@ -58,7 +53,7 @@ function HomeIcon(props: IconProps) {
 
 function WorkOrderIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor" {...props}>
       <path
         d="M7 3h7l4 4v14H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"
         strokeWidth="1.8"
@@ -77,7 +72,7 @@ function WorkOrderIcon(props: IconProps) {
 
 function ReportIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor" {...props}>
       <path
         d="M6 3h9l3 3v15H6V3Z"
         strokeWidth="1.8"
@@ -96,7 +91,7 @@ function ReportIcon(props: IconProps) {
 
 function CalendarIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor" {...props}>
       <path
         d="M7 3v3M17 3v3M4 8h16M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"
         strokeWidth="1.8"
@@ -109,7 +104,7 @@ function CalendarIcon(props: IconProps) {
 
 function UsersIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor" {...props}>
       <path
         d="M16 11a4 4 0 1 0-8 0M4.5 20a7.5 7.5 0 0 1 15 0M18 8.5a3 3 0 0 1 2.5 3M20.5 19a5 5 0 0 0-3-4.5"
         strokeWidth="1.8"
@@ -122,7 +117,7 @@ function UsersIcon(props: IconProps) {
 
 function CubeIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor" {...props}>
       <path
         d="m12 3 7.5 4.25v9.5L12 21l-7.5-4.25v-9.5L12 3Z"
         strokeWidth="1.8"
@@ -141,7 +136,7 @@ function CubeIcon(props: IconProps) {
 
 function TechnicianIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor" {...props}>
       <path
         d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4.5 20a7.5 7.5 0 0 1 15 0"
         strokeWidth="1.8"
@@ -160,7 +155,7 @@ function TechnicianIcon(props: IconProps) {
 
 function ContractIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor" {...props}>
       <path
         d="M7 3h10v18H7V3Z"
         strokeWidth="1.8"
@@ -179,7 +174,7 @@ function ContractIcon(props: IconProps) {
 
 function TemplateIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor" {...props}>
       <path
         d="M4 4h16v16H4V4Z"
         strokeWidth="1.8"
@@ -198,7 +193,7 @@ function TemplateIcon(props: IconProps) {
 
 function ChartIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor" {...props}>
       <path
         d="M4 19V5M4 19h16M8 16v-5M12 16V8M16 16v-3"
         strokeWidth="1.8"
@@ -211,7 +206,7 @@ function ChartIcon(props: IconProps) {
 
 function SettingsIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor" {...props}>
       <path
         d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
         strokeWidth="1.8"
@@ -230,7 +225,7 @@ function SettingsIcon(props: IconProps) {
 
 function DiamondIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor" {...props}>
       <path
         d="M6 3h12l4 6-10 12L2 9l4-6Z"
         strokeWidth="1.8"
@@ -249,7 +244,7 @@ function DiamondIcon(props: IconProps) {
 
 function ChevronDownIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor" {...props}>
       <path
         d="m6 9 6 6 6-6"
         strokeWidth="2"
@@ -262,7 +257,7 @@ function ChevronDownIcon(props: IconProps) {
 
 function ChevronRightIcon(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
+    <svg viewBox="0 0 24 24"fill="none"stroke="currentColor" {...props}>
       <path
         d="m9 18 6-6-6-6"
         strokeWidth="2"
@@ -349,8 +344,8 @@ function getSubmenuItems(section: TcNavSection): TcNavLeaf[] {
 
 function StatusDot() {
   return (
-    <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-slate-950">
-      <span className="h-2 w-2 rounded-full bg-blue-500" />
+    <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-surface-2">
+      <span className="h-2 w-2 rounded-full bg-accent" />
     </span>
   );
 }
@@ -367,23 +362,23 @@ function SidebarSubItem({
   const content = (
     <span
       className={cx(
-        'relative flex min-h-8 items-center gap-3 rounded-xl py-1.5 pl-8 pr-3 text-sm transition',
+        'relative flex min-h-8 items-center gap-3 rounded-lg py-1.5 pl-8 pr-3 text-sm transition',
         active
-          ? 'font-black text-blue-300'
-          : 'font-medium text-slate-400 hover:text-slate-100',
-        item.comingSoon && 'cursor-default opacity-60 hover:text-slate-400',
+          ? 'font-semibold text-accent'
+          : 'font-medium text-muted hover:text-ink',
+        item.comingSoon && 'cursor-default opacity-60 hover:text-muted',
       )}
     >
       <span
         className={cx(
           'absolute left-2 h-2 w-2 rounded-full',
-          active ? 'bg-blue-500' : 'bg-slate-700',
+          active ? 'bg-accent' : 'bg-surface-3',
         )}
       />
       <span className="truncate">{item.title}</span>
 
       {item.comingSoon ? (
-        <span className="ml-auto rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-black uppercase text-slate-400">
+        <span className="ml-auto rounded-full bg-surface-3 px-2 py-0.5 text-[10px] font-semibold uppercase text-muted">
           Próx
         </span>
       ) : null}
@@ -416,16 +411,16 @@ function SidebarSectionItem({
       <Link
         href={href}
         className={cx(
-          'group flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 text-[15px] transition duration-200',
+          'group flex min-h-12 items-center gap-3 rounded-lg px-4 py-3 text-[15px] transition duration-200',
           active
-            ? 'bg-blue-600/75 text-blue-100 shadow-[0_12px_32px_rgba(37,99,235,0.22)]'
-            : 'text-slate-300 hover:bg-slate-900/80 hover:text-white',
+            ? 'bg-accent-soft text-accent'
+            : 'text-ink-2 hover:bg-surface-2 hover:text-ink',
         )}
       >
         <span
           className={cx(
             'relative flex h-6 w-6 shrink-0 items-center justify-center',
-            active ? 'text-sky-200' : 'text-slate-400 group-hover:text-sky-300',
+            active ? 'text-accent' : 'text-muted group-hover:text-accent',
           )}
         >
           <SectionIcon sectionKey={section.key} className="h-5 w-5" />
@@ -437,15 +432,15 @@ function SidebarSectionItem({
 
         {subItems.length > 1 ? (
           active ? (
-            <ChevronDownIcon className="h-4 w-4 shrink-0 text-sky-200" />
+            <ChevronDownIcon className="h-4 w-4 shrink-0 text-accent" />
           ) : (
-            <ChevronRightIcon className="h-4 w-4 shrink-0 text-slate-600 group-hover:text-slate-300" />
+            <ChevronRightIcon className="h-4 w-4 shrink-0 text-subtle group-hover:text-ink-2" />
           )
         ) : null}
       </Link>
 
       {showSubmenu ? (
-        <div className="ml-5 mt-2 space-y-1 border-l border-slate-800/90 pl-2">
+        <div className="ml-5 mt-2 space-y-1 border-l border-line pl-2">
           {subItems.map((item) => (
             <SidebarSubItem key={item.key} item={item} pathname={pathname} />
           ))}
@@ -457,21 +452,21 @@ function SidebarSectionItem({
 
 function PlanCard() {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+    <div className="rounded-lg border border-line bg-surface-2 p-4">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600/20 text-blue-300">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-soft text-accent">
           <DiamondIcon className="h-6 w-6" />
         </div>
 
         <div>
-          <p className="font-black text-blue-300">Plan PRO</p>
-          <p className="mt-1 text-xs text-slate-500">Máximo rendimiento</p>
+          <p className="font-semibold text-accent">Plan PRO</p>
+          <p className="mt-1 text-xs text-subtle">Máximo rendimiento</p>
         </div>
       </div>
 
       <Link
         href="/settings/billing"
-        className="mt-4 flex items-center justify-between rounded-xl bg-blue-600/20 px-4 py-3 text-sm font-black text-blue-300 transition hover:bg-blue-600/30 hover:text-blue-200"
+        className="mt-4 flex items-center justify-between rounded-lg bg-accent-soft px-4 py-3 text-sm font-semibold text-accent transition hover:bg-accent-soft hover:text-accent"
       >
         Ver mi plan
         <ChevronRightIcon className="h-4 w-4" />
@@ -528,13 +523,13 @@ export default function Sidebar() {
   if (!mounted) return null;
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-[292px] shrink-0 border-r border-slate-800/80 bg-slate-950/92 xl:flex xl:flex-col">
-      <div className="flex h-[86px] shrink-0 items-center border-b border-slate-800/80 px-7">
+    <aside className="sticky top-0 hidden h-screen w-[280px] shrink-0 border-r border-line bg-surface xl:flex xl:flex-col">
+      <div className="flex h-[74px] shrink-0 items-center border-b border-line px-6">
         <LogoMark homeHref={homeHref} />
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col px-4 py-6">
-        <p className="px-3 text-xs font-medium uppercase tracking-wider text-slate-500">
+        <p className="px-3 text-xs font-medium uppercase tracking-wider text-subtle">
           Navegación
         </p>
 
@@ -548,7 +543,7 @@ export default function Sidebar() {
               />
 
               {shouldShowDivider(section.key) ? (
-                <div className="my-4 h-px bg-slate-800/90" />
+                <div className="my-4 h-px bg-surface-3" />
               ) : null}
             </div>
           ))}
@@ -560,7 +555,7 @@ export default function Sidebar() {
       </div>
 
       <div className="absolute bottom-5 left-5">
-        <div className="relative flex h-8 w-8 items-center justify-center rounded-full border border-slate-800 bg-black text-xs font-black text-slate-200">
+        <div className="relative flex h-8 w-8 items-center justify-center rounded-full border border-line bg-surface-3 text-xs font-semibold text-ink-2">
           N
           <StatusDot />
         </div>

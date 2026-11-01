@@ -114,14 +114,14 @@ function SparkIcon(props: IconProps) {
 function StatusPill({ variant }: { variant: ModuleCardVariant }) {
   if (variant === 'active') {
     return (
-      <span className="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-300">
+      <span className="rounded-full border border-success/30 bg-success-soft px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-success">
         Activo
       </span>
     );
   }
 
   return (
-    <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-amber-200">
+    <span className="rounded-full border border-warning/30 bg-warning-soft px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-warning">
       Próximo
     </span>
   );
@@ -138,22 +138,22 @@ function ModuleCard({
   const content = (
     <div
       className={cx(
-        'group relative h-full overflow-hidden rounded-3xl border p-6 shadow-[0_22px_70px_rgba(2,6,23,0.30)] transition duration-200',
+        'group relative h-full overflow-hidden rounded-xl border p-6 shadow-sm transition duration-200',
         disabled
-          ? 'border-slate-800/90 bg-slate-900/35'
-          : 'border-slate-800/90 bg-slate-900/55 hover:-translate-y-0.5 hover:border-sky-400/45 hover:bg-slate-900/75 hover:shadow-[0_28px_90px_rgba(14,165,233,0.12)]',
+          ? 'border-line bg-surface'
+          : 'border-line bg-surface hover:-translate-y-0.5 hover:border-accent/30 hover:bg-surface ',
       )}
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.14),transparent_38%)] opacity-80" />
+      <div className="absolute inset-0 opacity-80" />
 
       <div className="relative flex items-start justify-between gap-4">
         <div className="flex gap-4">
           <div
             className={cx(
-              'flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border',
+              'flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border',
               disabled
-                ? 'border-slate-700/70 bg-slate-950/60 text-slate-500'
-                : 'border-sky-400/25 bg-sky-500/10 text-sky-400',
+                ? 'border-line bg-surface-2 text-subtle'
+                : 'border-accent/30 bg-accent-soft text-accent',
             )}
           >
             {disabled ? (
@@ -164,11 +164,11 @@ function ModuleCard({
           </div>
 
           <div>
-            <h2 className="text-xl font-black tracking-tight text-white">
+            <h2 className="text-xl font-semibold tracking-tight text-ink">
               {title}
             </h2>
 
-            <p className="mt-3 text-sm leading-7 text-slate-400">
+            <p className="mt-3 text-sm leading-7 text-muted">
               {description}
             </p>
           </div>
@@ -178,7 +178,7 @@ function ModuleCard({
       </div>
 
       {!disabled ? (
-        <div className="relative mt-6 inline-flex items-center gap-2 text-sm font-black text-sky-400 transition group-hover:text-sky-300">
+        <div className="relative mt-6 inline-flex items-center gap-2 text-sm font-semibold text-accent transition group-hover:text-accent">
           Abrir módulo
           <ArrowIcon className="h-4 w-4" />
         </div>
@@ -208,39 +208,39 @@ export default function ModuleLanding({
   const comingSoonItems = items.filter((item) => item.comingSoon || !item.href);
 
   return (
-    <main className="min-h-[calc(100vh-86px)] flex-1 bg-slate-950 px-6 py-8 text-slate-100 lg:px-8">
+    <main className="min-h-[calc(100vh-86px)] flex-1 bg-surface-2 px-6 py-8 text-ink lg:px-8">
       <div className="mx-auto max-w-7xl space-y-6">
-        <section className="relative overflow-hidden rounded-3xl border border-sky-500/40 bg-slate-900/70 p-8 shadow-[0_0_80px_rgba(14,165,233,0.10)]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_32%)]" />
-          <div className="absolute right-0 top-0 h-full w-1/2 bg-[linear-gradient(rgba(56,189,248,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,0.07)_1px,transparent_1px)] bg-[size:24px_24px] opacity-40" />
+        <section className="relative overflow-hidden rounded-xl border border-accent/30 bg-surface p-8 ">
+          <div className="absolute inset-0 " />
+          <div className="absolute right-0 top-0 h-full w-1/2 opacity-40" />
 
           <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-[12px] font-black uppercase tracking-[0.28em] text-sky-400">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.28em] text-accent">
                 {eyebrow}
               </p>
 
-              <h1 className="mt-4 text-5xl font-black tracking-tight text-white">
+              <h1 className="mt-4 text-5xl font-semibold tracking-tight text-ink">
                 {title}
               </h1>
 
-              <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300">
+              <p className="mt-5 max-w-3xl text-base leading-8 text-ink-2">
                 {description}
               </p>
             </div>
 
             {focusText ? (
-              <div className="rounded-3xl border border-slate-700/80 bg-slate-950/65 p-5 shadow-[0_18px_60px_rgba(2,6,23,0.35)]">
+              <div className="rounded-xl border border-line bg-surface-2 p-5 shadow-sm">
                 <div className="flex gap-4">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-sky-400/25 bg-sky-500/10 text-sky-300">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-accent/30 bg-accent-soft text-accent">
                     <TargetIcon className="h-7 w-7" />
                   </div>
 
                   <div>
-                    <p className="text-sm font-black text-white">
+                    <p className="text-sm font-semibold text-ink">
                       Foco del módulo
                     </p>
-                    <p className="mt-2 max-w-xs text-sm leading-6 text-slate-400">
+                    <p className="mt-2 max-w-xs text-sm leading-6 text-muted">
                       {focusText}
                     </p>
                   </div>
@@ -253,11 +253,11 @@ export default function ModuleLanding({
         {activeItems.length > 0 ? (
           <section className="space-y-4">
             <div>
-              <p className="text-[12px] font-black uppercase tracking-[0.28em] text-sky-400">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.28em] text-accent">
                 Disponibles
               </p>
 
-              <h2 className="mt-2 text-2xl font-black tracking-tight text-white">
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-ink">
                 Módulos activos
               </h2>
             </div>
@@ -278,17 +278,17 @@ export default function ModuleLanding({
         ) : null}
 
         {comingSoonItems.length > 0 ? (
-          <section className="rounded-3xl border border-slate-800/90 bg-slate-900/30 p-5">
+          <section className="rounded-xl border border-line bg-surface p-5">
             <div className="mb-5">
-              <p className="text-[12px] font-black uppercase tracking-[0.28em] text-sky-400">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.28em] text-accent">
                 Próximamente
               </p>
 
-              <h2 className="mt-2 text-2xl font-black tracking-tight text-white">
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-ink">
                 Futuros módulos
               </h2>
 
-              <p className="mt-2 text-sm leading-6 text-slate-400">
+              <p className="mt-2 text-sm leading-6 text-muted">
                 Estas funciones quedan identificadas para desarrollo posterior,
                 sin mezclarlas con las pantallas principales ya disponibles.
               </p>

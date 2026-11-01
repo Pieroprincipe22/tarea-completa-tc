@@ -138,7 +138,7 @@ export default function MaintenanceTemplateDetailPage() {
     return (
       <div className="space-y-3">
         <h1 className="text-xl font-semibold">Maintenance Template</h1>
-        <p className="text-sm text-slate-300">Sin sesión tenant. Ve a /login.</p>
+        <p className="text-sm text-ink-2">Sin sesión tenant. Ve a /login.</p>
         <Link className="underline" href="/login">
           Ir a /login
         </Link>
@@ -158,37 +158,37 @@ export default function MaintenanceTemplateDetailPage() {
       </div>
 
       {state.status === 'loading' ? (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+        <div className="rounded-lg border border-line bg-surface p-6">
           Cargando…
         </div>
       ) : state.status === 'error' ? (
-        <div className="rounded-2xl border border-red-800 bg-red-900/20 p-6 text-red-200">
+        <div className="rounded-lg border border-danger bg-danger-soft p-6 text-danger">
           {state.error}
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+          <div className="rounded-lg border border-line bg-surface p-6">
             <h1 className="text-xl font-semibold">{state.data.name}</h1>
-            <div className="mt-2 text-sm text-slate-300">
+            <div className="mt-2 text-sm text-ink-2">
               ID: {state.data.id}
               {state.data.intervalDays != null ? ` · IntervalDays: ${state.data.intervalDays}` : null}
               {' · '}
               {state.data.isActive ? 'Activo' : 'Inactivo'}
             </div>
             {state.data.description ? (
-              <p className="mt-3 text-sm text-slate-200">{state.data.description}</p>
+              <p className="mt-3 text-sm text-ink">{state.data.description}</p>
             ) : null}
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+          <div className="rounded-lg border border-line bg-surface p-6">
             <h2 className="font-semibold">Items</h2>
 
             {state.data.items.length === 0 ? (
-              <p className="mt-2 text-sm text-slate-300">Este template no trae items.</p>
+              <p className="mt-2 text-sm text-ink-2">Este template no trae items.</p>
             ) : (
               <div className="mt-3 overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="text-slate-300">
+                  <thead className="text-ink-2">
                     <tr>
                       <th className="text-left py-2">#</th>
                       <th className="text-left py-2">Label</th>
@@ -199,12 +199,12 @@ export default function MaintenanceTemplateDetailPage() {
                   </thead>
                   <tbody>
                     {state.data.items.map((it) => (
-                      <tr key={it.id} className="border-t border-slate-800">
+                      <tr key={it.id} className="border-t border-line">
                         <td className="py-2">{it.sortOrder || '—'}</td>
                         <td className="py-2">
                           <div className="font-medium">{it.label}</div>
                           {it.hint ? (
-                            <div className="text-xs text-slate-400">{it.hint}</div>
+                            <div className="text-xs text-muted">{it.hint}</div>
                           ) : null}
                         </td>
                         <td className="py-2">{it.type}</td>

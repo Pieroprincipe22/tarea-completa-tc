@@ -268,35 +268,35 @@ function finalStatusLabel(status?: string | null): string {
 function reportBadgeClass(status?: string | null): string {
   switch (String(status ?? '').toUpperCase()) {
     case 'APPROVED':
-      return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
+      return 'border-success/30 bg-success-soft text-success';
     case 'REJECTED':
-      return 'border-rose-500/40 bg-rose-500/10 text-rose-300';
+      return 'border-danger/30 bg-danger-soft text-danger';
     case 'SUBMITTED':
-      return 'border-sky-500/40 bg-sky-500/10 text-sky-300';
+      return 'border-accent/30 bg-accent-soft text-accent';
     case 'IN_PROGRESS':
-      return 'border-blue-500/40 bg-blue-500/10 text-blue-300';
+      return 'border-accent/30 bg-accent-soft text-accent';
     case 'ASSIGNED':
-      return 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300';
+      return 'border-accent/30 bg-accent-soft text-accent';
     case 'CANCELLED':
-      return 'border-rose-500/40 bg-rose-500/10 text-rose-300';
+      return 'border-danger/30 bg-danger-soft text-danger';
     default:
-      return 'border-yellow-500/40 bg-yellow-500/10 text-yellow-300';
+      return 'border-warning/30 bg-warning-soft text-warning';
   }
 }
 
 function workOrderBadgeClass(status?: string | null): string {
   switch (String(status ?? '').toUpperCase()) {
     case 'PENDING':
-      return 'border-purple-500/40 bg-purple-500/10 text-purple-300';
+      return 'border-special/30 bg-special-soft text-special';
     case 'DONE':
-      return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
+      return 'border-success/30 bg-success-soft text-success';
     case 'IN_PROGRESS':
-      return 'border-blue-500/40 bg-blue-500/10 text-blue-300';
+      return 'border-accent/30 bg-accent-soft text-accent';
     case 'CANCELLED':
     case 'CANCELED':
-      return 'border-rose-500/40 bg-rose-500/10 text-rose-300';
+      return 'border-danger/30 bg-danger-soft text-danger';
     default:
-      return 'border-slate-700 bg-slate-800 text-slate-200';
+      return 'border-line bg-surface-3 text-ink';
   }
 }
 
@@ -499,13 +499,13 @@ function InfoBox({
   emphasis?: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
-      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+    <div className="rounded-lg border border-line bg-surface-2 p-4">
+      <p className="text-xs font-bold uppercase tracking-wide text-subtle">
         {label}
       </p>
       <p
         className={`mt-2 whitespace-pre-wrap text-sm ${
-          emphasis ? 'font-semibold text-white' : 'text-slate-200'
+          emphasis ? 'font-semibold text-ink' : 'text-ink'
         }`}
       >
         {value?.trim() ? value : '—'}
@@ -525,17 +525,17 @@ function TextSection({
 }) {
   const accentClass =
     accent === 'danger'
-      ? 'border-rose-500/30 bg-rose-500/10'
+      ? 'border-danger/30 bg-danger-soft'
       : accent === 'warning'
-        ? 'border-amber-500/30 bg-amber-500/10'
+        ? 'border-warning/30 bg-warning-soft'
         : accent === 'success'
-          ? 'border-emerald-500/30 bg-emerald-500/10'
-          : 'border-white/10 bg-slate-950/40';
+          ? 'border-success/30 bg-success-soft'
+          : 'border-line bg-surface-2';
 
   return (
-    <section className={`rounded-2xl border p-5 ${accentClass}`}>
-      <h2 className="text-lg font-black text-white">{title}</h2>
-      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-200">
+    <section className={`rounded-lg border p-5 ${accentClass}`}>
+      <h2 className="text-lg font-semibold text-ink">{title}</h2>
+      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-ink">
         {value?.trim() ? value : '—'}
       </p>
     </section>
@@ -768,7 +768,7 @@ export default function MaintenanceReportDetailPage() {
 
   if (!mounted) {
     return (
-      <main className="min-h-screen bg-slate-950 p-6 text-white">
+      <main className="min-h-screen bg-surface-2 p-6 text-ink">
         Cargando sesión...
       </main>
     );
@@ -776,8 +776,8 @@ export default function MaintenanceReportDetailPage() {
 
   if (!session) {
     return (
-      <main className="min-h-screen bg-slate-950 p-6 text-white">
-        <div className="mx-auto max-w-7xl rounded-3xl border border-rose-500/30 bg-rose-500/10 p-6 text-rose-200">
+      <main className="min-h-screen bg-surface-2 p-6 text-ink">
+        <div className="mx-auto max-w-7xl rounded-xl border border-danger/30 bg-danger-soft p-6 text-danger">
           Sesión no encontrada. Ve a{' '}
           <Link href="/login" className="font-bold underline">
             /login
@@ -789,18 +789,18 @@ export default function MaintenanceReportDetailPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 p-4 text-white md:p-8">
+    <main className="min-h-screen bg-surface-2 p-4 text-ink md:p-8">
       <div className="mx-auto max-w-7xl space-y-6">
-        <header className="rounded-3xl border border-white/10 bg-slate-900/80 p-6 shadow-sm">
+        <header className="rounded-xl border border-line bg-surface p-6 shadow-sm">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
-              <p className="text-sm font-semibold text-slate-400">
+              <p className="text-sm font-semibold text-muted">
                 Administración / Revisión de parte
               </p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight">
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight">
                 Detalle del parte de trabajo
               </h1>
-              <p className="mt-2 max-w-3xl text-sm text-slate-400">
+              <p className="mt-2 max-w-3xl text-sm text-muted">
                 Aquí administración revisa el diagnóstico, incidencias,
                 recomendaciones, piezas a pedir y horas trabajadas por el técnico.
               </p>
@@ -809,14 +809,14 @@ export default function MaintenanceReportDetailPage() {
             <div className="flex flex-wrap gap-2">
               <Link
                 href={backHref}
-                className="inline-flex items-center justify-center rounded-2xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800"
+                className="inline-flex items-center justify-center rounded-lg border border-line px-4 py-2 text-sm font-bold text-ink hover:bg-surface-3"
               >
                 Volver
               </Link>
 
               <Link
                 href="/maintenance-reports"
-                className="inline-flex items-center justify-center rounded-2xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800"
+                className="inline-flex items-center justify-center rounded-lg border border-line px-4 py-2 text-sm font-bold text-ink hover:bg-surface-3"
               >
                 Lista de partes
               </Link>
@@ -825,7 +825,7 @@ export default function MaintenanceReportDetailPage() {
                 type="button"
                 onClick={() => void downloadPdf()}
                 disabled={pdfLoading}
-                className="inline-flex items-center justify-center rounded-2xl bg-sky-600 px-4 py-2 text-sm font-bold text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-bold text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {pdfLoading ? 'Generando PDF…' : 'Descargar PDF'}
               </button>
@@ -834,16 +834,16 @@ export default function MaintenanceReportDetailPage() {
         </header>
 
         {state.status === 'loading' ? (
-          <section className="rounded-3xl border border-white/10 bg-slate-900/80 p-6 text-slate-300">
+          <section className="rounded-xl border border-line bg-surface p-6 text-ink-2">
             Cargando parte...
           </section>
         ) : state.status === 'error' ? (
-          <section className="rounded-3xl border border-rose-500/30 bg-rose-500/10 p-6 text-rose-200">
+          <section className="rounded-xl border border-danger/30 bg-danger-soft p-6 text-danger">
             {state.error}
           </section>
         ) : report ? (
           <>
-            <section className="rounded-3xl border border-white/10 bg-slate-900/80 p-6">
+            <section className="rounded-xl border border-line bg-surface p-6">
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
                   <div className="flex flex-wrap gap-2">
@@ -860,25 +860,25 @@ export default function MaintenanceReportDetailPage() {
                     />
                   </div>
 
-                  <h2 className="mt-4 text-2xl font-black text-white">
+                  <h2 className="mt-4 text-2xl font-semibold text-ink">
                     {report.templateName ?? report.title ?? 'Parte de trabajo'}
                   </h2>
 
-                  <p className="mt-2 text-sm text-slate-400">
+                  <p className="mt-2 text-sm text-muted">
                     {report.templateDesc ?? report.description ?? 'Sin descripción.'}
                   </p>
                 </div>
 
-                <div className="text-sm text-slate-400">
+                <div className="text-sm text-muted">
                   <p>
                     ID parte:{' '}
-                    <span className="font-semibold text-slate-200">
+                    <span className="font-semibold text-ink">
                       {report.id}
                     </span>
                   </p>
                   <p className="mt-1">
                     Orden:{' '}
-                    <span className="font-semibold text-slate-200">
+                    <span className="font-semibold text-ink">
                       {report.workOrderCode ??
                         report.workOrderTitle ??
                         report.workOrderId ??
@@ -891,12 +891,12 @@ export default function MaintenanceReportDetailPage() {
 
             {actionState.status !== 'idle' ? (
               <section
-                className={`rounded-3xl border p-5 text-sm font-semibold ${
+                className={`rounded-xl border p-5 text-sm font-semibold ${
                   actionState.status === 'error'
-                    ? 'border-rose-500/30 bg-rose-500/10 text-rose-200'
+                    ? 'border-danger/30 bg-danger-soft text-danger'
                     : actionState.status === 'success'
-                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
-                      : 'border-sky-500/30 bg-sky-500/10 text-sky-200'
+                      ? 'border-success/30 bg-success-soft text-success'
+                      : 'border-accent/30 bg-accent-soft text-accent'
                 }`}
               >
                 {actionState.message}
@@ -929,11 +929,11 @@ export default function MaintenanceReportDetailPage() {
               />
             </section>
 
-            <section className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-6">
-              <h2 className="text-xl font-black text-amber-100">
+            <section className="rounded-xl border border-warning/30 bg-warning-soft p-6">
+              <h2 className="text-xl font-semibold text-warning">
                 Acción para administración
               </h2>
-              <p className="mt-2 text-sm leading-6 text-amber-50">
+              <p className="mt-2 text-sm leading-6 text-warning">
                 Revisa especialmente <strong>diagnóstico</strong>,{' '}
                 <strong>incidencias</strong> y{' '}
                 <strong>recomendaciones / pieza a pedir</strong>. Esa información
@@ -986,21 +986,21 @@ export default function MaintenanceReportDetailPage() {
               </div>
             </section>
 
-            <section className="rounded-3xl border border-white/10 bg-slate-900/80 p-6">
-              <h2 className="text-xl font-black text-white">Materiales usados</h2>
-              <p className="mt-1 text-sm text-slate-400">
+            <section className="rounded-xl border border-line bg-surface p-6">
+              <h2 className="text-xl font-semibold text-ink">Materiales usados</h2>
+              <p className="mt-1 text-sm text-muted">
                 Materiales que el técnico ya utilizó en esta intervención.
               </p>
 
               {report.materials.length === 0 ? (
-                <div className="mt-5 rounded-2xl border border-dashed border-white/10 p-5 text-sm text-slate-500">
+                <div className="mt-5 rounded-lg border border-dashed border-line p-5 text-sm text-subtle">
                   No hay materiales añadidos.
                 </div>
               ) : (
                 <div className="mt-5 overflow-x-auto">
                   <table className="w-full min-w-[720px] text-left text-sm">
-                    <thead className="text-xs uppercase text-slate-500">
-                      <tr className="border-b border-white/10">
+                    <thead className="text-xs uppercase text-subtle">
+                      <tr className="border-b border-line">
                         <th className="py-3 pr-4">Material</th>
                         <th className="py-3 pr-4">Cantidad</th>
                         <th className="py-3 pr-4">Unidad</th>
@@ -1012,21 +1012,21 @@ export default function MaintenanceReportDetailPage() {
                       {report.materials.map((material, index) => (
                         <tr
                           key={material.id ?? `${material.name}-${index}`}
-                          className="border-b border-white/10"
+                          className="border-b border-line"
                         >
-                          <td className="py-3 pr-4 font-semibold text-white">
+                          <td className="py-3 pr-4 font-semibold text-ink">
                             {material.name || '—'}
                           </td>
-                          <td className="py-3 pr-4 text-slate-200">
+                          <td className="py-3 pr-4 text-ink">
                             {material.quantity || '—'}
                           </td>
-                          <td className="py-3 pr-4 text-slate-200">
+                          <td className="py-3 pr-4 text-ink">
                             {material.unit || '—'}
                           </td>
-                          <td className="py-3 pr-4 text-slate-300">
+                          <td className="py-3 pr-4 text-ink-2">
                             {material.description || '—'}
                           </td>
-                          <td className="py-3 pr-4 text-slate-300">
+                          <td className="py-3 pr-4 text-ink-2">
                             {material.notes || '—'}
                           </td>
                         </tr>
@@ -1037,11 +1037,11 @@ export default function MaintenanceReportDetailPage() {
               )}
             </section>
 
-            <section className="rounded-3xl border border-white/10 bg-slate-900/80 p-6">
-              <h2 className="text-xl font-black text-white">Checklist técnico</h2>
+            <section className="rounded-xl border border-line bg-surface p-6">
+              <h2 className="text-xl font-semibold text-ink">Checklist técnico</h2>
 
               {checklistItems.length === 0 ? (
-                <div className="mt-5 rounded-2xl border border-dashed border-white/10 p-5 text-sm text-slate-500">
+                <div className="mt-5 rounded-lg border border-dashed border-line p-5 text-sm text-subtle">
                   No hay ítems de checklist en este parte.
                 </div>
               ) : (
@@ -1049,16 +1049,16 @@ export default function MaintenanceReportDetailPage() {
                   {checklistItems.map((item) => (
                     <article
                       key={item.id}
-                      className="rounded-2xl border border-white/10 bg-slate-950/40 p-4"
+                      className="rounded-lg border border-line bg-surface-2 p-4"
                     >
                       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                         <div>
-                          <p className="text-sm font-black text-white">
+                          <p className="text-sm font-semibold text-ink">
                             {item.sortOrder ? `${item.sortOrder}. ` : ''}
                             {item.title}
                           </p>
                           {item.description ? (
-                            <p className="mt-1 text-sm text-slate-400">
+                            <p className="mt-1 text-sm text-muted">
                               {item.description}
                             </p>
                           ) : null}
@@ -1068,12 +1068,12 @@ export default function MaintenanceReportDetailPage() {
                           label={item.status}
                           className={
                             item.status === 'OK'
-                              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                              ? 'border-success/30 bg-success-soft text-success'
                               : item.status === 'FAIL'
-                                ? 'border-rose-500/40 bg-rose-500/10 text-rose-300'
+                                ? 'border-danger/30 bg-danger-soft text-danger'
                                 : item.status === 'NA'
-                                  ? 'border-slate-500/40 bg-slate-500/10 text-slate-300'
-                                  : 'border-yellow-500/40 bg-yellow-500/10 text-yellow-300'
+                                  ? 'border-line-strong bg-line-strong text-ink-2'
+                                  : 'border-warning/30 bg-warning-soft text-warning'
                           }
                         />
                       </div>
@@ -1088,11 +1088,11 @@ export default function MaintenanceReportDetailPage() {
               )}
             </section>
 
-            <section className="rounded-3xl border border-white/10 bg-slate-900/80 p-6">
-              <h2 className="text-xl font-black text-white">Evidencia visual</h2>
+            <section className="rounded-xl border border-line bg-surface p-6">
+              <h2 className="text-xl font-semibold text-ink">Evidencia visual</h2>
 
               {visualItems.length === 0 ? (
-                <div className="mt-5 rounded-2xl border border-dashed border-white/10 p-5 text-sm text-slate-500">
+                <div className="mt-5 rounded-lg border border-dashed border-line p-5 text-sm text-subtle">
                   Este parte no trae ítems de foto o firma en la plantilla actual.
                 </div>
               ) : (
@@ -1100,15 +1100,15 @@ export default function MaintenanceReportDetailPage() {
                   {visualItems.map((item) => (
                     <article
                       key={item.id}
-                      className="rounded-2xl border border-white/10 bg-slate-950/40 p-4"
+                      className="rounded-lg border border-line bg-surface-2 p-4"
                     >
                       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                         <div>
-                          <p className="text-sm font-black text-white">
+                          <p className="text-sm font-semibold text-ink">
                             {item.title}
                           </p>
                           {item.description ? (
-                            <p className="mt-1 text-sm text-slate-400">
+                            <p className="mt-1 text-sm text-muted">
                               {item.description}
                             </p>
                           ) : null}
@@ -1118,12 +1118,12 @@ export default function MaintenanceReportDetailPage() {
                           label={item.status}
                           className={
                             item.status === 'OK'
-                              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                              ? 'border-success/30 bg-success-soft text-success'
                               : item.status === 'FAIL'
-                                ? 'border-rose-500/40 bg-rose-500/10 text-rose-300'
+                                ? 'border-danger/30 bg-danger-soft text-danger'
                                 : item.status === 'NA'
-                                  ? 'border-slate-500/40 bg-slate-500/10 text-slate-300'
-                                  : 'border-yellow-500/40 bg-yellow-500/10 text-yellow-300'
+                                  ? 'border-line-strong bg-line-strong text-ink-2'
+                                  : 'border-warning/30 bg-warning-soft text-warning'
                           }
                         />
                       </div>
@@ -1138,11 +1138,11 @@ export default function MaintenanceReportDetailPage() {
               )}
             </section>
 
-            <section className="rounded-3xl border border-white/10 bg-slate-900/80 p-6">
-              <h2 className="text-xl font-black text-white">Revisión del admin</h2>
+            <section className="rounded-xl border border-line bg-surface p-6">
+              <h2 className="text-xl font-semibold text-ink">Revisión del admin</h2>
 
               <label className="mt-5 block">
-                <span className="text-sm font-bold text-slate-300">
+                <span className="text-sm font-bold text-ink-2">
                   Nota de revisión
                 </span>
                 <textarea
@@ -1150,7 +1150,7 @@ export default function MaintenanceReportDetailPage() {
                   onChange={(event) => setReviewNotes(event.target.value)}
                   disabled={!canReview || reviewLoading !== null}
                   rows={4}
-                  className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 disabled:opacity-60"
+                  className="mt-2 w-full rounded-lg border border-line bg-surface-2 px-4 py-3 text-sm text-ink outline-none placeholder:text-subtle disabled:opacity-60"
                   placeholder="Ejemplo: Aprobado. Pedir compresor Mitsubishi MOD. NN33NAAMT y preparar presupuesto."
                 />
               </label>
@@ -1161,7 +1161,7 @@ export default function MaintenanceReportDetailPage() {
                     type="button"
                     onClick={() => void reviewReport(true)}
                     disabled={reviewLoading !== null}
-                    className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-600"
+                    className="inline-flex items-center justify-center rounded-lg bg-success px-5 py-3 text-sm font-semibold text-white hover:bg-success/90 disabled:cursor-not-allowed disabled:bg-success/90"
                   >
                     {reviewLoading === 'approve'
                       ? 'Aprobando...'
@@ -1172,7 +1172,7 @@ export default function MaintenanceReportDetailPage() {
                     type="button"
                     onClick={() => void reviewReport(false)}
                     disabled={reviewLoading !== null}
-                    className="inline-flex items-center justify-center rounded-2xl bg-rose-600 px-5 py-3 text-sm font-black text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-600"
+                    className="inline-flex items-center justify-center rounded-lg bg-danger px-5 py-3 text-sm font-semibold text-white hover:bg-danger/90 disabled:cursor-not-allowed disabled:bg-danger/90"
                   >
                     {reviewLoading === 'reject'
                       ? 'Rechazando...'
@@ -1180,9 +1180,9 @@ export default function MaintenanceReportDetailPage() {
                   </button>
                 </div>
               ) : (
-                <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/40 p-4 text-sm text-slate-400">
+                <div className="mt-5 rounded-lg border border-line bg-surface-2 p-4 text-sm text-muted">
                   Este parte no está pendiente de revisión. Estado actual:{' '}
-                  <span className="font-bold text-slate-200">
+                  <span className="font-bold text-ink">
                     {statusLabel(report.status)}
                   </span>
                   .
@@ -1190,14 +1190,14 @@ export default function MaintenanceReportDetailPage() {
               )}
 
               {report.reviewNotes ? (
-                <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/40 p-4">
-                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                <div className="mt-5 rounded-lg border border-line bg-surface-2 p-4">
+                  <p className="text-xs font-bold uppercase tracking-wide text-subtle">
                     Última nota de revisión
                   </p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-slate-200">
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-ink">
                     {report.reviewNotes}
                   </p>
-                  <p className="mt-3 text-xs text-slate-500">
+                  <p className="mt-3 text-xs text-subtle">
                     Revisado: {formatDate(report.reviewedAt)}
                   </p>
                 </div>

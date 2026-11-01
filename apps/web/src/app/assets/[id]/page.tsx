@@ -148,15 +148,15 @@ function getStatusLabel(status?: AssetStatus | null): string {
 function getStatusClass(status?: AssetStatus | null): string {
   switch (status) {
     case 'ACTIVE':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+      return 'border-success/30 bg-success-soft text-success';
     case 'INACTIVE':
-      return 'border-slate-200 bg-slate-50 text-slate-600';
+      return 'border-line bg-surface-2 text-muted';
     case 'MAINTENANCE':
-      return 'border-amber-200 bg-amber-50 text-amber-700';
+      return 'border-warning/30 bg-warning-soft text-warning';
     case 'RETIRED':
-      return 'border-rose-200 bg-rose-50 text-rose-700';
+      return 'border-danger/30 bg-danger-soft text-danger';
     default:
-      return 'border-slate-200 bg-slate-50 text-slate-500';
+      return 'border-line bg-surface-2 text-muted';
   }
 }
 
@@ -168,11 +168,11 @@ function DetailCard({
   value?: string | null;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+    <div className="rounded-lg border border-line bg-surface p-4 shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted">
         {label}
       </p>
-      <p className="mt-2 text-sm font-semibold text-slate-900">
+      <p className="mt-2 text-sm font-semibold text-ink">
         {value?.trim() ? value : '—'}
       </p>
     </div>
@@ -274,9 +274,9 @@ export default function AssetDetailPage() {
 
   if (!mounted || state.status === 'loading') {
     return (
-      <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
-        <div className="mx-auto w-full max-w-6xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <p className="text-sm font-medium text-slate-500">
+      <main className="min-h-screen bg-surface-2 px-4 py-6 text-ink sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-6xl rounded-xl border border-line bg-surface p-8 text-center shadow-sm">
+          <p className="text-sm font-medium text-muted">
             Cargando activo...
           </p>
         </div>
@@ -286,27 +286,27 @@ export default function AssetDetailPage() {
 
   if (state.status === 'error') {
     return (
-      <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
-        <div className="mx-auto w-full max-w-3xl rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Detalle de activo</p>
-          <h1 className="mt-1 text-2xl font-bold text-slate-950">
+      <main className="min-h-screen bg-surface-2 px-4 py-6 text-ink sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-3xl rounded-xl border border-line bg-surface p-8 shadow-sm">
+          <p className="text-sm font-medium text-muted">Detalle de activo</p>
+          <h1 className="mt-1 text-2xl font-bold text-ink">
             No se pudo cargar el activo
           </h1>
-          <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+          <div className="mt-4 rounded-lg border border-danger/30 bg-danger-soft p-4 text-sm text-danger">
             {state.error}
           </div>
 
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             <Link
               href="/assets"
-              className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink-2 transition hover:bg-surface-2"
             >
               Volver a activos
             </Link>
 
             <Link
               href="/login"
-              className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+              className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover"
             >
               Ir a login
             </Link>
@@ -319,17 +319,17 @@ export default function AssetDetailPage() {
   const asset = state.data;
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-surface-2 px-4 py-6 text-ink sm:px-6 lg:px-8">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-500">
+              <p className="text-sm font-medium text-muted">
                 Detalle de activo
               </p>
 
               <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+                <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
                   {asset.name}
                 </h1>
 
@@ -342,7 +342,7 @@ export default function AssetDetailPage() {
                 </span>
               </div>
 
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">
                 Consulta los datos técnicos, ubicación y trazabilidad básica del
                 equipo registrado.
               </p>
@@ -351,14 +351,14 @@ export default function AssetDetailPage() {
             <div className="flex flex-col gap-2 sm:flex-row">
               <Link
                 href="/assets"
-                className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink-2 transition hover:bg-surface-2"
               >
                 Volver a activos
               </Link>
 
               <Link
                 href={`/work-orders/new?assetId=${asset.id}`}
-                className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover"
               >
                 Crear orden
               </Link>
@@ -374,8 +374,8 @@ export default function AssetDetailPage() {
         </section>
 
         <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-950">
+          <div className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+            <h2 className="text-lg font-bold text-ink">
               Información técnica
             </h2>
 
@@ -389,8 +389,8 @@ export default function AssetDetailPage() {
             </div>
           </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-950">
+          <div className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+            <h2 className="text-lg font-bold text-ink">
               Trazabilidad
             </h2>
 
@@ -403,10 +403,10 @@ export default function AssetDetailPage() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-950">Notas</h2>
+        <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+          <h2 className="text-lg font-bold text-ink">Notas</h2>
 
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+          <div className="mt-4 rounded-lg border border-line bg-surface-2 p-4 text-sm leading-6 text-ink-2">
             {asset.notes?.trim() ? asset.notes : 'Este activo no tiene notas registradas.'}
           </div>
         </section>

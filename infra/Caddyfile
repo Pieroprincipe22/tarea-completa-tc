@@ -1,0 +1,37 @@
+# Caddy pide y renueva solo los certificados HTTPS (Let's Encrypt).
+# Los dominios salen de infra/.env.prod (APP_DOMAIN, API_DOMAIN y FILES_DOMAIN),
+# y todos tienen que apuntar (registro DNS A) a la IP pública del servidor.
+{
+	email {$ACME_EMAIL}
+}
+
+{$APP_DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		-Server
+	}
+	reverse_proxy web:3001
+}
+
+{$API_DOMAIN} {
+	encode zstd gzip
+	header -Server
+	request_body {
+		max_size 25MB
+	}
+	reverse_proxy api:3002
+}
+
+# Archivos (MinIO). Los enlaces firmados que genera la API apuntan aquí, así que
+# el navegador del cliente tiene que poder llegar. Si usas Cloudflare R2 en vez
+# de MinIO, borra este bloque.
+{$FILES_DOMAIN} {
+	request_body {
+		max_size 25MB
+	}
+	reverse_proxy minio:9000
+}

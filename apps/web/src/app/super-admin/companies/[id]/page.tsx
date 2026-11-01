@@ -114,9 +114,9 @@ function formatDate(value?: string | null): string {
 }
 
 function planBadgeClass(plan: CompanyPlan): string {
-  if (plan === 'ENTERPRISE') return 'border-violet-400/40 bg-violet-400/10 text-violet-200';
-  if (plan === 'PRO') return 'border-sky-400/40 bg-sky-400/10 text-sky-200';
-  return 'border-slate-400/30 bg-slate-400/10 text-slate-300';
+  if (plan === 'ENTERPRISE') return 'border-special/30 bg-special-soft text-special';
+  if (plan === 'PRO') return 'border-accent/30 bg-accent-soft text-accent';
+  return 'border-line-strong bg-line-strong text-ink-2';
 }
 
 export default function SuperAdminCompanyDetailPage() {
@@ -355,14 +355,14 @@ export default function SuperAdminCompanyDetailPage() {
     }
   }
 
-  if (!ready) return <div className="p-8 text-slate-400">Cargando…</div>;
+  if (!ready) return <div className="p-8 text-muted">Cargando…</div>;
 
   if (!isSuperAdmin) {
     return (
       <div className="mx-auto max-w-2xl p-8">
-        <div className="rounded-3xl border border-rose-400/30 bg-rose-400/5 p-8 text-center">
-          <h1 className="text-xl font-black text-white">Acceso restringido</h1>
-          <p className="mt-3 text-sm leading-6 text-slate-400">
+        <div className="rounded-xl border border-danger/30 bg-danger-soft p-8 text-center">
+          <h1 className="text-xl font-semibold text-ink">Acceso restringido</h1>
+          <p className="mt-3 text-sm leading-6 text-muted">
             Esta sección es exclusiva para administradores de plataforma (SUPER_ADMIN).
           </p>
         </div>
@@ -374,50 +374,50 @@ export default function SuperAdminCompanyDetailPage() {
     <div className="mx-auto max-w-6xl p-6 md:p-8">
       <Link
         href="/super-admin"
-        className="mb-6 inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-slate-500 transition hover:text-sky-300"
+        className="mb-6 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-subtle transition hover:text-accent"
       >
         ← Volver a empresas
       </Link>
 
       {companyState.status === 'loading' ? (
-        <p className="py-8 text-center text-sm text-slate-400">Cargando empresa…</p>
+        <p className="py-8 text-center text-sm text-muted">Cargando empresa…</p>
       ) : null}
 
       {companyState.status === 'error' ? (
-        <p className="py-8 text-center text-sm text-rose-300">{companyState.error}</p>
+        <p className="py-8 text-center text-sm text-danger">{companyState.error}</p>
       ) : null}
 
       {companyState.status === 'ok' ? (
         <>
           <header className="mb-8">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-400">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
               Plataforma · Configurar empresa
             </p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight text-white">
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ink">
               {companyState.data.name}
             </h1>
-            <p className="mt-2 text-sm leading-6 text-slate-400">
+            <p className="mt-2 text-sm leading-6 text-muted">
               Alta desde {formatDate(companyState.data.createdAt)}
             </p>
           </header>
 
           {actionError ? (
-            <p className="mb-4 text-sm text-rose-300">{actionError}</p>
+            <p className="mb-4 text-sm text-danger">{actionError}</p>
           ) : null}
 
-          <section className="mb-6 grid gap-4 rounded-3xl border border-slate-800/90 bg-slate-900/55 p-6 sm:grid-cols-3">
+          <section className="mb-6 grid gap-4 rounded-xl border border-line bg-surface p-6 sm:grid-cols-3">
             <div>
-              <p className="mb-1.5 text-xs font-black uppercase tracking-wide text-slate-400">
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
                 Plan
               </p>
               <select
                 value={companyState.data.plan}
                 disabled={busy}
                 onChange={(e) => void handlePlanChange(e.target.value as CompanyPlan)}
-                className={`w-full rounded-xl border px-3 py-2 text-sm font-bold disabled:opacity-50 ${planBadgeClass(companyState.data.plan)}`}
+                className={`w-full rounded-lg border px-3 py-2 text-sm font-bold disabled:opacity-50 ${planBadgeClass(companyState.data.plan)}`}
               >
                 {PLANS.map((p) => (
-                  <option key={p} value={p} className="bg-slate-900 text-slate-200">
+                  <option key={p} value={p} className="bg-surface text-ink">
                     {p}
                   </option>
                 ))}
@@ -425,17 +425,17 @@ export default function SuperAdminCompanyDetailPage() {
             </div>
 
             <div>
-              <p className="mb-1.5 text-xs font-black uppercase tracking-wide text-slate-400">
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
                 Estado
               </p>
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => void handleToggleActive()}
-                className={`w-full rounded-xl border px-3 py-2 text-sm font-black transition disabled:opacity-50 ${
+                className={`w-full rounded-lg border px-3 py-2 text-sm font-semibold transition disabled:opacity-50 ${
                   companyState.data.isActive
-                    ? 'border-rose-400/40 bg-rose-400/10 text-rose-200 hover:bg-rose-400/20'
-                    : 'border-emerald-400/40 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/20'
+                    ? 'border-danger/30 bg-danger-soft text-danger hover:bg-danger-soft'
+                    : 'border-success/30 bg-success-soft text-success hover:bg-success-soft'
                 }`}
               >
                 {busy
@@ -447,7 +447,7 @@ export default function SuperAdminCompanyDetailPage() {
             </div>
 
             <div>
-              <p className="mb-1.5 text-xs font-black uppercase tracking-wide text-slate-400">
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
                 Prefijo de facturación
               </p>
               <button
@@ -455,16 +455,16 @@ export default function SuperAdminCompanyDetailPage() {
                 disabled={busy}
                 onClick={() => void handlePrefixEdit()}
                 title="Clic para editar el prefijo"
-                className="w-full rounded-xl border border-slate-700 bg-slate-800/50 px-3 py-2 font-mono text-sm font-bold text-slate-200 transition hover:border-sky-400/50 hover:text-sky-200 disabled:opacity-50"
+                className="w-full rounded-lg border border-line bg-surface-3 px-3 py-2 font-mono text-sm font-bold text-ink transition hover:border-accent/30 hover:text-accent disabled:opacity-50"
               >
                 {companyState.data.invoicePrefix ?? '— sin prefijo —'}
               </button>
             </div>
           </section>
 
-          <section className="rounded-3xl border border-slate-800/90 bg-slate-900/55 p-5 shadow-[0_18px_60px_rgba(2,6,23,0.25)]">
+          <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-black tracking-tight text-white">
+              <h2 className="text-lg font-semibold tracking-tight text-ink">
                 Usuarios de esta empresa
               </h2>
               <button
@@ -473,23 +473,23 @@ export default function SuperAdminCompanyDetailPage() {
                   setShowUserForm((v) => !v);
                   setUserFormError(null);
                 }}
-                className="rounded-xl bg-sky-500 px-3.5 py-2 text-xs font-black uppercase tracking-wide text-white transition hover:bg-sky-400"
+                className="rounded-lg bg-accent px-3.5 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-accent-hover"
               >
                 {showUserForm ? 'Cerrar' : '+ Nuevo usuario'}
               </button>
             </div>
 
             {userNotice ? (
-              <div className="mb-4 rounded-2xl border border-emerald-400/30 bg-emerald-400/5 p-4 text-sm leading-6 text-emerald-200">
+              <div className="mb-4 rounded-lg border border-success/30 bg-success-soft p-4 text-sm leading-6 text-success">
                 {userNotice}
               </div>
             ) : null}
 
             {showUserForm ? (
-              <div className="mb-6 rounded-2xl border border-slate-800 bg-slate-950/60 p-5">
+              <div className="mb-6 rounded-lg border border-line bg-surface-2 p-5">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="block">
-                    <span className="mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-400">
+                    <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
                       Nombre
                     </span>
                     <input
@@ -503,7 +503,7 @@ export default function SuperAdminCompanyDetailPage() {
                   </label>
 
                   <label className="block">
-                    <span className="mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-400">
+                    <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
                       Email
                     </span>
                     <input
@@ -517,7 +517,7 @@ export default function SuperAdminCompanyDetailPage() {
                   </label>
 
                   <label className="block">
-                    <span className="mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-400">
+                    <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
                       Contraseña inicial
                     </span>
                     <input
@@ -532,7 +532,7 @@ export default function SuperAdminCompanyDetailPage() {
                   </label>
 
                   <label className="block">
-                    <span className="mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-400">
+                    <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
                       Rol
                     </span>
                     <select
@@ -552,7 +552,7 @@ export default function SuperAdminCompanyDetailPage() {
                 </div>
 
                 {userFormError ? (
-                  <p className="mt-4 text-sm text-rose-300">{userFormError}</p>
+                  <p className="mt-4 text-sm text-danger">{userFormError}</p>
                 ) : null}
 
                 <div className="mt-5 flex gap-3">
@@ -560,7 +560,7 @@ export default function SuperAdminCompanyDetailPage() {
                     type="button"
                     disabled={creatingUser}
                     onClick={() => void handleCreateUser()}
-                    className="rounded-xl bg-sky-500 px-5 py-2.5 text-sm font-black text-white transition hover:bg-sky-400 disabled:opacity-60"
+                    className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:opacity-60"
                   >
                     {creatingUser ? 'Creando…' : 'Crear usuario'}
                   </button>
@@ -571,7 +571,7 @@ export default function SuperAdminCompanyDetailPage() {
                       setUserForm(emptyUserForm);
                       setUserFormError(null);
                     }}
-                    className="rounded-xl border border-slate-700 bg-slate-800/60 px-5 py-2.5 text-sm font-black text-slate-300 transition hover:bg-slate-800"
+                    className="rounded-lg border border-line bg-surface-3 px-5 py-2.5 text-sm font-semibold text-ink-2 transition hover:bg-surface-3"
                   >
                     Cancelar
                   </button>
@@ -580,23 +580,23 @@ export default function SuperAdminCompanyDetailPage() {
             ) : null}
 
             {usersState.status === 'loading' ? (
-              <p className="py-8 text-center text-sm text-slate-400">Cargando usuarios…</p>
+              <p className="py-8 text-center text-sm text-muted">Cargando usuarios…</p>
             ) : null}
 
             {usersState.status === 'error' ? (
-              <p className="py-8 text-center text-sm text-rose-300">{usersState.error}</p>
+              <p className="py-8 text-center text-sm text-danger">{usersState.error}</p>
             ) : null}
 
             {usersState.status === 'ok' ? (
               usersState.data.length === 0 ? (
-                <p className="py-8 text-center text-sm text-slate-400">
+                <p className="py-8 text-center text-sm text-muted">
                   Esta empresa todavía no tiene usuarios.
                 </p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
                     <thead>
-                      <tr className="border-b border-slate-800 text-[11px] font-black uppercase tracking-wide text-slate-500">
+                      <tr className="border-b border-line text-[11px] font-semibold uppercase tracking-wide text-subtle">
                         <th className="px-3 py-3">Nombre</th>
                         <th className="px-3 py-3">Email</th>
                         <th className="px-3 py-3">Rol</th>
@@ -606,16 +606,16 @@ export default function SuperAdminCompanyDetailPage() {
                     </thead>
                     <tbody>
                       {usersState.data.map((u) => (
-                        <tr key={u.id} className="border-b border-slate-800/60 last:border-0">
-                          <td className="px-3 py-3 font-bold text-white">{u.name}</td>
-                          <td className="px-3 py-3 text-slate-300">{u.email}</td>
-                          <td className="px-3 py-3 text-slate-300">{u.role}</td>
+                        <tr key={u.id} className="border-b border-line last:border-0">
+                          <td className="px-3 py-3 font-bold text-ink">{u.name}</td>
+                          <td className="px-3 py-3 text-ink-2">{u.email}</td>
+                          <td className="px-3 py-3 text-ink-2">{u.role}</td>
                           <td className="px-3 py-3">
                             <span
-                              className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${
+                              className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${
                                 u.isActive
-                                  ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-300'
-                                  : 'border-rose-400/40 bg-rose-400/10 text-rose-300'
+                                  ? 'border-success/30 bg-success-soft text-success'
+                                  : 'border-danger/30 bg-danger-soft text-danger'
                               }`}
                             >
                               {u.isActive ? 'Activo' : 'Inactivo'}
@@ -626,10 +626,10 @@ export default function SuperAdminCompanyDetailPage() {
                               type="button"
                               disabled={busyUserId === u.id}
                               onClick={() => void handleToggleUserActive(u)}
-                              className={`rounded-lg border px-3 py-1.5 text-xs font-black transition disabled:opacity-50 ${
+                              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
                                 u.isActive
-                                  ? 'border-rose-400/40 bg-rose-400/10 text-rose-200 hover:bg-rose-400/20'
-                                  : 'border-emerald-400/40 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/20'
+                                  ? 'border-danger/30 bg-danger-soft text-danger hover:bg-danger-soft'
+                                  : 'border-success/30 bg-success-soft text-success hover:bg-success-soft'
                               }`}
                             >
                               {busyUserId === u.id

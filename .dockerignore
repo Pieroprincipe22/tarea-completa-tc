@@ -1,0 +1,22 @@
+# Nunca meter secretos ni dependencias locales en las imágenes
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+**/coverage
+**/*.tsbuildinfo
+**/.env
+**/.env.*
+!**/.env.example
+.git
+.github
+.claude
+.tc-*
+infra/backups
+infra/.env.prod
+e2e
+test-results
+playwright-report
+# La app móvil no se usa en estas imágenes, pero su package.json sí (lockfile)
+apps/mobile/*
+!apps/mobile/package.json

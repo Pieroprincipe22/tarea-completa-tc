@@ -75,9 +75,9 @@ function formatDate(value?: string | null): string {
 }
 
 function planBadgeClass(plan: CompanyPlan): string {
-  if (plan === 'ENTERPRISE') return 'border-violet-400/40 bg-violet-400/10 text-violet-200';
-  if (plan === 'PRO') return 'border-sky-400/40 bg-sky-400/10 text-sky-200';
-  return 'border-slate-400/30 bg-slate-400/10 text-slate-300';
+  if (plan === 'ENTERPRISE') return 'border-special/30 bg-special-soft text-special';
+  if (plan === 'PRO') return 'border-accent/30 bg-accent-soft text-accent';
+  return 'border-line-strong bg-line-strong text-ink-2';
 }
 
 const emptyForm = {
@@ -257,14 +257,14 @@ export default function SuperAdminPage() {
     }
   }
 
-  if (!ready) return <div className="p-8 text-slate-400">Cargando…</div>;
+  if (!ready) return <div className="p-8 text-muted">Cargando…</div>;
 
   if (!isSuperAdmin) {
     return (
       <div className="mx-auto max-w-2xl p-8">
-        <div className="rounded-3xl border border-rose-400/30 bg-rose-400/5 p-8 text-center">
-          <h1 className="text-xl font-black text-white">Acceso restringido</h1>
-          <p className="mt-3 text-sm leading-6 text-slate-400">
+        <div className="rounded-xl border border-danger/30 bg-danger-soft p-8 text-center">
+          <h1 className="text-xl font-semibold text-ink">Acceso restringido</h1>
+          <p className="mt-3 text-sm leading-6 text-muted">
             Esta sección es exclusiva para administradores de plataforma (SUPER_ADMIN).
           </p>
         </div>
@@ -276,13 +276,13 @@ export default function SuperAdminPage() {
     <div className="mx-auto max-w-6xl p-6 md:p-8">
       <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-400">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
             Plataforma
           </p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-white">
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ink">
             Panel de administración
           </h1>
-          <p className="mt-2 text-sm leading-6 text-slate-400">
+          <p className="mt-2 text-sm leading-6 text-muted">
             Gestiona las empresas dadas de alta, sus planes y su estado.
           </p>
         </div>
@@ -294,21 +294,21 @@ export default function SuperAdminPage() {
             setFormError(null);
             setNotice(null);
           }}
-          className="rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-black text-white shadow-[0_10px_30px_rgba(14,165,233,0.35)] transition hover:bg-sky-400"
+          className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-hover"
         >
           {showForm ? 'Cerrar' : '+ Nueva empresa'}
         </button>
       </header>
 
       {notice ? (
-        <div className="mb-6 rounded-2xl border border-emerald-400/30 bg-emerald-400/5 p-4 text-sm leading-6 text-emerald-200">
+        <div className="mb-6 rounded-lg border border-success/30 bg-success-soft p-4 text-sm leading-6 text-success">
           {notice}
         </div>
       ) : null}
 
       {showForm ? (
-        <section className="mb-6 rounded-3xl border border-slate-800/90 bg-slate-900/55 p-6">
-          <h2 className="mb-4 text-lg font-black tracking-tight text-white">
+        <section className="mb-6 rounded-xl border border-line bg-surface p-6">
+          <h2 className="mb-4 text-lg font-semibold tracking-tight text-ink">
             Nueva empresa
           </h2>
 
@@ -375,7 +375,7 @@ export default function SuperAdminPage() {
           </div>
 
           {formError ? (
-            <p className="mt-4 text-sm text-rose-300">{formError}</p>
+            <p className="mt-4 text-sm text-danger">{formError}</p>
           ) : null}
 
           <div className="mt-5 flex gap-3">
@@ -383,7 +383,7 @@ export default function SuperAdminPage() {
               type="button"
               disabled={submitting}
               onClick={() => void handleCreate()}
-              className="rounded-xl bg-sky-500 px-5 py-2.5 text-sm font-black text-white transition hover:bg-sky-400 disabled:opacity-60"
+              className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:opacity-60"
             >
               {submitting ? 'Creando…' : 'Crear empresa'}
             </button>
@@ -394,7 +394,7 @@ export default function SuperAdminPage() {
                 setForm(emptyForm);
                 setFormError(null);
               }}
-              className="rounded-xl border border-slate-700 bg-slate-800/60 px-5 py-2.5 text-sm font-black text-slate-300 transition hover:bg-slate-800"
+              className="rounded-lg border border-line bg-surface-3 px-5 py-2.5 text-sm font-semibold text-ink-2 transition hover:bg-surface-3"
             >
               Cancelar
             </button>
@@ -402,40 +402,40 @@ export default function SuperAdminPage() {
         </section>
       ) : null}
 
-      <section className="rounded-3xl border border-slate-800/90 bg-slate-900/55 p-5 shadow-[0_18px_60px_rgba(2,6,23,0.25)]">
+      <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-black tracking-tight text-white">Empresas</h2>
+          <h2 className="text-lg font-semibold tracking-tight text-ink">Empresas</h2>
           <button
             type="button"
             onClick={() => void loadCompanies()}
-            className="rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-slate-300 transition hover:bg-slate-800"
+            className="rounded-lg border border-line bg-surface-3 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-ink-2 transition hover:bg-surface-3"
           >
             Recargar
           </button>
         </div>
 
         {actionError ? (
-          <p className="mb-3 text-sm text-rose-300">{actionError}</p>
+          <p className="mb-3 text-sm text-danger">{actionError}</p>
         ) : null}
 
         {state.status === 'loading' ? (
-          <p className="py-8 text-center text-sm text-slate-400">Cargando empresas…</p>
+          <p className="py-8 text-center text-sm text-muted">Cargando empresas…</p>
         ) : null}
 
         {state.status === 'error' ? (
-          <p className="py-8 text-center text-sm text-rose-300">{state.error}</p>
+          <p className="py-8 text-center text-sm text-danger">{state.error}</p>
         ) : null}
 
         {state.status === 'ok' ? (
           state.data.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-400">
+            <p className="py-8 text-center text-sm text-muted">
               No hay empresas registradas todavía.
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-800 text-[11px] font-black uppercase tracking-wide text-slate-500">
+                  <tr className="border-b border-line text-[11px] font-semibold uppercase tracking-wide text-subtle">
                     <th className="px-3 py-3">Empresa</th>
                     <th className="px-3 py-3">Plan</th>
                     <th className="px-3 py-3">Prefijo</th>
@@ -447,11 +447,11 @@ export default function SuperAdminPage() {
                 </thead>
                 <tbody>
                   {state.data.map((c) => (
-                    <tr key={c.id} className="border-b border-slate-800/60 last:border-0">
-                      <td className="px-3 py-3 font-bold text-white">{c.name}</td>
+                    <tr key={c.id} className="border-b border-line last:border-0">
+                      <td className="px-3 py-3 font-bold text-ink">{c.name}</td>
                       <td className="px-3 py-3">
                         <span
-                          className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${planBadgeClass(c.plan)}`}
+                          className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${planBadgeClass(c.plan)}`}
                         >
                           {c.plan}
                         </span>
@@ -462,30 +462,30 @@ export default function SuperAdminPage() {
                           disabled={busyId === c.id}
                           onClick={() => void handlePrefixEdit(c)}
                           title="Clic para editar el prefijo"
-                          className="rounded-lg border border-slate-700 bg-slate-800/50 px-2.5 py-1 font-mono text-xs font-bold text-slate-200 transition hover:border-sky-400/50 hover:text-sky-200 disabled:opacity-50"
+                          className="rounded-lg border border-line bg-surface-3 px-2.5 py-1 font-mono text-xs font-bold text-ink transition hover:border-accent/30 hover:text-accent disabled:opacity-50"
                         >
                           {c.invoicePrefix ?? '— sin prefijo —'}
                         </button>
                       </td>
                       <td className="px-3 py-3">
                         <span
-                          className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${
+                          className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${
                             c.isActive
-                              ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-300'
-                              : 'border-rose-400/40 bg-rose-400/10 text-rose-300'
+                              ? 'border-success/30 bg-success-soft text-success'
+                              : 'border-danger/30 bg-danger-soft text-danger'
                           }`}
                         >
                           {c.isActive ? 'Activa' : 'Inactiva'}
                         </span>
                       </td>
-                      <td className="px-3 py-3 text-slate-300">{c.userCount}</td>
-                      <td className="px-3 py-3 text-slate-400">{formatDate(c.createdAt)}</td>
+                      <td className="px-3 py-3 text-ink-2">{c.userCount}</td>
+                      <td className="px-3 py-3 text-muted">{formatDate(c.createdAt)}</td>
                        <td className="px-3 py-3">
                         <div className="flex items-center justify-end gap-2">
                           
                             <a href={`/super-admin/companies/${c.id}`}
                             title="Configurar empresa"
-                            className="rounded-lg border border-slate-700 bg-slate-800/60 px-2.5 py-1.5 text-sm text-slate-300 transition hover:border-sky-400/50 hover:text-sky-200"
+                            className="rounded-lg border border-line bg-surface-3 px-2.5 py-1.5 text-sm text-ink-2 transition hover:border-accent/30 hover:text-accent"
                           >
                             ⚙️
                           </a>
@@ -495,7 +495,7 @@ export default function SuperAdminPage() {
                             onChange={(e) =>
                               void handlePlanChange(c, e.target.value as CompanyPlan)
                             }
-                            className="rounded-lg border border-slate-700 bg-slate-800/70 px-2 py-1.5 text-xs font-bold text-slate-200 disabled:opacity-50"
+                            className="rounded-lg border border-line bg-surface-3 px-2 py-1.5 text-xs font-bold text-ink disabled:opacity-50"
                           >
                             {PLANS.map((p) => (
                               <option key={p} value={p}>{p}</option>
@@ -506,10 +506,10 @@ export default function SuperAdminPage() {
                             type="button"
                             disabled={busyId === c.id}
                             onClick={() => void handleToggleActive(c)}
-                            className={`rounded-lg border px-3 py-1.5 text-xs font-black transition disabled:opacity-50 ${
+                            className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
                               c.isActive
-                                ? 'border-rose-400/40 bg-rose-400/10 text-rose-200 hover:bg-rose-400/20'
-                                : 'border-emerald-400/40 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/20'
+                                ? 'border-danger/30 bg-danger-soft text-danger hover:bg-danger-soft'
+                                : 'border-success/30 bg-success-soft text-success hover:bg-success-soft'
                             }`}
                           >
                             {busyId === c.id ? '…' : c.isActive ? 'Desactivar' : 'Activar'}
@@ -531,7 +531,7 @@ export default function SuperAdminPage() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-400">
+      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
         {label}
       </span>
       {children}

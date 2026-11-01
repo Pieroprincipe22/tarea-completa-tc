@@ -228,11 +228,11 @@ export default function TopBar() {
   if (pathname === '/login') return null;
 
   return (
-    <header className="sticky top-0 z-40 h-[74px] border-b border-slate-800/80 bg-[#07111f]/95 text-slate-100 shadow-[0_12px_45px_rgba(2,6,23,0.35)] backdrop-blur-xl">
+    <header className="sticky top-0 z-40 h-[74px] border-b border-line bg-surface/95 text-ink backdrop-blur">
       <div className="flex h-full items-center">
-        <div className="flex h-full w-[270px] shrink-0 items-center border-r border-slate-800/80 px-6 xl:hidden">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-xl font-black text-white">
-            TC
+        <div className="flex h-full w-[270px] shrink-0 items-center border-r border-line px-6 xl:hidden">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent font-mono text-sm font-medium text-white">
+            AP
           </div>
         </div>
 
@@ -240,30 +240,30 @@ export default function TopBar() {
           <div className="flex min-w-0 items-center gap-5">
             <button
               type="button"
-              className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-800 bg-slate-950/55 text-slate-300 transition hover:border-blue-500/50 hover:bg-blue-500/10 hover:text-white"
+              className="flex h-11 w-11 items-center justify-center rounded-lg border border-line bg-surface-2 text-ink-2 transition hover:border-accent hover:bg-accent-soft hover:text-ink"
               aria-label="Abrir menú"
             >
               <MenuIcon className="h-5 w-5" />
             </button>
 
             <div className="hidden min-w-0 xl:block">
-              <p className="truncate text-sm font-black text-white">
+              <p className="truncate text-sm font-semibold text-ink">
                 {currentSection?.title ?? 'Panel'}
               </p>
-              <p className="mt-0.5 truncate text-xs text-slate-500">
-                TC Command Center
+              <p className="mt-0.5 truncate text-xs text-subtle">
+                AnPi Tech
               </p>
             </div>
 
             <div className="relative hidden w-[380px] max-w-[42vw] lg:block">
-              <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
 
               <input
-                placeholder="Buscar en TC..."
-                className="h-11 w-full rounded-xl border border-slate-800 bg-slate-950/55 pl-11 pr-20 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/10"
+                placeholder="Buscar…"
+                className="h-11 w-full rounded-lg border border-line bg-surface-2 pl-11 pr-20 text-sm text-ink outline-none transition placeholder:text-subtle focus:border-accent focus:ring-2 focus:ring-accent/25"
               />
 
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-lg border border-slate-700/80 px-2 py-1 text-[10px] font-semibold text-slate-500">
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-lg border border-line px-2 py-1 text-[10px] font-semibold text-subtle">
                 Ctrl + K
               </span>
             </div>
@@ -272,18 +272,18 @@ export default function TopBar() {
           <div className="flex shrink-0 items-center gap-3">
             <button
               type="button"
-              className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-slate-800 bg-slate-950/55 text-slate-300 transition hover:border-blue-500/50 hover:bg-blue-500/10 hover:text-white"
+              className="relative flex h-11 w-11 items-center justify-center rounded-lg border border-line bg-surface-2 text-ink-2 transition hover:border-accent hover:bg-accent-soft hover:text-ink"
               aria-label="Notificaciones"
             >
               <BellIcon className="h-5 w-5" />
-              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-black text-white">
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold text-white">
                 5
               </span>
             </button>
 
             <button
               type="button"
-              className="hidden h-11 w-11 items-center justify-center rounded-xl border border-slate-800 bg-slate-950/55 text-slate-300 transition hover:border-blue-500/50 hover:bg-blue-500/10 hover:text-white sm:flex"
+              className="hidden h-11 w-11 items-center justify-center rounded-lg border border-line bg-surface-2 text-ink-2 transition hover:border-accent hover:bg-accent-soft hover:text-ink sm:flex"
               aria-label="Calendario"
             >
               <CalendarIcon className="h-5 w-5" />
@@ -291,35 +291,35 @@ export default function TopBar() {
 
             <button
               type="button"
-              className="hidden h-11 w-11 items-center justify-center rounded-xl border border-slate-800 bg-slate-950/55 text-slate-300 transition hover:border-blue-500/50 hover:bg-blue-500/10 hover:text-white sm:flex"
+              className="hidden h-11 w-11 items-center justify-center rounded-lg border border-line bg-surface-2 text-ink-2 transition hover:border-accent hover:bg-accent-soft hover:text-ink sm:flex"
               aria-label="Ayuda"
             >
               <HelpIcon className="h-5 w-5" />
             </button>
 
-            <div className="hidden h-11 items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/55 px-3 md:flex">
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-blue-400/30 bg-blue-500/10 text-blue-300">
+            <div className="hidden h-11 items-center gap-3 rounded-lg border border-line bg-surface-2 px-3 md:flex">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-accent/30 bg-accent-soft text-accent">
                 <CubeIcon className="h-4 w-4" />
               </span>
 
               <span className="min-w-0">
-                <span className="block max-w-[150px] truncate text-sm font-black text-white">
+                <span className="block max-w-[150px] truncate text-sm font-semibold text-ink">
                   {mounted ? getCompanyName(session) : 'Cargando...'}
                 </span>
-                <span className="block text-xs text-slate-500">
+                <span className="block text-xs text-subtle">
                   {session?.role ?? 'Empresa'}
                 </span>
               </span>
 
-              <ChevronDownIcon className="h-4 w-4 text-slate-500" />
+              <ChevronDownIcon className="h-4 w-4 text-subtle" />
             </div>
 
-            <div className="flex h-11 items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/55 px-3">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full border border-blue-400/30 bg-blue-500/10 text-xs font-black text-blue-200">
+            <div className="flex h-11 items-center gap-3 rounded-lg border border-line bg-surface-2 px-3">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full border border-accent/30 bg-accent-soft text-xs font-semibold text-accent">
                 {getInitials(session)}
               </span>
 
-              <span className="hidden max-w-[120px] truncate text-sm font-black text-white lg:block">
+              <span className="hidden max-w-[120px] truncate text-sm font-semibold text-ink lg:block">
                 {mounted ? getUserLabel(session) : 'Admin'}
               </span>
             </div>
@@ -330,7 +330,7 @@ export default function TopBar() {
                 clearTcSession();
                 window.location.href = '/login';
               }}
-              className="hidden h-11 items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/55 px-4 text-sm font-black text-slate-300 transition hover:border-rose-400/40 hover:bg-rose-500/10 hover:text-rose-200 sm:flex"
+              className="hidden h-11 items-center gap-2 rounded-lg border border-line bg-surface-2 px-4 text-sm font-semibold text-ink-2 transition hover:border-danger/30 hover:bg-danger-soft hover:text-danger sm:flex"
             >
               <LogOutIcon className="h-4 w-4" />
               Salir

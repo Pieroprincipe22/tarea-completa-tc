@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { PasswordResetService } from './password-reset.service';
+import { MailModule } from '../mail/mail.module';
 
 type JwtExpiresUnit = 'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y';
 type JwtExpiresValue = number | `${number}` | `${number}${JwtExpiresUnit}`;
@@ -26,6 +28,7 @@ function resolveJwtExpiresIn(): JwtExpiresValue {
 
 @Module({
   imports: [
+    MailModule,
     JwtModule.register({
       secret: process.env.JWT_ACCESS_SECRET || 'tc-local-dev-secret-change-me',
       signOptions: {
@@ -34,7 +37,7 @@ function resolveJwtExpiresIn(): JwtExpiresValue {
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, PasswordResetService],
   exports: [JwtModule, AuthService],
 })
 export class AuthModule {}

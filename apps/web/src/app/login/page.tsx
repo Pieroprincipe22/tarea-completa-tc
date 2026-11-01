@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   DEFAULT_API_BASE,
@@ -10,6 +11,41 @@ import {
   writeTcSession,
 } from '@/lib/tc/session';
 import { resolveCorePaths, tcGet } from '@/lib/tc/api';
+import {
+  AuthLayout,
+  EyeIcon,
+  FieldIcon,
+  FormError,
+  LockIcon,
+  MailIcon,
+  Spinner,
+  inputClass,
+  primaryButtonClass,
+} from '@/components/auth/AuthLayout';
+
+const IS_DEV = process.env.NODE_ENV !== 'production';
+const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() ?? '';
+
+function greeting(date = new Date()): string {
+  const h = date.getHours();
+  if (h >= 6 && h < 14) return 'Buenos días';
+  if (h >= 14 && h < 21) return 'Buenas tardes';
+  return 'Buenas noches';
+}
+
+// Traduce los mensajes del API a algo que entienda el usuario final.
+function friendlyApiError(status: number, message: string): string {
+  if (status === 429) {
+    return 'Demasiados intentos seguidos. Espera un minuto y vuelve a probar.';
+  }
+  if (/invalid credentials/i.test(message)) {
+    return 'Email o contraseña incorrectos.';
+  }
+  if (/no active company/i.test(message)) {
+    return 'Tu usuario no tiene ninguna empresa activa. Habla con el administrador de tu empresa.';
+  }
+  return message || `No se pudo iniciar sesión (error ${status}).`;
+}
 
 type LoginCompany = {
   companyId: string;
@@ -138,7 +174,9 @@ function buildErrorMessage(error: unknown, apiBase: string): string {
       msg === 'Load failed' ||
       msg.includes('fetch')
     ) {
-      return `No se pudo conectar con ${apiBase}. Revisa que el API esté levantado, que la URL sea correcta y que CORS permita tu frontend.`;
+      return IS_DEV
+        ? `No se pudo conectar con ${apiBase}. Revisa que el API esté levantado, que la URL sea correcta y que CORS permita tu frontend.`
+        : 'No se pudo conectar con el servidor. Comprueba tu conexión e inténtalo de nuevo.';
     }
 
     return msg || 'Error desconocido al iniciar sesión.';
@@ -147,7 +185,7 @@ function buildErrorMessage(error: unknown, apiBase: string): string {
   return 'Error desconocido al iniciar sesión.';
 }
 
-export default function LoginPage() {
+function LoginView() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -168,6 +206,7 @@ export default function LoginPage() {
   const [loginData, setLoginData] = useState<LoginResponse | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [hello] = useState(() => greeting());
 
   useEffect(() => {
     let cancelled = false;
@@ -288,7 +327,7 @@ export default function LoginPage() {
           ? messageValue.filter((v) => typeof v === 'string').join(', ')
           : asString(messageValue);
 
-        throw new Error(message || `Error HTTP ${res.status} en /auth/login`);
+        throw new Error(friendlyApiError(res.status, message));
       }
 
       const parsed = parseLoginResponse(json);
@@ -365,193 +404,240 @@ export default function LoginPage() {
     setLoginData(null);
   }
 
-  return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#020817] px-6 py-10 text-slate-100">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.22),transparent_34%),radial-gradient(circle_at_78%_8%,rgba(14,165,233,0.16),transparent_28%),radial-gradient(circle_at_50%_100%,rgba(2,132,199,0.10),transparent_38%)]" />
-      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(to_right,rgba(59,130,246,0.055)_1px,transparent_1px),linear-gradient(to_bottom,rgba(59,130,246,0.055)_1px,transparent_1px)] bg-[size:32px_32px] [mask-image:linear-gradient(to_bottom,rgba(0,0,0,0.55),transparent_78%)]" />
+  function onBackToCredentials() {
+    setLoginData(null);
+    setError(null);
+    setForm((prev) => ({ ...prev, selectedCompanyId: '' }));
+  }
 
-      <div className="relative z-10 w-full max-w-md">
-        <div className="mb-8 flex items-center justify-center gap-3">
-          <div className="relative flex h-12 w-12 items-center justify-center">
-            <span className="absolute text-[38px] font-black tracking-tighter text-blue-500">
-              T
-            </span>
-            <span className="absolute left-5 text-[38px] font-black tracking-tighter text-sky-400">
-              C
-            </span>
-          </div>
-          <div className="leading-none">
-            <p className="text-lg font-black tracking-wide text-white">
-              TECHNICAL
-            </p>
-            <p className="text-lg font-black tracking-wide text-sky-300">
-              COMMAND
-            </p>
-          </div>
+  if (checkingStoredSession) {
+    return (
+      <AuthLayout title="Comprobando sesión…">
+        <div className="flex items-center gap-3 text-sm text-muted">
+          <Spinner />
+          Un momento, estamos viendo si ya tienes una sesión abierta.
         </div>
+      </AuthLayout>
+    );
+  }
 
-        <div className="w-full rounded-2xl border border-slate-800 bg-slate-900/70 p-8 shadow-2xl backdrop-blur">
-          {checkingStoredSession ? (
-            <div className="space-y-3 py-6 text-center">
-              <h1 className="text-xl font-semibold">Validando sesión…</h1>
-              <p className="text-sm text-slate-400">
-                Un momento, estamos comprobando si ya tienes una sesión
-                activa.
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="mb-6 text-center">
-                <h1 className="text-2xl font-semibold text-white">
-                  Iniciar sesión
-                </h1>
-                <p className="mt-1.5 text-sm text-slate-400">
-                  Accede al panel de gestión de mantenimiento
-                </p>
-              </div>
+  const footer = CONTACT_EMAIL ? (
+    <>
+      ¿Tu empresa aún no usa AnPi Tech?{' '}
+      <a
+        href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Solicitud de acceso a AnPi Tech')}`}
+        className="font-medium text-accent hover:underline"
+      >
+        Solicita acceso
+      </a>
+    </>
+  ) : (
+    <>¿No tienes cuenta? Pídesela al administrador de tu empresa.</>
+  );
 
-              <form onSubmit={onSubmit} className="space-y-4">
-                <div>
-                  <label
-                    htmlFor="email"
-                    className="mb-1 block text-sm font-medium text-slate-300"
-                  >
-                    Correo electrónico
-                  </label>
+  // Paso 2: el usuario pertenece a varias empresas y tiene que elegir una.
+  if (loginData && loginData.companies.length > 1) {
+    return (
+      <AuthLayout
+        title="Elige empresa"
+        subtitle={`Tu usuario tiene acceso a ${loginData.companies.length} empresas.`}
+        footer={footer}
+      >
+        <fieldset className="space-y-2">
+          <legend className="sr-only">Empresa</legend>
+          {loginData.companies.map((company) => {
+            const checked = form.selectedCompanyId === company.companyId;
+            return (
+              <label
+                key={company.companyId}
+                className={`flex cursor-pointer items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-sm transition ${
+                  checked
+                    ? 'border-accent bg-accent-soft'
+                    : 'border-line hover:bg-surface-2'
+                }`}
+              >
+                <span className="flex items-center gap-3">
                   <input
-                    id="email"
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => onChange('email', e.target.value)}
-                    placeholder="nombre@empresa.com"
-                    autoComplete="email"
-                    autoFocus
-                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                    disabled={loading}
+                    type="radio"
+                    name="company"
+                    value={company.companyId}
+                    checked={checked}
+                    onChange={() =>
+                      onChange('selectedCompanyId', company.companyId)
+                    }
+                    className="accent-accent"
                   />
-                </div>
+                  <span className="font-medium text-ink">{company.name}</span>
+                </span>
+                <span className="font-mono text-[11px] uppercase tracking-wide text-subtle">
+                  {company.role}
+                </span>
+              </label>
+            );
+          })}
+        </fieldset>
 
-                <div>
-                  <label
-                    htmlFor="password"
-                    className="mb-1 block text-sm font-medium text-slate-300"
-                  >
-                    Contraseña
-                  </label>
-                  <div className="relative">
-                    <input
-                      id="password"
-                      type={showPassword ? 'text' : 'password'}
-                      value={form.password}
-                      onChange={(e) => onChange('password', e.target.value)}
-                      placeholder="••••••••"
-                      autoComplete="current-password"
-                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 pr-16 text-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                      disabled={loading}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((v) => !v)}
-                      className="absolute inset-y-0 right-0 px-3 text-xs font-medium text-slate-400 transition hover:text-sky-300"
-                      tabIndex={-1}
-                    >
-                      {showPassword ? 'Ocultar' : 'Mostrar'}
-                    </button>
-                  </div>
-                </div>
-
-                {loginData && loginData.companies.length > 1 ? (
-                  <div>
-                    <label
-                      htmlFor="company"
-                      className="mb-1 block text-sm font-medium text-slate-300"
-                    >
-                      Empresa
-                    </label>
-                    <select
-                      id="company"
-                      value={form.selectedCompanyId}
-                      onChange={(e) =>
-                        onChange('selectedCompanyId', e.target.value)
-                      }
-                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                      disabled={loading}
-                    >
-                      {loginData.companies.map((company) => (
-                        <option
-                          key={company.companyId}
-                          value={company.companyId}
-                        >
-                          {company.name} · {company.role}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : null}
-
-                {error ? (
-                  <div className="rounded-xl border border-rose-900 bg-rose-950/50 px-3 py-2 text-sm text-rose-300">
-                    {error}
-                  </div>
-                ) : null}
-
-                <button
-                  type={loginData ? 'button' : 'submit'}
-                  onClick={loginData ? onContinueWithCompany : undefined}
-                  disabled={loading}
-                  className="w-full rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {loading
-                    ? 'Entrando…'
-                    : loginData
-                      ? 'Continuar'
-                      : 'Entrar'}
-                </button>
-              </form>
-
-              <div className="mt-5 border-t border-slate-800 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowAdvanced((v) => !v)}
-                  className="text-xs font-medium text-slate-500 transition hover:text-slate-300"
-                >
-                  {showAdvanced ? 'Ocultar' : 'Opciones avanzadas'}
-                </button>
-
-                {showAdvanced ? (
-                  <div className="mt-3 space-y-3">
-                    <div>
-                      <label
-                        htmlFor="apiBase"
-                        className="mb-1 block text-xs font-medium text-slate-400"
-                      >
-                        API Base
-                      </label>
-                      <input
-                        id="apiBase"
-                        value={form.apiBase}
-                        onChange={(e) => onChange('apiBase', e.target.value)}
-                        placeholder={DEFAULT_API_BASE}
-                        autoComplete="off"
-                        className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-300 outline-none transition focus:border-sky-500"
-                        disabled={loading}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={onReset}
-                      disabled={loading}
-                      className="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      Limpiar sesión guardada
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-            </>
-          )}
+        <div className="mt-4 space-y-3">
+          <FormError message={error} />
+          <button
+            type="button"
+            onClick={onContinueWithCompany}
+            className={primaryButtonClass}
+          >
+            Continuar
+          </button>
+          <button
+            type="button"
+            onClick={onBackToCredentials}
+            className="w-full text-center text-sm text-muted hover:text-ink"
+          >
+            Volver
+          </button>
         </div>
-      </div>
-    </main>
+      </AuthLayout>
+    );
+  }
+
+  return (
+    <AuthLayout
+      title={hello}
+      subtitle="Inicia sesión para continuar con tu trabajo."
+      footer={footer}
+    >
+      <form onSubmit={onSubmit} className="space-y-4" noValidate>
+        <div>
+          <label
+            htmlFor="email"
+            className="mb-1.5 block text-sm font-medium text-ink-2"
+          >
+            Email
+          </label>
+          <div className="relative">
+            <FieldIcon>
+              <MailIcon />
+            </FieldIcon>
+            <input
+              id="email"
+              type="email"
+              inputMode="email"
+              value={form.email}
+              onChange={(e) => onChange('email', e.target.value)}
+              placeholder="nombre@empresa.com"
+              autoComplete="email"
+              autoFocus
+              aria-invalid={Boolean(error) && !form.email.trim()}
+              className={inputClass}
+              disabled={loading}
+            />
+          </div>
+        </div>
+
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-ink-2"
+            >
+              Contraseña
+            </label>
+            <Link
+              href="/forgot-password"
+              className="text-sm font-medium text-accent hover:underline"
+            >
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </div>
+          <div className="relative">
+            <FieldIcon>
+              <LockIcon />
+            </FieldIcon>
+            <input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              value={form.password}
+              onChange={(e) => onChange('password', e.target.value)}
+              placeholder="Tu contraseña"
+              autoComplete="current-password"
+              aria-invalid={Boolean(error) && !form.password}
+              className={`${inputClass} pr-11`}
+              disabled={loading}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              aria-pressed={showPassword}
+              className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-subtle transition hover:text-ink"
+            >
+              <EyeIcon off={showPassword} />
+            </button>
+          </div>
+        </div>
+
+        <FormError message={error} />
+
+        <button type="submit" disabled={loading} className={primaryButtonClass}>
+          {loading ? (
+            <>
+              <Spinner />
+              Entrando…
+            </>
+          ) : (
+            'Entrar'
+          )}
+        </button>
+      </form>
+
+      {IS_DEV ? (
+        <div className="mt-6 border-t border-line pt-4">
+          <button
+            type="button"
+            onClick={() => setShowAdvanced((v) => !v)}
+            className="font-mono text-[11px] uppercase tracking-wide text-subtle transition hover:text-ink"
+          >
+            {showAdvanced ? 'Ocultar opciones de desarrollo' : 'Opciones de desarrollo'}
+          </button>
+
+          {showAdvanced ? (
+            <div className="mt-3 space-y-3">
+              <div>
+                <label
+                  htmlFor="apiBase"
+                  className="mb-1 block text-xs font-medium text-muted"
+                >
+                  API Base
+                </label>
+                <input
+                  id="apiBase"
+                  value={form.apiBase}
+                  onChange={(e) => onChange('apiBase', e.target.value)}
+                  placeholder={DEFAULT_API_BASE}
+                  autoComplete="off"
+                  className="w-full rounded-lg border border-line bg-surface-2 px-3 py-2 font-mono text-xs text-ink-2 outline-none focus:border-accent"
+                  disabled={loading}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={onReset}
+                disabled={loading}
+                className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink-2 transition hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Limpiar sesión guardada
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </AuthLayout>
+  );
+}
+
+// useSearchParams necesita un límite de Suspense para que `next build` no falle.
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginView />
+    </Suspense>
   );
 }

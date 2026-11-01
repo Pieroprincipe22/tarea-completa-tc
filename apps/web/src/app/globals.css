@@ -2,8 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Paleta «Plano» — azul de plano técnico sobre fondo claro.
+ * Valores en canales RGB para que Tailwind admita opacidad (bg-accent/20).
+ */
 :root {
-  color-scheme: dark;
+  color-scheme: light;
+
+  --tc-canvas: 246 247 249; /* #F6F7F9 fondo de página */
+  --tc-surface: 255 255 255; /* #FFFFFF tarjetas */
+  --tc-surface-2: 241 243 246; /* #F1F3F6 campos, zonas internas */
+  --tc-surface-3: 230 234 239; /* #E6EAEF hover, chips */
+  --tc-line: 223 227 232; /* #DFE3E8 bordes */
+  --tc-line-strong: 199 205 214; /* #C7CDD6 bordes marcados */
+
+  --tc-ink: 12 18 32; /* #0C1220 texto principal */
+  --tc-ink-2: 42 50 66; /* #2A3242 texto secundario fuerte */
+  --tc-muted: 79 88 104; /* #4F5868 texto secundario */
+  --tc-subtle: 107 114 128; /* #6B7280 metadatos, placeholders */
+
+  --tc-accent: 31 78 140; /* #1F4E8C único acento */
+  --tc-accent-hover: 24 62 112; /* #183E70 */
+  --tc-accent-soft: 232 238 247; /* #E8EEF7 */
+
+  --tc-success: 30 125 78; /* #1E7D4E */
+  --tc-success-soft: 231 244 236;
+  --tc-warning: 166 98 0; /* #A66200 */
+  --tc-warning-soft: 253 243 225;
+  --tc-danger: 192 57 43; /* #C0392B */
+  --tc-danger-soft: 251 234 232;
+  --tc-special: 105 65 198; /* #6941C6 */
+  --tc-special-soft: 241 236 251;
 }
 
 html,
@@ -13,10 +42,8 @@ body {
 
 body {
   margin: 0;
-  background:
-    radial-gradient(circle at top, rgba(59, 130, 246, 0.12), transparent 28%),
-    linear-gradient(180deg, #020617 0%, #020617 100%);
-  color: #e2e8f0;
+  background-color: rgb(var(--tc-canvas));
+  color: rgb(var(--tc-ink));
 }
 
 * {
@@ -28,9 +55,14 @@ a {
   text-decoration: none;
 }
 
+:focus-visible {
+  outline: 2px solid rgb(var(--tc-accent));
+  outline-offset: 2px;
+}
+
 @layer components {
   .tc-shell {
-    @apply min-h-screen bg-slate-950 text-slate-100;
+    @apply min-h-screen bg-canvas text-ink;
   }
 
   .tc-page {
@@ -38,39 +70,39 @@ a {
   }
 
   .tc-panel {
-    @apply rounded-3xl border border-white/10 bg-slate-900/55 shadow-[0_10px_40px_rgba(0,0,0,0.35)] backdrop-blur;
+    @apply rounded-xl border border-line bg-surface shadow-sm;
   }
 
   .tc-panel-soft {
-    @apply rounded-2xl border border-white/10 bg-slate-900/40;
+    @apply rounded-lg border border-line bg-surface-2;
   }
 
   .tc-muted {
-    @apply text-slate-400;
+    @apply text-muted;
   }
 
   .tc-title {
-    @apply text-3xl font-semibold tracking-tight text-white;
+    @apply text-2xl font-semibold tracking-tight text-ink;
   }
 
   .tc-subtitle {
-    @apply text-sm text-slate-400;
+    @apply text-sm text-muted;
   }
 
   .tc-button {
-    @apply inline-flex items-center justify-center rounded-xl border border-white/10 bg-slate-900/70 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800;
+    @apply inline-flex items-center justify-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-medium text-ink transition hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .tc-button-primary {
-    @apply inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500;
+    @apply inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .tc-input {
-    @apply w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500 focus:border-blue-500/60;
+    @apply w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink outline-none transition placeholder:text-subtle focus:border-accent focus:ring-2 focus:ring-accent/15;
   }
 
   .tc-table-wrap {
-    @apply overflow-hidden rounded-3xl border border-white/10 bg-slate-900/45;
+    @apply overflow-hidden rounded-xl border border-line bg-surface;
   }
 
   .tc-table {
@@ -78,31 +110,14 @@ a {
   }
 
   .tc-table thead th {
-    @apply border-b border-white/10 px-5 py-4 text-left font-medium text-slate-300;
+    @apply border-b border-line bg-surface-2 px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted;
   }
 
   .tc-table tbody td {
-    @apply border-b border-white/5 px-5 py-4 align-top text-slate-100;
+    @apply border-b border-line px-5 py-3 align-top text-ink;
   }
 
   .tc-table tbody tr:hover {
-    @apply bg-white/[0.02];
+    @apply bg-surface-2;
   }
-   .tc-input {
-  width: 100%;
-  border-radius: 0.75rem;
-  border: 1px solid rgb(51 65 85 / 0.9);
-  background-color: rgb(15 23 42 / 0.7);
-  padding: 0.625rem 0.875rem;
-  font-size: 0.875rem;
-  color: rgb(226 232 240);
-  outline: none;
-}
-.tc-input:focus {
-  border-color: rgb(56 189 248 / 0.6);
-  box-shadow: 0 0 0 3px rgb(56 189 248 / 0.15);
-}
-.tc-input::placeholder {
-  color: rgb(100 116 139);
-}
 }

@@ -2,9 +2,9 @@ import Link from 'next/link';
 
 function Card({ title, desc, href }: { title: string; desc: string; href: string }) {
   return (
-    <Link href={href} className="block rounded-2xl border p-5 shadow-sm hover:shadow transition">
+    <Link href={href} className="block rounded-lg border p-5 shadow-sm hover:shadow transition">
       <div className="text-lg font-semibold">{title}</div>
-      <div className="mt-2 text-sm text-gray-600">{desc}</div>
+      <div className="mt-2 text-sm text-subtle">{desc}</div>
     </Link>
   );
 }

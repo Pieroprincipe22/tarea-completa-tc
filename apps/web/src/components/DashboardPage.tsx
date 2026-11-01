@@ -19,12 +19,12 @@ type MaintenanceTemplate = { id: string; name?: string; isActive?: boolean };
 function Badge({ children, tone }: { children: React.ReactNode; tone: 'ok' | 'warn' | 'bad' | 'muted' }) {
   const cls =
     tone === 'ok'
-      ? 'bg-green-600/20 text-green-200 ring-green-600/30'
+      ? 'bg-success-soft text-success ring-success/25'
       : tone === 'warn'
-        ? 'bg-yellow-600/20 text-yellow-200 ring-yellow-600/30'
+        ? 'bg-warning-soft text-warning ring-warning/25'
         : tone === 'bad'
-          ? 'bg-red-600/20 text-red-200 ring-red-600/30'
-          : 'bg-slate-600/20 text-slate-200 ring-slate-600/30';
+          ? 'bg-danger-soft text-danger ring-danger/25'
+          : 'bg-line-strong text-ink ring-line-strong';
 
   return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs ring-1 ${cls}`}>{children}</span>;
 }
@@ -41,10 +41,10 @@ function StatCard({
   note?: string;
 }) {
   const body = (
-    <div className="rounded-2xl bg-slate-900/60 ring-1 ring-white/10 p-4 shadow-sm">
-      <div className="text-sm text-slate-300">{title}</div>
-      <div className="mt-2 text-2xl font-semibold text-white">{value}</div>
-      {note ? <div className="mt-2 text-xs text-slate-400">{note}</div> : null}
+    <div className="rounded-lg bg-surface ring-1 ring-line p-4 shadow-sm">
+      <div className="text-sm text-ink-2">{title}</div>
+      <div className="mt-2 text-2xl font-semibold text-ink">{value}</div>
+      {note ? <div className="mt-2 text-xs text-muted">{note}</div> : null}
     </div>
   );
 
@@ -205,39 +205,39 @@ export default function DashboardPage() {
     <div className="mx-auto max-w-6xl p-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-white">Dashboard</h1>
-          <p className="mt-1 text-sm text-slate-400">KPIs + actividad reciente.</p>
+          <h1 className="text-2xl font-semibold text-ink">Dashboard</h1>
+          <p className="mt-1 text-sm text-muted">KPIs + actividad reciente.</p>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Link className="rounded-xl bg-slate-900/60 ring-1 ring-white/10 px-3 py-2 text-sm text-white hover:opacity-95" href="/customers">
+          <Link className="rounded-lg bg-surface ring-1 ring-line px-3 py-2 text-sm text-ink hover:opacity-95" href="/customers">
             Customers
           </Link>
-          <Link className="rounded-xl bg-slate-900/60 ring-1 ring-white/10 px-3 py-2 text-sm text-white hover:opacity-95" href="/maintenance-reports">
+          <Link className="rounded-lg bg-surface ring-1 ring-line px-3 py-2 text-sm text-ink hover:opacity-95" href="/maintenance-reports">
             Reports
           </Link>
-          <Link className="rounded-xl bg-slate-900/60 ring-1 ring-white/10 px-3 py-2 text-sm text-white hover:opacity-95" href="/maintenance-templates">
+          <Link className="rounded-lg bg-surface ring-1 ring-line px-3 py-2 text-sm text-ink hover:opacity-95" href="/maintenance-templates">
             Templates
           </Link>
         </div>
       </div>
 
-      <div className="mt-6 rounded-2xl bg-slate-900/60 ring-1 ring-white/10 p-4">
+      <div className="mt-6 rounded-lg bg-surface ring-1 ring-line p-4">
         {!session ? (
-          <div className="text-sm text-slate-300">
+          <div className="text-sm text-ink-2">
             No hay sesión en localStorage. Debes tener:
-            <div className="mt-2 grid gap-1 text-xs text-slate-400">
+            <div className="mt-2 grid gap-1 text-xs text-muted">
               <div>- {TC_LS_KEYS.apiBase} (ej: {DEFAULT_API_BASE})</div>
               <div>- {TC_LS_KEYS.companyId}</div>
               <div>- {TC_LS_KEYS.userId}</div>
             </div>
 
             <div className="mt-3 flex gap-2">
-              <Link className="rounded-xl bg-slate-800/60 ring-1 ring-white/10 px-3 py-2 text-xs text-white hover:opacity-95" href="/login">
+              <Link className="rounded-lg bg-surface-3 ring-1 ring-line px-3 py-2 text-xs text-ink hover:opacity-95" href="/login">
                 Ir a /login
               </Link>
               <button
-                className="rounded-xl bg-slate-800/60 ring-1 ring-white/10 px-3 py-2 text-xs text-white hover:opacity-95"
+                className="rounded-lg bg-surface-3 ring-1 ring-line px-3 py-2 text-xs text-ink hover:opacity-95"
                 onClick={() => setSession(readTcSession())}
                 type="button"
               >
@@ -247,16 +247,16 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-sm text-slate-300">
+            <div className="text-sm text-ink-2">
               <div>
-                API: <span className="text-white">{session.apiBase}</span>
+                API: <span className="text-ink">{session.apiBase}</span>
               </div>
-              <div className="text-xs text-slate-400 mt-1">
-                companyId: <span className="text-slate-200">{session.companyId}</span> · userId:{' '}
-                <span className="text-slate-200">{session.userId}</span>
+              <div className="text-xs text-muted mt-1">
+                companyId: <span className="text-ink">{session.companyId}</span> · userId:{' '}
+                <span className="text-ink">{session.userId}</span>
               </div>
               {paths.status === 'ok' ? (
-                <div className="mt-2 text-xs text-slate-500">
+                <div className="mt-2 text-xs text-subtle">
                   Endpoints: customers={paths.data.customers}, sites={paths.data.sites}, assets={paths.data.assets}
                 </div>
               ) : null}
@@ -280,32 +280,32 @@ export default function DashboardPage() {
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl bg-slate-900/60 ring-1 ring-white/10 p-4">
+        <div className="rounded-lg bg-surface ring-1 ring-line p-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-white">Últimos Reports</h2>
-            <Link className="text-xs text-slate-300 hover:text-white" href="/maintenance-reports">
+            <h2 className="text-sm font-semibold text-ink">Últimos Reports</h2>
+            <Link className="text-xs text-ink-2 hover:text-ink" href="/maintenance-reports">
               Ver todos →
             </Link>
           </div>
 
           <div className="mt-3">
             {reports.status === 'loading' ? (
-              <div className="text-sm text-slate-400">Cargando…</div>
+              <div className="text-sm text-muted">Cargando…</div>
             ) : reports.status === 'error' ? (
-              <div className="text-sm text-red-200">{reports.error}</div>
+              <div className="text-sm text-danger">{reports.error}</div>
             ) : reportsOk.length === 0 ? (
-              <div className="text-sm text-slate-400">Sin datos todavía.</div>
+              <div className="text-sm text-muted">Sin datos todavía.</div>
             ) : (
-              <ul className="divide-y divide-white/10">
+              <ul className="divide-y divide-line">
                 {reportsOk.map((r) => (
                   <li key={r.id} className="py-3 flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm text-white">{r.templateName || 'Maintenance Report'}</div>
-                      <div className="text-xs text-slate-400">{formatDate(r.performedAt)}</div>
+                      <div className="text-sm text-ink">{r.templateName || 'Maintenance Report'}</div>
+                      <div className="text-xs text-muted">{formatDate(r.performedAt)}</div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge tone={r.state === 'FINAL' ? 'ok' : r.state === 'DRAFT' ? 'warn' : 'muted'}>{r.state || '—'}</Badge>
-                      <Link className="text-xs text-slate-300 hover:text-white" href={`/maintenance-reports/${r.id}`}>
+                      <Link className="text-xs text-ink-2 hover:text-ink" href={`/maintenance-reports/${r.id}`}>
                         Abrir
                       </Link>
                     </div>
@@ -316,30 +316,30 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl bg-slate-900/60 ring-1 ring-white/10 p-4">
+        <div className="rounded-lg bg-surface ring-1 ring-line p-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-white">Últimos Templates</h2>
-            <Link className="text-xs text-slate-300 hover:text-white" href="/maintenance-templates">
+            <h2 className="text-sm font-semibold text-ink">Últimos Templates</h2>
+            <Link className="text-xs text-ink-2 hover:text-ink" href="/maintenance-templates">
               Ver todos →
             </Link>
           </div>
 
           <div className="mt-3">
             {templates.status === 'loading' ? (
-              <div className="text-sm text-slate-400">Cargando…</div>
+              <div className="text-sm text-muted">Cargando…</div>
             ) : templates.status === 'error' ? (
-              <div className="text-sm text-red-200">{templates.error}</div>
+              <div className="text-sm text-danger">{templates.error}</div>
             ) : templatesOk.length === 0 ? (
-              <div className="text-sm text-slate-400">Sin datos todavía.</div>
+              <div className="text-sm text-muted">Sin datos todavía.</div>
             ) : (
-              <ul className="divide-y divide-white/10">
+              <ul className="divide-y divide-line">
                 {templatesOk.map((t) => (
                   <li key={t.id} className="py-3 flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm text-white">{t.name || 'Maintenance Template'}</div>
-                      <div className="text-xs text-slate-400">{t.isActive === false ? 'Inactivo' : 'Activo'}</div>
+                      <div className="text-sm text-ink">{t.name || 'Maintenance Template'}</div>
+                      <div className="text-xs text-muted">{t.isActive === false ? 'Inactivo' : 'Activo'}</div>
                     </div>
-                    <Link className="text-xs text-slate-300 hover:text-white" href={`/maintenance-templates/${t.id}`}>
+                    <Link className="text-xs text-ink-2 hover:text-ink" href={`/maintenance-templates/${t.id}`}>
                       Abrir
                     </Link>
                   </li>

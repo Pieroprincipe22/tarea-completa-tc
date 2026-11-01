@@ -327,34 +327,34 @@ function displayWorkOrder(report: MaintenanceReportRow): string {
 function badgeClass(status?: string | null): string {
   switch (normalizeStatus(status)) {
     case 'SUBMITTED':
-      return 'border-purple-500/40 bg-purple-500/10 text-purple-300';
+      return 'border-special/30 bg-special-soft text-special';
     case 'APPROVED':
-      return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
+      return 'border-success/30 bg-success-soft text-success';
     case 'REJECTED':
-      return 'border-rose-500/40 bg-rose-500/10 text-rose-300';
+      return 'border-danger/30 bg-danger-soft text-danger';
     case 'IN_PROGRESS':
-      return 'border-blue-500/40 bg-blue-500/10 text-blue-300';
+      return 'border-accent/30 bg-accent-soft text-accent';
     case 'ASSIGNED':
-      return 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300';
+      return 'border-accent/30 bg-accent-soft text-accent';
     case 'CANCELLED':
-      return 'border-rose-500/40 bg-rose-500/10 text-rose-300';
+      return 'border-danger/30 bg-danger-soft text-danger';
     default:
-      return 'border-slate-700 bg-slate-800 text-slate-200';
+      return 'border-line bg-surface-3 text-ink';
   }
 }
 
 function finalStatusClass(status?: string | null): string {
   switch (normalizeStatus(status)) {
     case 'NO_OPERATIVO':
-      return 'border-rose-500/40 bg-rose-500/10 text-rose-300';
+      return 'border-danger/30 bg-danger-soft text-danger';
     case 'PENDIENTE_REVISION':
-      return 'border-amber-500/40 bg-amber-500/10 text-amber-300';
+      return 'border-warning/30 bg-warning-soft text-warning';
     case 'OPERATIVO_CON_OBSERVACIONES':
-      return 'border-yellow-500/40 bg-yellow-500/10 text-yellow-300';
+      return 'border-warning/30 bg-warning-soft text-warning';
     case 'OPERATIVO':
-      return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
+      return 'border-success/30 bg-success-soft text-success';
     default:
-      return 'border-slate-700 bg-slate-800 text-slate-200';
+      return 'border-line bg-surface-3 text-ink';
   }
 }
 
@@ -409,23 +409,23 @@ function MetricCard({
   helper: string;
 }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-5">
-      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+    <div className="rounded-xl border border-line bg-surface p-5">
+      <p className="text-xs font-bold uppercase tracking-wide text-subtle">
         {label}
       </p>
-      <p className="mt-3 text-3xl font-black text-white">{value}</p>
-      <p className="mt-1 text-xs text-slate-500">{helper}</p>
+      <p className="mt-3 text-3xl font-semibold text-ink">{value}</p>
+      <p className="mt-1 text-xs text-subtle">{helper}</p>
     </div>
   );
 }
 
 function EmptyState() {
   return (
-    <section className="rounded-3xl border border-dashed border-white/10 bg-slate-900/60 p-8 text-center">
-      <h2 className="text-xl font-black text-white">
+    <section className="rounded-xl border border-dashed border-line bg-surface p-8 text-center">
+      <h2 className="text-xl font-semibold text-ink">
         No hay partes pendientes de revisión
       </h2>
-      <p className="mt-2 text-sm text-slate-400">
+      <p className="mt-2 text-sm text-muted">
         Cuando un técnico envíe un parte, aparecerá aquí para que administración
         lo revise, apruebe o devuelva.
       </p>
@@ -636,7 +636,7 @@ export default function AdminMaintenanceReportsInboxPage() {
 
   if (!mounted) {
     return (
-      <main className="min-h-screen bg-slate-950 p-6 text-white">
+      <main className="min-h-screen bg-surface-2 p-6 text-ink">
         Cargando sesión...
       </main>
     );
@@ -644,15 +644,15 @@ export default function AdminMaintenanceReportsInboxPage() {
 
   if (!session) {
     return (
-      <main className="min-h-screen bg-slate-950 p-6 text-white">
-        <section className="mx-auto max-w-5xl rounded-3xl border border-rose-500/30 bg-rose-500/10 p-6 text-rose-200">
-          <h1 className="text-2xl font-black">Sesión no encontrada</h1>
+      <main className="min-h-screen bg-surface-2 p-6 text-ink">
+        <section className="mx-auto max-w-5xl rounded-xl border border-danger/30 bg-danger-soft p-6 text-danger">
+          <h1 className="text-2xl font-semibold">Sesión no encontrada</h1>
           <p className="mt-2 text-sm">
             Para revisar partes necesitas iniciar sesión como administrador.
           </p>
           <Link
             href="/login"
-            className="mt-5 inline-flex rounded-2xl bg-sky-600 px-5 py-3 text-sm font-bold text-white hover:bg-sky-700"
+            className="mt-5 inline-flex rounded-lg bg-accent px-5 py-3 text-sm font-bold text-white hover:bg-accent-hover"
           >
             Ir a login
           </Link>
@@ -663,15 +663,15 @@ export default function AdminMaintenanceReportsInboxPage() {
 
   if (!isAdminSession(session)) {
     return (
-      <main className="min-h-screen bg-slate-950 p-6 text-white">
-        <section className="mx-auto max-w-5xl rounded-3xl border border-rose-500/30 bg-rose-500/10 p-6 text-rose-200">
-          <h1 className="text-2xl font-black">Acceso restringido</h1>
+      <main className="min-h-screen bg-surface-2 p-6 text-ink">
+        <section className="mx-auto max-w-5xl rounded-xl border border-danger/30 bg-danger-soft p-6 text-danger">
+          <h1 className="text-2xl font-semibold">Acceso restringido</h1>
           <p className="mt-2 text-sm">
             Esta pantalla solo está disponible para administradores.
           </p>
           <Link
             href={homePath}
-            className="mt-5 inline-flex rounded-2xl bg-sky-600 px-5 py-3 text-sm font-bold text-white hover:bg-sky-700"
+            className="mt-5 inline-flex rounded-lg bg-accent px-5 py-3 text-sm font-bold text-white hover:bg-accent-hover"
           >
             Volver al panel
           </Link>
@@ -681,18 +681,18 @@ export default function AdminMaintenanceReportsInboxPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 p-4 text-white md:p-8">
+    <main className="min-h-screen bg-surface-2 p-4 text-ink md:p-8">
       <div className="mx-auto max-w-7xl space-y-6">
-        <header className="rounded-3xl border border-white/10 bg-slate-900/80 p-6">
+        <header className="rounded-xl border border-line bg-surface p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
-              <p className="text-sm font-semibold text-slate-400">
+              <p className="text-sm font-semibold text-muted">
                 Administración
               </p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight">
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight">
                 Partes pendientes de revisión
               </h1>
-              <p className="mt-2 max-w-3xl text-sm text-slate-400">
+              <p className="mt-2 max-w-3xl text-sm text-muted">
                 Revisa los partes enviados por los técnicos, valida diagnóstico,
                 incidencias, piezas a pedir y decide si aprobar o devolver al
                 técnico.
@@ -703,21 +703,21 @@ export default function AdminMaintenanceReportsInboxPage() {
               <button
                 type="button"
                 onClick={() => setReloadKey((current) => current + 1)}
-                className="inline-flex items-center justify-center rounded-2xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800"
+                className="inline-flex items-center justify-center rounded-lg border border-line px-4 py-2 text-sm font-bold text-ink hover:bg-surface-3"
               >
                 Actualizar
               </button>
 
               <Link
                 href="/maintenance-reports"
-                className="inline-flex items-center justify-center rounded-2xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800"
+                className="inline-flex items-center justify-center rounded-lg border border-line px-4 py-2 text-sm font-bold text-ink hover:bg-surface-3"
               >
                 Todos los partes
               </Link>
 
               <Link
                 href="/dashboard"
-                className="inline-flex items-center justify-center rounded-2xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800"
+                className="inline-flex items-center justify-center rounded-lg border border-line px-4 py-2 text-sm font-bold text-ink hover:bg-surface-3"
               >
                 Dashboard
               </Link>
@@ -749,23 +749,23 @@ export default function AdminMaintenanceReportsInboxPage() {
         </section>
 
         {actionState.status === 'error' ? (
-          <section className="rounded-3xl border border-rose-500/30 bg-rose-500/10 p-5 text-sm font-semibold text-rose-200">
+          <section className="rounded-xl border border-danger/30 bg-danger-soft p-5 text-sm font-semibold text-danger">
             {actionState.message}
           </section>
         ) : null}
 
         {actionState.status === 'success' ? (
-          <section className="rounded-3xl border border-emerald-500/30 bg-emerald-500/10 p-5 text-sm font-semibold text-emerald-200">
+          <section className="rounded-xl border border-success/30 bg-success-soft p-5 text-sm font-semibold text-success">
             {actionState.message}
           </section>
         ) : null}
 
         {state.status === 'loading' ? (
-          <section className="rounded-3xl border border-white/10 bg-slate-900/80 p-6 text-slate-300">
+          <section className="rounded-xl border border-line bg-surface p-6 text-ink-2">
             Cargando partes pendientes...
           </section>
         ) : state.status === 'error' ? (
-          <section className="rounded-3xl border border-rose-500/30 bg-rose-500/10 p-6 text-rose-200">
+          <section className="rounded-xl border border-danger/30 bg-danger-soft p-6 text-danger">
             {state.error}
           </section>
         ) : reports.length === 0 ? (
@@ -786,7 +786,7 @@ export default function AdminMaintenanceReportsInboxPage() {
               return (
                 <article
                   key={report.id}
-                  className="rounded-3xl border border-white/10 bg-slate-900/80 p-6"
+                  className="rounded-xl border border-line bg-surface p-6"
                 >
                   <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
                     <div className="min-w-0 flex-1">
@@ -807,117 +807,117 @@ export default function AdminMaintenanceReportsInboxPage() {
                           {finalStatusLabel(report.summary)}
                         </span>
 
-                        <span className="inline-flex rounded-full border border-slate-700 bg-slate-800 px-3 py-1 text-xs font-bold text-slate-200">
+                        <span className="inline-flex rounded-full border border-line bg-surface-3 px-3 py-1 text-xs font-bold text-ink">
                           Orden: {workOrderStatusLabel(report.workOrder?.status)}
                         </span>
                       </div>
 
-                      <h2 className="mt-4 text-2xl font-black text-white">
+                      <h2 className="mt-4 text-2xl font-semibold text-ink">
                         {displayWorkOrder(report)}
                       </h2>
 
-                      <p className="mt-2 text-sm text-slate-400">
+                      <p className="mt-2 text-sm text-muted">
                         {report.title ?? 'Parte de trabajo'}
                       </p>
 
                       <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                         <div>
-                          <p className="text-xs font-bold uppercase text-slate-500">
+                          <p className="text-xs font-bold uppercase text-subtle">
                             Cliente
                           </p>
-                          <p className="mt-1 text-sm font-semibold text-slate-200">
+                          <p className="mt-1 text-sm font-semibold text-ink">
                             {displayName(report.customer)}
                           </p>
                         </div>
 
                         <div>
-                          <p className="text-xs font-bold uppercase text-slate-500">
+                          <p className="text-xs font-bold uppercase text-subtle">
                             Site / ubicación
                           </p>
-                          <p className="mt-1 text-sm font-semibold text-slate-200">
+                          <p className="mt-1 text-sm font-semibold text-ink">
                             {displayName(report.site)}
                           </p>
                         </div>
 
                         <div>
-                          <p className="text-xs font-bold uppercase text-slate-500">
+                          <p className="text-xs font-bold uppercase text-subtle">
                             Activo / máquina
                           </p>
-                          <p className="mt-1 text-sm font-semibold text-slate-200">
+                          <p className="mt-1 text-sm font-semibold text-ink">
                             {displayAsset(report.asset)}
                           </p>
                         </div>
 
                         <div>
-                          <p className="text-xs font-bold uppercase text-slate-500">
+                          <p className="text-xs font-bold uppercase text-subtle">
                             Técnico
                           </p>
-                          <p className="mt-1 text-sm font-semibold text-slate-200">
+                          <p className="mt-1 text-sm font-semibold text-ink">
                             {displayName(report.assignedTechnician)}
                           </p>
                         </div>
 
                         <div>
-                          <p className="text-xs font-bold uppercase text-slate-500">
+                          <p className="text-xs font-bold uppercase text-subtle">
                             Horas
                           </p>
-                          <p className="mt-1 text-sm font-semibold text-slate-200">
+                          <p className="mt-1 text-sm font-semibold text-ink">
                             {report.laborHours || '—'}
                           </p>
                         </div>
 
                         <div>
-                          <p className="text-xs font-bold uppercase text-slate-500">
+                          <p className="text-xs font-bold uppercase text-subtle">
                             Enviado
                           </p>
-                          <p className="mt-1 text-sm font-semibold text-slate-200">
+                          <p className="mt-1 text-sm font-semibold text-ink">
                             {formatDate(report.submittedAt)}
                           </p>
                         </div>
 
                         <div>
-                          <p className="text-xs font-bold uppercase text-slate-500">
+                          <p className="text-xs font-bold uppercase text-subtle">
                             Materiales
                           </p>
-                          <p className="mt-1 text-sm font-semibold text-slate-200">
+                          <p className="mt-1 text-sm font-semibold text-ink">
                             {report.materialsCount}
                           </p>
                         </div>
 
                         <div>
-                          <p className="text-xs font-bold uppercase text-slate-500">
+                          <p className="text-xs font-bold uppercase text-subtle">
                             Checklist
                           </p>
-                          <p className="mt-1 text-sm font-semibold text-slate-200">
+                          <p className="mt-1 text-sm font-semibold text-ink">
                             {report.itemsCount}
                           </p>
                         </div>
                       </div>
 
                       <div className="mt-5 grid gap-4 lg:grid-cols-3">
-                        <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
-                          <p className="text-xs font-bold uppercase text-slate-500">
+                        <div className="rounded-lg border border-line bg-surface-2 p-4">
+                          <p className="text-xs font-bold uppercase text-subtle">
                             Diagnóstico
                           </p>
-                          <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-sm text-slate-200">
+                          <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-sm text-ink">
                             {report.diagnosis || '—'}
                           </p>
                         </div>
 
-                        <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4">
-                          <p className="text-xs font-bold uppercase text-rose-300">
+                        <div className="rounded-lg border border-danger/30 bg-danger-soft p-4">
+                          <p className="text-xs font-bold uppercase text-danger">
                             Incidencias
                           </p>
-                          <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-sm text-rose-100">
+                          <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-sm text-danger">
                             {report.observations || '—'}
                           </p>
                         </div>
 
-                        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4">
-                          <p className="text-xs font-bold uppercase text-amber-300">
+                        <div className="rounded-lg border border-warning/30 bg-warning-soft p-4">
+                          <p className="text-xs font-bold uppercase text-warning">
                             Recomendaciones / pieza a pedir
                           </p>
-                          <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-sm text-amber-100">
+                          <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-sm text-warning">
                             {report.recommendations || '—'}
                           </p>
                         </div>
@@ -927,7 +927,7 @@ export default function AdminMaintenanceReportsInboxPage() {
                     <div className="w-full shrink-0 space-y-3 xl:w-80">
                       <Link
                         href={`/maintenance-reports/${report.id}`}
-                        className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-700 px-4 py-3 text-sm font-black text-slate-100 hover:bg-slate-800"
+                        className="inline-flex w-full items-center justify-center rounded-lg border border-line px-4 py-3 text-sm font-semibold text-ink hover:bg-surface-3"
                       >
                         Ver parte completo
                       </Link>
@@ -935,14 +935,14 @@ export default function AdminMaintenanceReportsInboxPage() {
                       {report.workOrderId ? (
                         <Link
                           href={`/work-orders/${report.workOrderId}`}
-                          className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-700 px-4 py-3 text-sm font-black text-slate-100 hover:bg-slate-800"
+                          className="inline-flex w-full items-center justify-center rounded-lg border border-line px-4 py-3 text-sm font-semibold text-ink hover:bg-surface-3"
                         >
                           Ver orden
                         </Link>
                       ) : null}
 
                       <label className="block">
-                        <span className="text-sm font-bold text-slate-300">
+                        <span className="text-sm font-bold text-ink-2">
                           Nota de revisión
                         </span>
                         <textarea
@@ -952,7 +952,7 @@ export default function AdminMaintenanceReportsInboxPage() {
                           }
                           disabled={isSaving}
                           rows={4}
-                          className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 disabled:opacity-60"
+                          className="mt-2 w-full rounded-lg border border-line bg-surface-2 px-4 py-3 text-sm text-ink outline-none placeholder:text-subtle disabled:opacity-60"
                           placeholder="Ejemplo: Aprobar y pedir compresor indicado por el técnico."
                         />
                       </label>
@@ -961,7 +961,7 @@ export default function AdminMaintenanceReportsInboxPage() {
                         type="button"
                         onClick={() => void reviewReport(report.id, true)}
                         disabled={isSaving}
-                        className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-black text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-600"
+                        className="inline-flex w-full items-center justify-center rounded-lg bg-success px-4 py-3 text-sm font-semibold text-white hover:bg-success/90 disabled:cursor-not-allowed disabled:bg-success/90"
                       >
                         {approving ? 'Aprobando...' : 'Aprobar parte'}
                       </button>
@@ -970,7 +970,7 @@ export default function AdminMaintenanceReportsInboxPage() {
                         type="button"
                         onClick={() => void reviewReport(report.id, false)}
                         disabled={isSaving}
-                        className="inline-flex w-full items-center justify-center rounded-2xl bg-rose-600 px-4 py-3 text-sm font-black text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-600"
+                        className="inline-flex w-full items-center justify-center rounded-lg bg-danger px-4 py-3 text-sm font-semibold text-white hover:bg-danger/90 disabled:cursor-not-allowed disabled:bg-danger/90"
                       >
                         {rejecting
                           ? 'Devolviendo...'

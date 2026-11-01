@@ -228,42 +228,42 @@ function ReportCard({
   const content = (
     <div
       className={[
-        'group relative h-full overflow-hidden rounded-3xl border p-6 shadow-[0_22px_70px_rgba(2,6,23,0.32)] transition duration-200',
+        'group relative h-full overflow-hidden rounded-xl border p-6 shadow-sm transition duration-200',
         comingSoon
-          ? 'border-slate-800/90 bg-slate-900/35'
-          : 'border-slate-800/90 bg-slate-900/55 hover:-translate-y-0.5 hover:border-sky-400/45 hover:bg-slate-900/75 hover:shadow-[0_28px_90px_rgba(14,165,233,0.12)]',
+          ? 'border-line bg-surface'
+          : 'border-line bg-surface hover:-translate-y-0.5 hover:border-accent/30 hover:bg-surface ',
       ].join(' ')}
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.16),transparent_35%)] opacity-80" />
+      <div className="absolute inset-0 opacity-80" />
 
       <div className="relative flex items-start justify-between gap-4">
         <div
           className={[
-            'flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl border shadow-[0_0_35px_rgba(14,165,233,0.10)]',
+            'flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border ',
             comingSoon
-              ? 'border-slate-700/80 bg-slate-950/70 text-slate-500'
-              : 'border-sky-400/25 bg-sky-500/10 text-sky-400',
+              ? 'border-line bg-surface-2 text-subtle'
+              : 'border-accent/30 bg-accent-soft text-accent',
           ].join(' ')}
         >
           <ReportIcon icon={icon} />
         </div>
 
-        <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-amber-200">
+        <span className="rounded-full border border-warning/30 bg-warning-soft px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-warning">
           Próximo
         </span>
       </div>
 
       <div className="relative mt-6">
-        <h2 className="text-2xl font-black tracking-tight text-white">
+        <h2 className="text-2xl font-semibold tracking-tight text-ink">
           {title}
         </h2>
 
-        <p className="mt-4 text-sm leading-7 text-slate-300">
+        <p className="mt-4 text-sm leading-7 text-ink-2">
           {description}
         </p>
 
         {!comingSoon && href ? (
-          <p className="mt-6 text-sm font-black text-sky-400 transition group-hover:text-sky-300">
+          <p className="mt-6 text-sm font-semibold text-accent transition group-hover:text-accent">
             Abrir módulo →
           </p>
         ) : null}
@@ -284,23 +284,23 @@ function ReportCard({
 
 export default function OperationsReportsPage() {
   return (
-    <main className="min-h-[calc(100vh-86px)] flex-1 bg-slate-950 px-6 py-8 text-slate-100 lg:px-8">
+    <main className="min-h-[calc(100vh-86px)] flex-1 bg-surface-2 px-6 py-8 text-ink lg:px-8">
       <div className="mx-auto max-w-7xl space-y-6">
-        <section className="relative overflow-hidden rounded-3xl border border-sky-500/40 bg-slate-900/70 p-8 shadow-[0_0_80px_rgba(14,165,233,0.10)]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_32%)]" />
-          <div className="absolute right-0 top-0 h-full w-1/2 bg-[linear-gradient(rgba(56,189,248,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,0.07)_1px,transparent_1px)] bg-[size:24px_24px] opacity-40" />
+        <section className="relative overflow-hidden rounded-xl border border-accent/30 bg-surface p-8 ">
+          <div className="absolute inset-0 " />
+          <div className="absolute right-0 top-0 h-full w-1/2 opacity-40" />
 
           <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-[12px] font-black uppercase tracking-[0.28em] text-sky-400">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.28em] text-accent">
                 Operaciones
               </p>
 
-              <h1 className="mt-4 text-5xl font-black tracking-tight text-white">
+              <h1 className="mt-4 text-5xl font-semibold tracking-tight text-ink">
                 Informes
               </h1>
 
-              <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300">
+              <p className="mt-5 max-w-3xl text-base leading-8 text-ink-2">
                 Centraliza los informes finales de operación, explotación
                 técnica y análisis administrativo. Este bloque crecerá desde los
                 partes de trabajo hacia informes por cliente, activo, contrato,
@@ -308,17 +308,17 @@ export default function OperationsReportsPage() {
               </p>
             </div>
 
-            <div className="rounded-3xl border border-slate-700/80 bg-slate-950/65 p-5 shadow-[0_18px_60px_rgba(2,6,23,0.35)]">
+            <div className="rounded-xl border border-line bg-surface-2 p-5 shadow-sm">
               <div className="flex gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-sky-400/25 bg-sky-500/10 text-sky-300">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-accent/30 bg-accent-soft text-accent">
                   <TargetIcon className="h-7 w-7" />
                 </div>
 
                 <div>
-                  <p className="text-sm font-black text-white">
+                  <p className="text-sm font-semibold text-ink">
                     Foco del módulo
                   </p>
-                  <p className="mt-2 max-w-xs text-sm leading-6 text-slate-400">
+                  <p className="mt-2 max-w-xs text-sm leading-6 text-muted">
                     análisis · cierre · reporting · explotación
                   </p>
                 </div>
@@ -327,17 +327,17 @@ export default function OperationsReportsPage() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-800/90 bg-slate-900/30 p-5">
+        <section className="rounded-xl border border-line bg-surface p-5">
           <div className="mb-5">
-            <p className="text-[12px] font-black uppercase tracking-[0.28em] text-sky-400">
+            <p className="text-[12px] font-semibold uppercase tracking-[0.28em] text-accent">
               Próximamente
             </p>
 
-            <h2 className="mt-2 text-2xl font-black tracking-tight text-white">
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-ink">
               Futuros informes operativos
             </h2>
 
-            <p className="mt-2 text-sm leading-6 text-slate-400">
+            <p className="mt-2 text-sm leading-6 text-muted">
               Estos informes quedan identificados para desarrollo posterior y no
               se mezclan con los módulos operativos ya disponibles.
             </p>

@@ -193,33 +193,33 @@ function formatPriority(priority?: string | null): string {
 function statusBadgeClass(status: string): string {
   switch (status) {
     case 'OPEN':
-      return 'border-amber-500/40 bg-amber-500/10 text-amber-300';
+      return 'border-warning/30 bg-warning-soft text-warning';
     case 'ASSIGNED':
-      return 'border-sky-500/40 bg-sky-500/10 text-sky-300';
+      return 'border-accent/30 bg-accent-soft text-accent';
     case 'IN_PROGRESS':
-      return 'border-blue-500/40 bg-blue-500/10 text-blue-300';
+      return 'border-accent/30 bg-accent-soft text-accent';
     case 'DONE':
-      return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
+      return 'border-success/30 bg-success-soft text-success';
     case 'CANCELLED':
     case 'CANCELED':
-      return 'border-rose-500/40 bg-rose-500/10 text-rose-300';
+      return 'border-danger/30 bg-danger-soft text-danger';
     default:
-      return 'border-slate-700 bg-slate-800 text-slate-200';
+      return 'border-line bg-surface-3 text-ink';
   }
 }
 
 function priorityBadgeClass(priority?: string | null): string {
   switch (priority) {
     case 'LOW':
-      return 'border-slate-600 bg-slate-800 text-slate-200';
+      return 'border-line-strong bg-surface-3 text-ink';
     case 'MEDIUM':
-      return 'border-yellow-500/40 bg-yellow-500/10 text-yellow-300';
+      return 'border-warning/30 bg-warning-soft text-warning';
     case 'HIGH':
-      return 'border-orange-500/40 bg-orange-500/10 text-orange-300';
+      return 'border-warning/30 bg-warning-soft text-warning';
     case 'URGENT':
-      return 'border-rose-500/40 bg-rose-500/10 text-rose-300';
+      return 'border-danger/30 bg-danger-soft text-danger';
     default:
-      return 'border-slate-700 bg-slate-800 text-slate-200';
+      return 'border-line bg-surface-3 text-ink';
   }
 }
 
@@ -454,17 +454,17 @@ export default function WorkOrderDetailPage() {
   }
 
   if (!mounted) {
-    return <main className="p-6 text-slate-200">Cargando sesión…</main>;
+    return <main className="p-6 text-ink">Cargando sesión…</main>;
   }
 
   if (!session) {
     return (
-      <main className="min-h-screen bg-slate-950 p-6 text-slate-100">
-        <div className="mx-auto max-w-3xl rounded-3xl border border-slate-800 bg-slate-900 p-6">
-          <h1 className="text-2xl font-black">Sin sesión tenant.</h1>
+      <main className="min-h-screen bg-surface-2 p-6 text-ink">
+        <div className="mx-auto max-w-3xl rounded-xl border border-line bg-surface p-6">
+          <h1 className="text-2xl font-semibold">Sin sesión tenant.</h1>
           <Link
             href="/login"
-            className="mt-4 inline-flex rounded-2xl bg-white px-4 py-2 text-sm font-bold text-slate-950"
+            className="mt-4 inline-flex rounded-lg bg-accent px-4 py-2 text-sm font-bold text-white"
           >
             Ir a /login
           </Link>
@@ -474,43 +474,43 @@ export default function WorkOrderDetailPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 p-6 text-slate-100">
+    <main className="min-h-screen bg-surface-2 p-6 text-ink">
       <div className="mx-auto max-w-6xl space-y-6">
-        <header className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
-          <p className="text-sm font-bold uppercase tracking-[0.25em] text-slate-400">
+        <header className="rounded-xl border border-line bg-surface p-6">
+          <p className="text-sm font-bold uppercase tracking-[0.25em] text-muted">
             Work Order
           </p>
-          <h1 className="mt-2 text-3xl font-black">
+          <h1 className="mt-2 text-3xl font-semibold">
             Detalle completo y acciones operativas
           </h1>
           <Link
             href={isTechnician ? '/technician/dashboard/work-orders' : '/work-orders'}
-            className="mt-4 inline-flex rounded-2xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800"
+            className="mt-4 inline-flex rounded-lg border border-line px-4 py-2 text-sm font-bold text-ink hover:bg-surface-3"
           >
             ← Volver
           </Link>
         </header>
 
         {state.status === 'loading' ? (
-          <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
+          <section className="rounded-xl border border-line bg-surface p-6">
             Cargando…
           </section>
         ) : state.status === 'error' ? (
-          <section className="rounded-3xl border border-rose-500/40 bg-rose-500/10 p-6 text-rose-200">
+          <section className="rounded-xl border border-danger/30 bg-danger-soft p-6 text-danger">
             {state.error}
           </section>
         ) : (
-          <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
+          <section className="rounded-xl border border-line bg-surface p-6">
             <div className="flex flex-wrap items-center gap-2">
               <span
-                className={`rounded-full border px-3 py-1 text-xs font-black ${statusBadgeClass(
+                className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusBadgeClass(
                   state.data.status,
                 )}`}
               >
                 {formatStatus(state.data.status)}
               </span>
               <span
-                className={`rounded-full border px-3 py-1 text-xs font-black ${priorityBadgeClass(
+                className={`rounded-full border px-3 py-1 text-xs font-semibold ${priorityBadgeClass(
                   state.data.priority,
                 )}`}
               >
@@ -518,33 +518,33 @@ export default function WorkOrderDetailPage() {
               </span>
             </div>
 
-            <h2 className="mt-4 text-2xl font-black">{state.data.title}</h2>
+            <h2 className="mt-4 text-2xl font-semibold">{state.data.title}</h2>
 
-            <p className="mt-2 text-sm leading-6 text-slate-300">
+            <p className="mt-2 text-sm leading-6 text-ink-2">
               {state.data.description || 'Sin descripción.'}
             </p>
 
             <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
-                <p className="text-xs font-bold uppercase text-slate-500">Cliente</p>
+              <div className="rounded-lg border border-line bg-surface-2 p-4">
+                <p className="text-xs font-bold uppercase text-subtle">Cliente</p>
                 <p className="mt-1 font-bold">{state.data.customer?.name ?? '—'}</p>
               </div>
 
-              <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
-                <p className="text-xs font-bold uppercase text-slate-500">Site</p>
+              <div className="rounded-lg border border-line bg-surface-2 p-4">
+                <p className="text-xs font-bold uppercase text-subtle">Site</p>
                 <p className="mt-1 font-bold">{state.data.site?.name ?? '—'}</p>
                 {state.data.site?.address ? (
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-muted">
                     {state.data.site.address}
                   </p>
                 ) : null}
               </div>
 
-              <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
-                <p className="text-xs font-bold uppercase text-slate-500">Activo</p>
+              <div className="rounded-lg border border-line bg-surface-2 p-4">
+                <p className="text-xs font-bold uppercase text-subtle">Activo</p>
                 <p className="mt-1 font-bold">{state.data.asset?.name ?? '—'}</p>
                 {state.data.asset?.brand || state.data.asset?.model ? (
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-muted">
                     {[state.data.asset?.brand, state.data.asset?.model]
                       .filter(Boolean)
                       .join(' · ')}
@@ -552,13 +552,13 @@ export default function WorkOrderDetailPage() {
                 ) : null}
               </div>
 
-              <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
-                <p className="text-xs font-bold uppercase text-slate-500">
+              <div className="rounded-lg border border-line bg-surface-2 p-4">
+                <p className="text-xs font-bold uppercase text-subtle">
                   Asignado a
                 </p>
                 <p className="mt-1 font-bold">{getAssignedName(state.data)}</p>
                 {getAssignedEmail(state.data) ? (
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-muted">
                     {getAssignedEmail(state.data)}
                   </p>
                 ) : null}
@@ -567,34 +567,34 @@ export default function WorkOrderDetailPage() {
 
             <div className="mt-6 grid gap-4 md:grid-cols-4">
               <div>
-                <p className="text-xs font-bold uppercase text-slate-500">
+                <p className="text-xs font-bold uppercase text-subtle">
                   Programado
                 </p>
-                <p className="mt-1 text-sm text-slate-300">
+                <p className="mt-1 text-sm text-ink-2">
                   {formatDate(state.data.scheduledAt)}
                 </p>
               </div>
               <div>
-                <p className="text-xs font-bold uppercase text-slate-500">
+                <p className="text-xs font-bold uppercase text-subtle">
                   Iniciado
                 </p>
-                <p className="mt-1 text-sm text-slate-300">
+                <p className="mt-1 text-sm text-ink-2">
                   {formatDate(state.data.startedAt)}
                 </p>
               </div>
               <div>
-                <p className="text-xs font-bold uppercase text-slate-500">
+                <p className="text-xs font-bold uppercase text-subtle">
                   Completado
                 </p>
-                <p className="mt-1 text-sm text-slate-300">
+                <p className="mt-1 text-sm text-ink-2">
                   {formatDate(state.data.completedAt)}
                 </p>
               </div>
               <div>
-                <p className="text-xs font-bold uppercase text-slate-500">
+                <p className="text-xs font-bold uppercase text-subtle">
                   Actualizado
                 </p>
-                <p className="mt-1 text-sm text-slate-300">
+                <p className="mt-1 text-sm text-ink-2">
                   {formatDate(state.data.updatedAt)}
                 </p>
               </div>
@@ -602,9 +602,9 @@ export default function WorkOrderDetailPage() {
           </section>
         )}
 
-        <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
-          <h3 className="text-xl font-black">Cambiar estado</h3>
-          <p className="mt-1 text-sm text-slate-400">
+        <section className="rounded-xl border border-line bg-surface p-6">
+          <h3 className="text-xl font-semibold">Cambiar estado</h3>
+          <p className="mt-1 text-sm text-muted">
             Disponible para administración y técnico.
           </p>
 
@@ -622,7 +622,7 @@ export default function WorkOrderDetailPage() {
                     isCurrent ||
                     state.status !== 'ok'
                   }
-                  className="rounded-2xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-lg border border-line px-4 py-2 text-sm font-bold text-ink hover:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {formatStatus(status)}
                 </button>
@@ -632,14 +632,14 @@ export default function WorkOrderDetailPage() {
         </section>
 
         {canAssignTechnician ? (
-          <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
-            <h3 className="text-xl font-black">Asignar técnico</h3>
-            <p className="mt-1 text-sm text-slate-400">
+          <section className="rounded-xl border border-line bg-surface p-6">
+            <h3 className="text-xl font-semibold">Asignar técnico</h3>
+            <p className="mt-1 text-sm text-muted">
               Selecciona un técnico activo de la empresa.
             </p>
 
             {techniciansError ? (
-              <div className="mt-4 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200">
+              <div className="mt-4 rounded-lg border border-warning/30 bg-warning-soft p-4 text-sm text-warning">
                 {techniciansError}
               </div>
             ) : null}
@@ -648,7 +648,7 @@ export default function WorkOrderDetailPage() {
               <select
                 value={assignedToUserId}
                 onChange={(event) => setAssignedToUserId(event.target.value)}
-                className="h-11 flex-1 rounded-2xl border border-slate-700 bg-slate-950 px-4 text-sm text-slate-100 outline-none focus:border-slate-500"
+                className="h-11 flex-1 rounded-lg border border-line bg-surface-2 px-4 text-sm text-ink outline-none focus:border-accent"
               >
                 <option value="">Selecciona un técnico</option>
                 {technicians.map((technician) => (
@@ -662,7 +662,7 @@ export default function WorkOrderDetailPage() {
                 type="button"
                 onClick={() => void handleAssignTechnician()}
                 disabled={actionState.status === 'saving' || state.status !== 'ok'}
-                className="rounded-2xl bg-white px-5 py-2 text-sm font-black text-slate-950 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-lg bg-accent px-5 py-2 text-sm font-semibold text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Guardar asignación
               </button>
@@ -670,19 +670,19 @@ export default function WorkOrderDetailPage() {
           </section>
         ) : null}
 
-        <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
-          <h3 className="text-xl font-black">Estado de operación</h3>
+        <section className="rounded-xl border border-line bg-surface p-6">
+          <h3 className="text-xl font-semibold">Estado de operación</h3>
 
           {actionState.status === 'idle' ? (
-            <p className="mt-2 text-sm text-slate-400">Sin cambios pendientes.</p>
+            <p className="mt-2 text-sm text-muted">Sin cambios pendientes.</p>
           ) : actionState.status === 'saving' ? (
-            <p className="mt-2 text-sm text-blue-300">{actionState.message}</p>
+            <p className="mt-2 text-sm text-accent">{actionState.message}</p>
           ) : actionState.status === 'success' ? (
-            <p className="mt-2 text-sm text-emerald-300">
+            <p className="mt-2 text-sm text-success">
               {actionState.message}
             </p>
           ) : (
-            <p className="mt-2 text-sm text-rose-300">{actionState.message}</p>
+            <p className="mt-2 text-sm text-danger">{actionState.message}</p>
           )}
         </section>
       </div>

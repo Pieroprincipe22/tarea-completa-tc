@@ -192,35 +192,35 @@ function sortDateValue(row: WorkOrderRow): number {
 function statusBadgeClass(status: WorkOrderStatus): string {
   switch (status) {
     case 'OPEN':
-      return 'border-amber-500/40 bg-amber-500/10 text-amber-300';
+      return 'border-warning/30 bg-warning-soft text-warning';
     case 'ASSIGNED':
-      return 'border-sky-500/40 bg-sky-500/10 text-sky-300';
+      return 'border-accent/30 bg-accent-soft text-accent';
     case 'PENDING':
-      return 'border-purple-500/40 bg-purple-500/10 text-purple-300';
+      return 'border-special/30 bg-special-soft text-special';
     case 'IN_PROGRESS':
-      return 'border-blue-500/40 bg-blue-500/10 text-blue-300';
+      return 'border-accent/30 bg-accent-soft text-accent';
     case 'DONE':
-      return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
+      return 'border-success/30 bg-success-soft text-success';
     case 'CANCELLED':
     case 'CANCELED':
-      return 'border-rose-500/40 bg-rose-500/10 text-rose-300';
+      return 'border-danger/30 bg-danger-soft text-danger';
     default:
-      return 'border-slate-700 bg-slate-800 text-slate-200';
+      return 'border-line bg-surface-3 text-ink';
   }
 }
 
 function priorityBadgeClass(priority: WorkOrderPriority | null): string {
   switch (priority) {
     case 'URGENT':
-      return 'border-rose-500/40 bg-rose-500/10 text-rose-300';
+      return 'border-danger/30 bg-danger-soft text-danger';
     case 'HIGH':
-      return 'border-orange-500/40 bg-orange-500/10 text-orange-300';
+      return 'border-warning/30 bg-warning-soft text-warning';
     case 'MEDIUM':
-      return 'border-yellow-500/40 bg-yellow-500/10 text-yellow-300';
+      return 'border-warning/30 bg-warning-soft text-warning';
     case 'LOW':
-      return 'border-slate-700 bg-slate-800 text-slate-300';
+      return 'border-line bg-surface-3 text-ink-2';
     default:
-      return 'border-slate-700 bg-slate-800 text-slate-300';
+      return 'border-line bg-surface-3 text-ink-2';
   }
 }
 
@@ -381,7 +381,7 @@ export default function TechnicianDashboardPage() {
 
   if (!mounted) {
     return (
-      <main className="min-h-screen bg-slate-950 p-6 text-white">
+      <main className="min-h-screen bg-surface-2 p-6 text-ink">
         Cargando sesión…
       </main>
     );
@@ -389,13 +389,13 @@ export default function TechnicianDashboardPage() {
 
   if (!session) {
     return (
-      <main className="min-h-screen bg-slate-950 p-6 text-white">
-        <section className="mx-auto max-w-5xl rounded-3xl border border-rose-500/30 bg-rose-500/10 p-6 text-rose-200">
-          <h1 className="text-2xl font-black">Sin sesión</h1>
+      <main className="min-h-screen bg-surface-2 p-6 text-ink">
+        <section className="mx-auto max-w-5xl rounded-xl border border-danger/30 bg-danger-soft p-6 text-danger">
+          <h1 className="text-2xl font-semibold">Sin sesión</h1>
           <p className="mt-2 text-sm">Ve a login para entrar otra vez.</p>
           <Link
             href="/login"
-            className="mt-5 inline-flex rounded-2xl bg-sky-600 px-5 py-3 text-sm font-bold text-white hover:bg-sky-700"
+            className="mt-5 inline-flex rounded-lg bg-accent px-5 py-3 text-sm font-bold text-white hover:bg-accent-hover"
           >
             Ir a login
           </Link>
@@ -406,25 +406,25 @@ export default function TechnicianDashboardPage() {
 
   if (!isTechnicianSession(session)) {
     return (
-      <main className="min-h-screen bg-slate-950 p-6 text-white">
+      <main className="min-h-screen bg-surface-2 p-6 text-ink">
         Redirigiendo…
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 p-4 text-white md:p-8">
+    <main className="min-h-screen bg-surface-2 p-4 text-ink md:p-8">
       <div className="mx-auto max-w-7xl space-y-6">
-        <header className="rounded-3xl border border-white/10 bg-slate-900/80 p-6">
+        <header className="rounded-xl border border-line bg-surface p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
-              <p className="text-sm font-semibold text-slate-400">
+              <p className="text-sm font-semibold text-muted">
                 Panel técnico
               </p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight">
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight">
                 Dashboard técnico
               </h1>
-              <p className="mt-2 max-w-3xl text-sm text-slate-400">
+              <p className="mt-2 max-w-3xl text-sm text-muted">
                 Resumen de tus órdenes asignadas y accesos rápidos.
               </p>
             </div>
@@ -433,14 +433,14 @@ export default function TechnicianDashboardPage() {
               <button
                 type="button"
                 onClick={() => setReloadKey((current) => current + 1)}
-                className="inline-flex items-center justify-center rounded-2xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800"
+                className="inline-flex items-center justify-center rounded-lg border border-line px-4 py-2 text-sm font-bold text-ink hover:bg-surface-3"
               >
                 Actualizar
               </button>
 
               <Link
                 href="/technician/dashboard/work-orders"
-                className="inline-flex items-center justify-center rounded-2xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800"
+                className="inline-flex items-center justify-center rounded-lg border border-line px-4 py-2 text-sm font-bold text-ink hover:bg-surface-3"
               >
                 Ver mis work orders
               </Link>
@@ -449,68 +449,68 @@ export default function TechnicianDashboardPage() {
         </header>
 
         {state.status === 'error' ? (
-          <section className="rounded-3xl border border-rose-500/30 bg-rose-500/10 p-5 text-sm font-semibold text-rose-200">
+          <section className="rounded-xl border border-danger/30 bg-danger-soft p-5 text-sm font-semibold text-danger">
             {state.error}
           </section>
         ) : null}
 
         <section className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
-          <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-5">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+          <div className="rounded-xl border border-line bg-surface p-5">
+            <p className="text-xs font-bold uppercase tracking-wide text-subtle">
               Total asignadas
             </p>
-            <p className="mt-3 text-3xl font-black">{stats.total}</p>
+            <p className="mt-3 text-3xl font-semibold">{stats.total}</p>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-5">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+          <div className="rounded-xl border border-line bg-surface p-5">
+            <p className="text-xs font-bold uppercase tracking-wide text-subtle">
               Abiertas / asignadas
             </p>
-            <p className="mt-3 text-3xl font-black">{stats.open}</p>
+            <p className="mt-3 text-3xl font-semibold">{stats.open}</p>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-5">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+          <div className="rounded-xl border border-line bg-surface p-5">
+            <p className="text-xs font-bold uppercase tracking-wide text-subtle">
               En progreso
             </p>
-            <p className="mt-3 text-3xl font-black">{stats.inProgress}</p>
+            <p className="mt-3 text-3xl font-semibold">{stats.inProgress}</p>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-5">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+          <div className="rounded-xl border border-line bg-surface p-5">
+            <p className="text-xs font-bold uppercase tracking-wide text-subtle">
               En revisión
             </p>
-            <p className="mt-3 text-3xl font-black">{stats.review}</p>
+            <p className="mt-3 text-3xl font-semibold">{stats.review}</p>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-5">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+          <div className="rounded-xl border border-line bg-surface p-5">
+            <p className="text-xs font-bold uppercase tracking-wide text-subtle">
               Completadas
             </p>
-            <p className="mt-3 text-3xl font-black">{stats.done}</p>
+            <p className="mt-3 text-3xl font-semibold">{stats.done}</p>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-5">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+          <div className="rounded-xl border border-line bg-surface p-5">
+            <p className="text-xs font-bold uppercase tracking-wide text-subtle">
               Urgentes
             </p>
-            <p className="mt-3 text-3xl font-black">{stats.urgent}</p>
+            <p className="mt-3 text-3xl font-semibold">{stats.urgent}</p>
           </div>
         </section>
 
         <section className="grid gap-6 xl:grid-cols-2">
-          <section className="rounded-3xl border border-white/10 bg-slate-900/80 p-6">
+          <section className="rounded-xl border border-line bg-surface p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h2 className="text-xl font-black">Actividad reciente</h2>
-                <p className="mt-1 text-sm text-slate-400">
+                <h2 className="text-xl font-semibold">Actividad reciente</h2>
+                <p className="mt-1 text-sm text-muted">
                   Últimas órdenes actualizadas.
                 </p>
               </div>
 
               <Link
                 href="/technician/dashboard/work-orders"
-                className="text-sm font-bold text-sky-300 hover:text-sky-200"
+                className="text-sm font-bold text-accent hover:text-accent"
               >
                 Ir a work orders
               </Link>
@@ -518,22 +518,22 @@ export default function TechnicianDashboardPage() {
 
             <div className="mt-5 space-y-3">
               {state.status === 'loading' ? (
-                <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-5 text-sm text-slate-400">
+                <div className="rounded-lg border border-line bg-surface-2 p-5 text-sm text-muted">
                   Cargando órdenes…
                 </div>
               ) : recentItems.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-white/10 p-5 text-sm text-slate-500">
+                <div className="rounded-lg border border-dashed border-line p-5 text-sm text-subtle">
                   No tienes órdenes asignadas todavía.
                 </div>
               ) : (
                 recentItems.map((row) => (
                   <article
                     key={row.id}
-                    className="rounded-2xl border border-white/10 bg-slate-950/40 p-4"
+                    className="rounded-lg border border-line bg-surface-2 p-4"
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <h3 className="font-black text-white">{row.title}</h3>
+                        <h3 className="font-semibold text-ink">{row.title}</h3>
 
                         <div className="mt-2 flex flex-wrap gap-2">
                           <span
@@ -556,24 +556,24 @@ export default function TechnicianDashboardPage() {
 
                       <Link
                         href={`/technician/dashboard/work-orders/${row.id}`}
-                        className="inline-flex items-center justify-center rounded-2xl border border-slate-700 px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800"
+                        className="inline-flex items-center justify-center rounded-lg border border-line px-3 py-2 text-xs font-bold text-ink hover:bg-surface-3"
                       >
                         Ver detalle
                       </Link>
                     </div>
 
-                    <p className="mt-3 text-sm text-slate-400">
+                    <p className="mt-3 text-sm text-muted">
                       Cliente: {displayName(row.customer)} · Site:{' '}
                       {displayName(row.site)} · Asset: {displayName(row.asset)}
                     </p>
 
                     {row.description ? (
-                      <p className="mt-2 line-clamp-2 text-sm text-slate-500">
+                      <p className="mt-2 line-clamp-2 text-sm text-subtle">
                         {row.description}
                       </p>
                     ) : null}
 
-                    <p className="mt-3 text-xs font-semibold text-slate-500">
+                    <p className="mt-3 text-xs font-semibold text-subtle">
                       Última actualización:{' '}
                       {formatDate(
                         row.updatedAt ?? row.startedAt ?? row.scheduledFor,
@@ -585,34 +585,34 @@ export default function TechnicianDashboardPage() {
             </div>
           </section>
 
-          <section className="rounded-3xl border border-white/10 bg-slate-900/80 p-6">
-            <h2 className="text-xl font-black">Urgentes pendientes</h2>
-            <p className="mt-1 text-sm text-slate-400">
+          <section className="rounded-xl border border-line bg-surface p-6">
+            <h2 className="text-xl font-semibold">Urgentes pendientes</h2>
+            <p className="mt-1 text-sm text-muted">
               Órdenes urgentes que todavía requieren atención.
             </p>
 
             <div className="mt-5 space-y-3">
               {state.status === 'loading' ? (
-                <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-5 text-sm text-slate-400">
+                <div className="rounded-lg border border-line bg-surface-2 p-5 text-sm text-muted">
                   Cargando…
                 </div>
               ) : urgentItems.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-white/10 p-5 text-sm text-slate-500">
+                <div className="rounded-lg border border-dashed border-line p-5 text-sm text-subtle">
                   No tienes work orders urgentes pendientes.
                 </div>
               ) : (
                 urgentItems.map((row) => (
                   <article
                     key={row.id}
-                    className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4"
+                    className="rounded-lg border border-danger/30 bg-danger-soft p-4"
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <h3 className="font-black text-white">{row.title}</h3>
-                        <p className="mt-1 text-sm text-rose-100">
+                        <h3 className="font-semibold text-ink">{row.title}</h3>
+                        <p className="mt-1 text-sm text-danger">
                           {displayName(row.site)} · {displayName(row.asset)}
                         </p>
-                        <p className="mt-2 text-xs font-semibold text-rose-200">
+                        <p className="mt-2 text-xs font-semibold text-danger">
                           {formatStatus(row.status)} ·{' '}
                           {formatDate(row.updatedAt ?? row.scheduledFor)}
                         </p>
@@ -620,7 +620,7 @@ export default function TechnicianDashboardPage() {
 
                       <Link
                         href={`/technician/dashboard/work-orders/${row.id}`}
-                        className="inline-flex items-center justify-center rounded-2xl bg-rose-600 px-3 py-2 text-xs font-bold text-white hover:bg-rose-700"
+                        className="inline-flex items-center justify-center rounded-lg bg-danger px-3 py-2 text-xs font-bold text-white hover:bg-danger/90"
                       >
                         Ver detalle
                       </Link>
@@ -632,13 +632,13 @@ export default function TechnicianDashboardPage() {
           </section>
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-slate-900/80 p-6">
-          <h2 className="text-xl font-black">Accesos rápidos</h2>
+        <section className="rounded-xl border border-line bg-surface p-6">
+          <h2 className="text-xl font-semibold">Accesos rápidos</h2>
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
             <Link
               href="/technician/dashboard/work-orders"
-              className="inline-flex items-center justify-center rounded-2xl bg-sky-600 px-5 py-3 text-sm font-black text-white hover:bg-sky-700"
+              className="inline-flex items-center justify-center rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-white hover:bg-accent-hover"
             >
               Ver todas mis work orders
             </Link>
@@ -646,7 +646,7 @@ export default function TechnicianDashboardPage() {
             <button
               type="button"
               onClick={() => setReloadKey((current) => current + 1)}
-              className="inline-flex items-center justify-center rounded-2xl border border-slate-700 px-5 py-3 text-sm font-black text-slate-200 hover:bg-slate-800"
+              className="inline-flex items-center justify-center rounded-lg border border-line px-5 py-3 text-sm font-semibold text-ink hover:bg-surface-3"
             >
               Actualizar dashboard
             </button>
