@@ -117,7 +117,7 @@ function extractApiMessage(json: unknown): string {
     );
 
     if (parts.length > 0) {
-      return parts.join(' Â· ');
+      return parts.join(' · ');
     }
   }
 
@@ -357,7 +357,7 @@ export function resolveCoreNavItems(
       },
       {
         key: 'workOrders',
-        title: 'Mis Ã³rdenes',
+        title: 'Mis órdenes',
         path: '/technician/dashboard/work-orders',
       },
     ];
@@ -381,7 +381,7 @@ export function resolveCoreNavItems(
     },
     {
       key: 'reports',
-      title: 'Partes tÃ©cnicos',
+      title: 'Partes técnicos',
       path: '/maintenance-reports',
     },
     {
@@ -400,4 +400,50 @@ export function resolveCoreNavItems(
       path: '/assets',
     },
   ];
+}
+
+// Sube un archivo (multipart/form-data) con las mismas cabeceras de sesión que tcFetch.
+export async function tcUpload<T = unknown>(
+  session: TcSession | null,
+  path: string,
+  file: File,
+  fieldName = 'file',
+): Promise<TcApiResponse<T>> {
+  const base = normalizeBaseUrl(session?.apiBase ?? DEFAULT_API_BASE);
+
+  // Sin Content-Type: el navegador lo pone él con el "boundary" del formulario.
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+  };
+
+  const companyId = normalizeHeaderValue(session?.companyId);
+  const userId = normalizeHeaderValue(session?.userId);
+  const accessToken = normalizeHeaderValue(session?.accessToken);
+
+  if (companyId) headers['x-company-id'] = companyId;
+  if (userId) headers['x-user-id'] = userId;
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
+  const body = new FormData();
+  body.append(fieldName, file);
+
+  const response = await fetch(toUrl(base, path), {
+    method: 'POST',
+    headers,
+    body,
+    cache: 'no-store',
+    credentials: 'include',
+  });
+
+  const json = (await readBody(response)) as T;
+
+  if (isExpiredOrInvalidAuth(response.status, json)) {
+    clearTcSession();
+    redirectToLoginPreservingNext();
+  }
+
+  return {
+    code: response.status,
+    json,
+  };
 }

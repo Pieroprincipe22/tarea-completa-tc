@@ -324,20 +324,15 @@ const ADMIN_SECTIONS: TcNavSection[] = [
   {
     key: 'configuracion',
     title: 'Configuración',
-    sectionPath: '/settings',
+    sectionPath: '/settings/company',
     groups: [
       {
         key: 'configuracion-main',
         title: 'Configuración',
         shortTitle: 'Configuración',
         items: [
-          leaf('settings', 'Configuración', '/settings', {
-            description: 'Ajustes generales del sistema.',
-            comingSoon: true,
-          }),
           leaf('settings-company', 'Empresa', '/settings/company', {
-            description: 'Datos de empresa, branding y preferencias.',
-            comingSoon: true,
+            description: 'Datos fiscales, logo e IVA de tu empresa.',
           }),
           leaf('settings-security', 'Seguridad', '/settings/security', {
             description: 'Roles, sesiones y seguridad de acceso.',

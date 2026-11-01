@@ -33,3 +33,24 @@ export const imageAndPdfUploadOptions = {
     );
   },
 };
+
+// Logo de la empresa: solo imágenes ligeras y sin SVG (un SVG puede llevar código).
+const LOGO_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
+
+export const MAX_LOGO_BYTES = 2 * 1024 * 1024; // 2 MB
+
+export const logoUploadOptions = {
+  limits: { fileSize: MAX_LOGO_BYTES },
+  fileFilter: (
+    _req: unknown,
+    file: { mimetype: string },
+    cb: (error: Error | null, acceptFile: boolean) => void,
+  ) => {
+    if (LOGO_MIME.has(file.mimetype)) {
+      cb(null, true);
+      return;
+    }
+
+    cb(new BadRequestException('El logo tiene que ser una imagen PNG, JPG o WEBP.'), false);
+  },
+};

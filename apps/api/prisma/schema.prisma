@@ -115,6 +115,21 @@ model Company {
   existe    Boolean     @default(true)
   plan          CompanyPlan @default(BASIC)
   invoicePrefix String?
+
+  // Datos de la empresa (los edita su administrador en Configuración → Empresa)
+  legalName      String?
+  taxId          String?
+  addressLine    String?
+  postalCode     String?
+  city           String?
+  province       String?
+  country        String?  @default("España")
+  phone          String?
+  email          String?
+  website        String?
+  iban           String?
+  defaultTaxRate Decimal  @default(21) @db.Decimal(5, 2)
+  logoKey        String?
   createdAt     DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 

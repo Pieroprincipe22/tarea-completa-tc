@@ -21,6 +21,7 @@ import { TechniciansModule } from './technicians/technicians.module';
 import { TenantModule } from './tenant/tenant.module';
 import { WorkOrdersModule } from './work-orders/work-orders.module';
 import { InvoicesModule } from './invoices/invoices.module';
+import { CompanySettingsModule } from './company-settings/company-settings.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -52,6 +53,7 @@ import { InvoicesModule } from './invoices/invoices.module';
     AttachmentsModule,
     AdminModule,
     InvoicesModule,
+    CompanySettingsModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

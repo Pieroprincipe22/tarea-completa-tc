@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import {
   CreateBucketCommand,
+  DeleteObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
   PutObjectCommand,
@@ -82,6 +83,10 @@ export class StorageService implements OnModuleInit {
         ContentType: contentType,
       }),
     );
+  }
+
+  async deleteObject(key: string) {
+    await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
   }
 
   async getSignedUrl(key: string) {
