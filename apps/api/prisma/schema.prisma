@@ -116,6 +116,10 @@ model Company {
   plan          CompanyPlan @default(BASIC)
   invoicePrefix String?
 
+  // Numeración de documentos: PREFIJO-AÑO-NÚMERO (OT-2026-0001, P-2026-0001…)
+  workOrderPrefix String @default("OT")
+  quotePrefix     String @default("P")
+
   // Datos de la empresa (los edita su administrador en Configuración → Empresa)
   legalName      String?
   taxId          String?
@@ -633,8 +637,6 @@ model InvoiceItem {
   @@index([maintenanceReportMaterialId])
 }
 
-// Enlaces de un solo uso para recuperar la contraseña.
-// Solo se guarda el hash SHA-256 del token: el token en claro viaja en el email.
 model PasswordResetToken {
   id        String    @id @default(cuid())
   userId    String

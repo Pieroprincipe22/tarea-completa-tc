@@ -39,6 +39,16 @@ describe('UpdateCompanySettingsDto', () => {
     );
   });
 
+  it('pasa los prefijos a mayúsculas y rechaza espacios o símbolos', async () => {
+    const ok = await check({ workOrderPrefix: ' pt ', quotePrefix: 'pre26' });
+    expect(ok.messages).toEqual([]);
+    expect(ok.dto.workOrderPrefix).toBe('PT');
+    expect(ok.dto.quotePrefix).toBe('PRE26');
+
+    const bad = await check({ invoicePrefix: 'FAC 1', workOrderPrefix: 'DEMASIADOLARGO' });
+    expect(bad.messages).toHaveLength(2);
+  });
+
   it('rechaza campos que no existen', async () => {
     const { messages } = await check({ plan: 'ENTERPRISE' });
     expect(messages.length).toBeGreaterThan(0);

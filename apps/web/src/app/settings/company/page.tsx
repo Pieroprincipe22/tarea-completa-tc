@@ -37,7 +37,18 @@ type CompanySettings = {
   website: string | null;
   iban: string | null;
   defaultTaxRate: number;
+  workOrderPrefix: string;
+  quotePrefix: string;
+  invoicePrefix: string | null;
   logoUrl: string | null;
+  numbering: Numbering;
+};
+
+type DocumentKind = 'workOrder' | 'quote' | 'invoice';
+
+type Numbering = {
+  year: number;
+  next: Record<DocumentKind, number>;
 };
 
 const TEXT_FIELDS = [
@@ -55,8 +66,53 @@ const TEXT_FIELDS = [
 ] as const;
 
 type TextField = (typeof TEXT_FIELDS)[number];
-type FormField = TextField | 'defaultTaxRate';
+
+const PREFIX_FIELDS = [
+  'workOrderPrefix',
+  'quotePrefix',
+  'invoicePrefix',
+] as const;
+type PrefixField = (typeof PREFIX_FIELDS)[number];
+
+type FormField = TextField | PrefixField | 'defaultTaxRate';
 type FormState = Record<FormField, string>;
+
+// Igual que en la API: letras y números, de 1 a 8, sin espacios.
+const PREFIX_PATTERN = /^[A-Z0-9]{1,8}$/;
+
+const PREFIXES: {
+  name: PrefixField;
+  kind: DocumentKind;
+  label: string;
+  placeholder: string;
+  required: boolean;
+}[] = [
+  {
+    name: 'workOrderPrefix',
+    kind: 'workOrder',
+    label: 'Órdenes de trabajo',
+    placeholder: 'OT',
+    required: true,
+  },
+  {
+    name: 'quotePrefix',
+    kind: 'quote',
+    label: 'Presupuestos',
+    placeholder: 'P',
+    required: true,
+  },
+  {
+    name: 'invoicePrefix',
+    kind: 'invoice',
+    label: 'Facturas',
+    placeholder: 'FAC',
+    required: false,
+  },
+];
+
+function formatNumber(prefix: string, year: number, sequence: number): string {
+  return `${prefix}-${year}-${String(sequence).padStart(4, '0')}`;
+}
 
 type FieldDef = {
   name: FormField;
@@ -185,13 +241,17 @@ const LOGO_MAX_BYTES = 2 * 1024 * 1024;
 function toForm(settings: CompanySettings): FormState {
   const form = {} as FormState;
   for (const field of TEXT_FIELDS) form[field] = settings[field] ?? '';
+  for (const field of PREFIX_FIELDS) form[field] = settings[field] ?? '';
   form.defaultTaxRate = String(settings.defaultTaxRate).replace('.', ',');
   return form;
 }
 
 function isCompanySettings(value: unknown): value is CompanySettings {
   return (
-    isRecord(value) && typeof value.id === 'string' && 'defaultTaxRate' in value
+    isRecord(value) &&
+    typeof value.id === 'string' &&
+    'defaultTaxRate' in value &&
+    isRecord(value.numbering)
   );
 }
 
@@ -295,14 +355,40 @@ export default function CompanySettingsPage() {
     const payload: Record<string, unknown> = {};
     for (const field of TEXT_FIELDS) payload[field] = form[field];
 
+    const problems: string[] = [];
+    for (const def of PREFIXES) {
+      const value = form[def.name].trim().toUpperCase();
+      if (value === '') {
+        // Una vez puesto, un prefijo no se puede quitar (solo cambiar).
+        if (def.required || saved?.[def.name]) {
+          problems.push(
+            `El prefijo de ${def.label.toLowerCase()} no puede quedar vacío.`,
+          );
+        }
+        continue;
+      }
+      if (!PREFIX_PATTERN.test(value)) {
+        problems.push(
+          `El prefijo de ${def.label.toLowerCase()} solo puede llevar letras y números, sin espacios (máximo 8).`,
+        );
+        continue;
+      }
+      payload[def.name] = value;
+    }
+
     const rawRate = form.defaultTaxRate.trim().replace(',', '.');
     if (rawRate !== '') {
       const rate = Number(rawRate);
       if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
-        setErrors(['El IVA tiene que ser un número entre 0 y 100.']);
-        return;
+        problems.push('El IVA tiene que ser un número entre 0 y 100.');
+      } else {
+        payload.defaultTaxRate = Math.round(rate * 100) / 100;
       }
-      payload.defaultTaxRate = Math.round(rate * 100) / 100;
+    }
+
+    if (problems.length > 0) {
+      setErrors(problems);
+      return;
     }
 
     setSaving(true);
@@ -560,6 +646,76 @@ export default function CompanySettingsPage() {
               </div>
             </section>
           ))}
+
+          <section className="tc-panel p-5 sm:p-6">
+            <h2 className="text-base font-semibold text-ink">Numeración</h2>
+            <p className="mt-1 text-sm text-muted">
+              Cada documento lleva su número: prefijo, año y un contador que
+              vuelve a empezar en 0001 cada 1 de enero.
+            </p>
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-3">
+              {PREFIXES.map((def) => {
+                const id = `field-${def.name}`;
+                const previewId = `${id}-preview`;
+                const prefix = form[def.name].trim().toUpperCase();
+                const valid = PREFIX_PATTERN.test(prefix);
+                const next = saved.numbering.next[def.kind];
+                return (
+                  <div key={def.name}>
+                    <label
+                      htmlFor={id}
+                      className="mb-1.5 block text-sm font-medium text-ink-2"
+                    >
+                      {def.label}
+                    </label>
+                    <input
+                      id={id}
+                      name={def.name}
+                      type="text"
+                      autoComplete="off"
+                      autoCapitalize="characters"
+                      spellCheck={false}
+                      maxLength={8}
+                      placeholder={def.placeholder}
+                      value={form[def.name]}
+                      onChange={(e) =>
+                        onChange(
+                          def.name,
+                          e.target.value.toUpperCase().replace(/\s/g, ''),
+                        )
+                      }
+                      aria-describedby={previewId}
+                      disabled={saving}
+                      className="tc-input font-mono uppercase"
+                    />
+                    <p id={previewId} className="mt-1.5 text-xs text-subtle">
+                      {valid ? (
+                        <>
+                          Próximo:{' '}
+                          <span className="font-mono text-ink-2">
+                            {formatNumber(prefix, saved.numbering.year, next)}
+                          </span>
+                        </>
+                      ) : prefix === '' && !def.required ? (
+                        <span className="text-warning">
+                          Sin prefijo no se pueden emitir facturas.
+                        </span>
+                      ) : (
+                        'Solo letras y números, sin espacios.'
+                      )}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+
+            <p className="mt-4 text-xs text-subtle">
+              Cambiar un prefijo no cambia los documentos ya creados. Evita
+              cambiar el de facturas a mitad de año: las facturas de una misma
+              serie tienen que ir seguidas.
+            </p>
+          </section>
 
           <div className="sticky bottom-0 -mx-1 flex flex-wrap items-center justify-end gap-3 border-t border-line bg-canvas/95 px-1 py-4 backdrop-blur">
             {dirty ? (

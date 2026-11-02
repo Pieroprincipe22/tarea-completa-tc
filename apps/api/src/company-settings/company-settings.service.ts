@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
+import { NumberingService, type NextNumbers } from '../numbering/numbering.service';
 import { StorageService } from '../storage/storage.service';
 import { UpdateCompanySettingsDto } from './dto/update-company-settings.dto';
 
@@ -19,6 +20,9 @@ const SETTINGS_SELECT = {
   website: true,
   iban: true,
   defaultTaxRate: true,
+  workOrderPrefix: true,
+  quotePrefix: true,
+  invoicePrefix: true,
   logoKey: true,
 } satisfies Prisma.CompanySelect;
 
@@ -39,9 +43,14 @@ const TEXT_FIELDS = [
   'iban',
 ] as const;
 
+// Prefijos de numeración: se pueden cambiar pero no dejar vacíos.
+const PREFIX_FIELDS = ['workOrderPrefix', 'quotePrefix', 'invoicePrefix'] as const;
+
 export type CompanySettingsView = Omit<CompanySettingsRow, 'logoKey' | 'defaultTaxRate'> & {
   defaultTaxRate: number;
   logoUrl: string | null;
+  // Número que llevará el próximo documento de cada tipo este año.
+  numbering: NextNumbers;
 };
 
 const LOGO_EXTENSIONS: Record<string, string> = {
@@ -81,6 +90,7 @@ export class CompanySettingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly numbering: NumberingService,
   ) {}
 
   async get(companyId: string): Promise<CompanySettingsView> {
@@ -103,6 +113,11 @@ export class CompanySettingsService {
 
     if (typeof dto.defaultTaxRate === 'number') {
       data.defaultTaxRate = dto.defaultTaxRate;
+    }
+
+    for (const field of PREFIX_FIELDS) {
+      const value = dto[field];
+      if (typeof value === 'string') data[field] = value;
     }
 
     const company = await this.prisma.company.update({
@@ -184,6 +199,7 @@ export class CompanySettingsService {
       ...rest,
       defaultTaxRate: defaultTaxRate.toNumber(),
       logoUrl: logoKey ? await this.storage.getSignedUrl(logoKey) : null,
+      numbering: await this.numbering.preview(company.id),
     };
   }
 }

@@ -12,6 +12,7 @@ import {
   ValidateBy,
   type ValidationOptions,
 } from 'class-validator';
+import { PREFIX_PATTERN } from '../../numbering/numbering.service';
 import { isValidIban, isValidSpanishTaxId, normalizeIban, normalizeTaxId } from '../tax-id';
 
 type TransformArg = { value: unknown };
@@ -29,6 +30,10 @@ const normalizeWith =
     const trimmed = trimOrNull({ value });
     return typeof trimmed === 'string' ? fn(trimmed) : trimmed;
   };
+
+const toPrefix = normalizeWith((v) => v.toUpperCase());
+
+const PREFIX_MESSAGE = 'El prefijo solo puede llevar letras y números, sin espacios (máximo 8).';
 
 function IsSpanishTaxId(options?: ValidationOptions) {
   return ValidateBy(
@@ -138,4 +143,23 @@ export class UpdateCompanySettingsDto {
   @Min(0, { message: 'El IVA no puede ser negativo.' })
   @Max(100, { message: 'El IVA no puede superar el 100 %.' })
   defaultTaxRate?: number | null;
+
+  // Prefijos de numeración (OT-2026-0001). No se pueden borrar: si llegan vacíos se ignoran.
+  @IsOptional()
+  @Transform(toPrefix)
+  @IsString()
+  @Matches(PREFIX_PATTERN, { message: PREFIX_MESSAGE })
+  workOrderPrefix?: string | null;
+
+  @IsOptional()
+  @Transform(toPrefix)
+  @IsString()
+  @Matches(PREFIX_PATTERN, { message: PREFIX_MESSAGE })
+  quotePrefix?: string | null;
+
+  @IsOptional()
+  @Transform(toPrefix)
+  @IsString()
+  @Matches(PREFIX_PATTERN, { message: PREFIX_MESSAGE })
+  invoicePrefix?: string | null;
 }

@@ -2,22 +2,61 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { WorkOrdersService } from './work-orders.service';
 
 function makePrisma() {
-  return {
+  const prisma = {
     workOrder: {
       findFirst: jest.fn(),
+      create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
     },
+    // La transacción ejecuta el callback con el mismo cliente simulado.
+    $transaction: jest.fn(),
   };
+  prisma.$transaction.mockImplementation((fn: (tx: typeof prisma) => unknown) => fn(prisma));
+  return prisma;
+}
+
+function makeNumbering() {
+  return { next: jest.fn().mockResolvedValue('OT-2026-0001') };
 }
 
 describe('WorkOrdersService', () => {
   let prisma: ReturnType<typeof makePrisma>;
+  let numbering: ReturnType<typeof makeNumbering>;
   let service: WorkOrdersService;
 
   beforeEach(() => {
     prisma = makePrisma();
-    service = new WorkOrdersService(prisma as any);
+    numbering = makeNumbering();
+    service = new WorkOrdersService(prisma as any, numbering as any);
+  });
+
+  describe('create() — numeración', () => {
+    it('pone el siguiente número de la empresa y no deja elegirlo desde fuera', async () => {
+      prisma.workOrder.create.mockImplementation(({ data }) => Promise.resolve(data));
+
+      const created = await service.create(
+        'company-1',
+        { title: 'Revisión split', code: 'OT-2026-9999' },
+        'user-1',
+      );
+
+      expect(numbering.next).toHaveBeenCalledWith(prisma, 'company-1', 'workOrder');
+      expect(created).toMatchObject({
+        code: 'OT-2026-0001',
+        companyId: 'company-1',
+        createdById: 'user-1',
+      });
+    });
+
+    it('no crea la orden si no se pudo reservar el número', async () => {
+      numbering.next.mockRejectedValue(new Error('sin prefijo'));
+
+      await expect(service.create('company-1', { title: 'Revisión split' })).rejects.toThrow(
+        'sin prefijo',
+      );
+      expect(prisma.workOrder.create).not.toHaveBeenCalled();
+    });
   });
 
   describe('findOne() — aislamiento multiempresa', () => {
@@ -52,9 +91,9 @@ describe('WorkOrdersService', () => {
     it('rechaza un estado que no existe en el enum', async () => {
       prisma.workOrder.findFirst.mockResolvedValue({ id: 'wo-1', companyId: 'company-1' });
 
-      await expect(
-        service.updateStatus('company-1', 'wo-1', 'NO_EXISTE'),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.updateStatus('company-1', 'wo-1', 'NO_EXISTE')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
 
       expect(prisma.workOrder.update).not.toHaveBeenCalled();
     });

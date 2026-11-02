@@ -20,6 +20,9 @@ function row(overrides: Record<string, unknown> = {}) {
     website: null,
     iban: null,
     defaultTaxRate: new Prisma.Decimal(21),
+    workOrderPrefix: 'OT',
+    quotePrefix: 'P',
+    invoicePrefix: null,
     logoKey: null,
     ...overrides,
   };
@@ -37,8 +40,13 @@ function setup() {
     deleteObject: jest.fn().mockResolvedValue(undefined),
     getSignedUrl: jest.fn().mockResolvedValue('https://files/logo'),
   };
-  const service = new CompanySettingsService(prisma as never, storage as never);
-  return { prisma, storage, service };
+  const numbering = {
+    preview: jest
+      .fn()
+      .mockResolvedValue({ year: 2026, next: { workOrder: 1, quote: 1, invoice: 1 } }),
+  };
+  const service = new CompanySettingsService(prisma as never, storage as never, numbering as never);
+  return { prisma, storage, numbering, service };
 }
 
 describe('CompanySettingsService', () => {
@@ -65,6 +73,22 @@ describe('CompanySettingsService', () => {
     const { prisma, service } = setup();
     await service.update('c1', { defaultTaxRate: null });
     expect(prisma.company.update.mock.calls[0][0].data).toEqual({});
+  });
+
+  it('guarda los prefijos de numeración pero ignora los que llegan vacíos', async () => {
+    const { prisma, service } = setup();
+    await service.update('c1', { workOrderPrefix: 'PT', quotePrefix: null, invoicePrefix: 'FAC' });
+    expect(prisma.company.update.mock.calls[0][0].data).toEqual({
+      workOrderPrefix: 'PT',
+      invoicePrefix: 'FAC',
+    });
+  });
+
+  it('incluye el número que llevará el próximo documento', async () => {
+    const { numbering, service } = setup();
+    const view = await service.get('c1');
+    expect(numbering.preview).toHaveBeenCalledWith('c1');
+    expect(view.numbering.next.workOrder).toBe(1);
   });
 
   it('rechaza un archivo que dice ser PNG pero no lo es', async () => {

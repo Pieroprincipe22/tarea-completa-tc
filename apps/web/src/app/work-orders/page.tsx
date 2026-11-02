@@ -31,6 +31,7 @@ type StatusFilterValue =
 
 type WorkOrderRow = {
   id: string;
+  code: string | null;
   title: string;
   description?: string | null;
   status: string;
@@ -94,6 +95,7 @@ function parseRow(value: unknown): WorkOrderRow {
   if (!isRecord(value)) {
     return {
       id: '',
+      code: null,
       title: '—',
       status: '—',
       priority: null,
@@ -102,6 +104,7 @@ function parseRow(value: unknown): WorkOrderRow {
 
   return {
     id: asStr(value.id),
+    code: asNullableStr(value.code),
     title: asStr(value.title, '—'),
     description: asNullableStr(value.description),
     status: asStr(value.status, '—'),
@@ -249,8 +252,9 @@ export default function WorkOrdersPage() {
         query.set('status', statusFilter);
       }
 
+      // La API filtra con "search" (número, título o descripción).
       if (searchTerm.trim()) {
-        query.set('q', searchTerm.trim());
+        query.set('search', searchTerm.trim());
       }
 
       const response = await tcGet(session, `${paths.workOrders}?${query.toString()}`);
@@ -400,7 +404,7 @@ export default function WorkOrdersPage() {
             <input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Buscar por título o descripción"
+              placeholder="Buscar por número, título o descripción"
               className="h-11 flex-1 rounded-lg border border-line bg-surface-2 px-4 text-sm text-ink outline-none focus:border-accent"
             />
 
@@ -473,7 +477,7 @@ export default function WorkOrdersPage() {
               <table className="w-full min-w-[1180px] border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b border-line text-xs uppercase tracking-wide text-subtle">
-                    <th className="px-3 py-3">#</th>
+                    <th className="px-3 py-3">Nº</th>
                     <th className="px-3 py-3">Título</th>
                     <th className="px-3 py-3">Cliente</th>
                     <th className="px-3 py-3">Site</th>
@@ -487,12 +491,14 @@ export default function WorkOrdersPage() {
                 </thead>
 
                 <tbody>
-                  {state.data.map((order, index) => (
+                  {state.data.map((order) => (
                     <tr
                       key={order.id}
                       className="border-b border-line align-top last:border-0"
                     >
-                      <td className="px-3 py-4 text-ink-2">{index + 1}</td>
+                      <td className="whitespace-nowrap px-3 py-4 font-mono text-xs text-ink-2">
+                        {order.code ?? '—'}
+                      </td>
 
                       <td className="px-3 py-4">
                         <p className="max-w-[260px] font-semibold text-ink">

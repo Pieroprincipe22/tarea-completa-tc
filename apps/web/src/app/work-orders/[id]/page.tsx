@@ -57,6 +57,7 @@ type TechnicianOption = {
 
 type WorkOrderDetail = {
   id: string;
+  code: string | null;
   title: string;
   description?: string | null;
   status: string;
@@ -130,6 +131,7 @@ function parseDetail(value: unknown): WorkOrderDetail | null {
 
   return {
     id,
+    code: asNullableStr(value.code),
     title,
     description: asNullableStr(value.description),
     status: asStr(value.status, '—'),
@@ -518,7 +520,17 @@ export default function WorkOrderDetailPage() {
               </span>
             </div>
 
-            <h2 className="mt-4 text-2xl font-semibold">{state.data.title}</h2>
+            {state.data.code ? (
+              <p className="mt-4 font-mono text-sm font-medium text-muted">
+                {state.data.code}
+              </p>
+            ) : null}
+
+            <h2
+              className={`${state.data.code ? 'mt-1' : 'mt-4'} text-2xl font-semibold`}
+            >
+              {state.data.title}
+            </h2>
 
             <p className="mt-2 text-sm leading-6 text-ink-2">
               {state.data.description || 'Sin descripción.'}

@@ -4,6 +4,7 @@
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { NumberingService } from '../numbering/numbering.service';
 import { QueryWorkOrdersDto } from './dto/query-work-orders.dto';
 
 type WorkOrderPlainObject = Record<string, unknown>;
@@ -27,7 +28,10 @@ type WorkOrderInclude = Record<string, unknown>;
 
 @Injectable()
 export class WorkOrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly numbering: NumberingService,
+  ) {}
 
   private readonly workOrderInclude: WorkOrderInclude = {
     customer: {
@@ -197,6 +201,13 @@ Estados probados: ${candidates.join(', ')}`,
     delete data.createdBy;
     delete data.company;
     delete data.maintenanceTemplate;
+
+    /**
+     * El número y la empresa los pone siempre el servidor: nadie puede
+     * elegir su propio número ni mover una orden a otra empresa.
+     */
+    delete data.code;
+    delete data.companyId;
 
     /**
      * Fechas.
@@ -416,9 +427,17 @@ Estados probados: ${candidates.join(', ')}`,
       data.createdById = createdById;
     }
 
-    return this.prisma.workOrder.create({
-      data: data as any,
-      include: this.workOrderInclude,
+    /**
+     * El número (OT-2026-0001) se reserva en la misma transacción que crea
+     * la orden: si algo falla, el número no se gasta y no quedan huecos.
+     */
+    return this.prisma.$transaction(async (tx) => {
+      data.code = await this.numbering.next(tx, companyId, 'workOrder');
+
+      return tx.workOrder.create({
+        data: data as any,
+        include: this.workOrderInclude,
+      });
     });
   }
 
