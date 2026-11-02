@@ -378,7 +378,8 @@ model WorkOrder {
   @@index([siteId])
   @@index([assetId])
   @@index([maintenanceTemplateId])
-  @@index([companyId, code])
+  // Una empresa no puede tener dos órdenes con el mismo número.
+  @@unique([companyId, code])
 }
 
 model MaintenanceReport {
@@ -577,7 +578,7 @@ model Invoice {
   companyId           String
   workOrderId         String?       @unique
   maintenanceReportId String?       @unique
-  invoiceNumber       String?       @unique
+  invoiceNumber       String?
   status              InvoiceStatus @default(DRAFT)
   currency            String        @default("EUR")
 
@@ -601,6 +602,8 @@ model Invoice {
   maintenanceReport MaintenanceReport? @relation(fields: [maintenanceReportId], references: [id], onDelete: SetNull)
   items             InvoiceItem[]
 
+  // El número es único dentro de cada empresa (dos empresas pueden usar el mismo prefijo).
+  @@unique([companyId, invoiceNumber])
   @@index([companyId, status])
 }
 

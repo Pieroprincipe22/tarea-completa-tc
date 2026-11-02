@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { NumberingService } from '../numbering/numbering.service';
 import { StorageService } from '../storage/storage.service';
 import { PdfService } from '../pdf/pdf.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
@@ -20,42 +21,8 @@ export class InvoicesService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly pdf: PdfService,
+    private readonly numbering: NumberingService,
   ) {}
-
-  // ---------------------------------------------------------------
-  // Numeración: PREFIJO-AÑO-CORRELATIVO (ej. HR-2026-0001).
-  // Usa CompanyCounter con una key por año ("invoice:2026") para que
-  // el correlativo se reinicie cada año y sea correlativo sin huecos.
-  // Se ejecuta DENTRO de la transacción de creación.
-  // ---------------------------------------------------------------
-  private async nextInvoiceNumber(
-    tx: any,
-    companyId: string,
-  ): Promise<string> {
-    const company = await tx.company.findUnique({
-      where: { id: companyId },
-      select: { invoicePrefix: true },
-    });
-
-    if (!company?.invoicePrefix) {
-      throw new BadRequestException(
-        'La empresa no tiene prefijo de facturación configurado. Configúralo antes de emitir facturas.',
-      );
-    }
-
-    const year = new Date().getFullYear();
-    const counterKey = `invoice:${year}`;
-
-    // upsert atómico: crea el contador del año si no existe, o lo incrementa.
-    const counter = await tx.companyCounter.upsert({
-      where: { companyId_key: { companyId, key: counterKey } },
-      create: { companyId, key: counterKey, value: 1 },
-      update: { value: { increment: 1 } },
-    });
-
-    const correlative = String(counter.value).padStart(4, '0');
-    return `${company.invoicePrefix}-${year}-${correlative}`;
-  }
 
   // ---------------------------------------------------------------
   // Crear factura.
@@ -156,8 +123,10 @@ export class InvoicesService {
     }
 
     // 6) Crear todo en transacción: número + factura + líneas.
+    //    El número (PREFIJO-AÑO-0001) sale del mismo contador que usan las
+    //    órdenes y los presupuestos; si algo falla, no se gasta.
     return this.prisma.$transaction(async (tx: any) => {
-      const invoiceNumber = await this.nextInvoiceNumber(tx, companyId);
+      const invoiceNumber = await this.numbering.next(tx, companyId, 'invoice');
 
       const invoice = await tx.invoice.create({
         data: {

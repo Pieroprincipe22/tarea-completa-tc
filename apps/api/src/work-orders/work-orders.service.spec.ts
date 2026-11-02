@@ -9,6 +9,13 @@ function makePrisma() {
       update: jest.fn(),
       delete: jest.fn(),
     },
+    // Por defecto todo lo que se enlaza es de la empresa; cada test cambia lo que necesite.
+    customer: { findFirst: jest.fn().mockResolvedValue({ id: 'customer-1' }) },
+    site: {
+      findFirst: jest.fn().mockResolvedValue({ id: 'site-1', customerId: 'customer-1' }),
+    },
+    asset: { findFirst: jest.fn().mockResolvedValue({ id: 'asset-1' }) },
+    userCompany: { findFirst: jest.fn().mockResolvedValue({ id: 'membership-1' }) },
     // La transacción ejecuta el callback con el mismo cliente simulado.
     $transaction: jest.fn(),
   };
@@ -56,6 +63,79 @@ describe('WorkOrdersService', () => {
         'sin prefijo',
       );
       expect(prisma.workOrder.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('create() / update() — solo datos de la propia empresa', () => {
+    it('rechaza un cliente de otra empresa y no gasta número', async () => {
+      prisma.customer.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.create('company-1', { title: 'Revisión', customerId: 'customer-ajeno' }),
+      ).rejects.toThrow('El cliente elegido no existe en tu empresa.');
+
+      expect(prisma.customer.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'customer-ajeno', companyId: 'company-1' } }),
+      );
+      expect(numbering.next).not.toHaveBeenCalled();
+      expect(prisma.workOrder.create).not.toHaveBeenCalled();
+    });
+
+    it('rechaza un site que no es del cliente elegido', async () => {
+      prisma.site.findFirst.mockResolvedValue({ id: 'site-2', customerId: 'customer-2' });
+
+      await expect(
+        service.create('company-1', {
+          title: 'Revisión',
+          customerId: 'customer-1',
+          siteId: 'site-2',
+        }),
+      ).rejects.toThrow('El site elegido no es de ese cliente.');
+    });
+
+    it('rechaza un técnico que no pertenece a la empresa', async () => {
+      prisma.userCompany.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.create('company-1', { title: 'Revisión', assignedToId: 'user-ajeno' }),
+      ).rejects.toThrow('El técnico elegido no pertenece a tu empresa o está desactivado.');
+    });
+
+    it('crea la orden cuando todo es de la empresa', async () => {
+      prisma.workOrder.create.mockImplementation(({ data }) => Promise.resolve(data));
+
+      await expect(
+        service.create('company-1', {
+          title: 'Revisión',
+          customerId: 'customer-1',
+          siteId: 'site-1',
+          assetId: 'asset-1',
+          assignedToId: 'user-1',
+        }),
+      ).resolves.toMatchObject({ code: 'OT-2026-0001', assignedToUserId: 'user-1' });
+    });
+
+    it('al editar, rechaza un equipo de otra empresa', async () => {
+      prisma.workOrder.findFirst.mockResolvedValue({ id: 'wo-1', companyId: 'company-1' });
+      prisma.asset.findFirst.mockResolvedValue(null);
+
+      await expect(service.update('company-1', 'wo-1', { assetId: 'asset-ajeno' })).rejects.toThrow(
+        'El equipo elegido no existe en tu empresa.',
+      );
+      expect(prisma.workOrder.update).not.toHaveBeenCalled();
+    });
+
+    it('al editar solo el site, lo compara con el cliente que ya tenía la orden', async () => {
+      prisma.workOrder.findFirst.mockResolvedValue({
+        id: 'wo-1',
+        companyId: 'company-1',
+        customerId: 'customer-1',
+      });
+      prisma.site.findFirst.mockResolvedValue({ id: 'site-9', customerId: 'customer-9' });
+
+      await expect(service.update('company-1', 'wo-1', { siteId: 'site-9' })).rejects.toThrow(
+        'El site elegido no es de ese cliente.',
+      );
     });
   });
 
@@ -180,6 +260,21 @@ describe('WorkOrdersService', () => {
       await expect(service.assign('company-1', 'wo-1', '')).rejects.toBeInstanceOf(
         BadRequestException,
       );
+    });
+
+    it('rechaza asignar un técnico de otra empresa', async () => {
+      prisma.workOrder.findFirst.mockResolvedValue({ id: 'wo-1', companyId: 'company-1' });
+      prisma.userCompany.findFirst.mockResolvedValue(null);
+
+      await expect(service.assign('company-1', 'wo-1', 'user-ajeno')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(prisma.userCompany.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ userId: 'user-ajeno', companyId: 'company-1' }),
+        }),
+      );
+      expect(prisma.workOrder.update).not.toHaveBeenCalled();
     });
   });
 });

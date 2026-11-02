@@ -1,13 +1,17 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { NumberingService, documentYear } from '../numbering/numbering.service';
 import { InvoicesService } from './invoices.service';
+
+const PREFIXES = { workOrderPrefix: 'OT', quotePrefix: 'P', invoicePrefix: 'HR' };
 
 function makeTx(overrides: Partial<Record<string, any>> = {}) {
   return {
     company: {
-      findUnique: jest.fn().mockResolvedValue({ invoicePrefix: 'HR' }),
+      findUnique: jest.fn().mockResolvedValue(PREFIXES),
     },
     companyCounter: {
-      upsert: jest.fn().mockResolvedValue({ value: 1 }),
+      createMany: jest.fn().mockResolvedValue({ count: 1 }),
+      update: jest.fn().mockResolvedValue({ value: 1 }),
     },
     invoice: {
       create: jest.fn().mockResolvedValue({ id: 'invoice-1' }),
@@ -30,14 +34,21 @@ function makePrisma(tx: ReturnType<typeof makeTx>) {
   };
 }
 
+// La numeración real (no simulada) trabajando sobre la transacción simulada.
+function makeService(prisma: ReturnType<typeof makePrisma>) {
+  return new InvoicesService(prisma as any, {} as any, {} as any, new NumberingService({} as any));
+}
+
 describe('InvoicesService', () => {
   describe('create()', () => {
     it('rechaza crear factura si la empresa no tiene prefijo de facturación', async () => {
       const tx = makeTx({
-        company: { findUnique: jest.fn().mockResolvedValue({ invoicePrefix: null }) },
+        company: {
+          findUnique: jest.fn().mockResolvedValue({ ...PREFIXES, invoicePrefix: null }),
+        },
       });
       const prisma = makePrisma(tx);
-      const service = new InvoicesService(prisma as any, {} as any, {} as any);
+      const service = makeService(prisma);
 
       await expect(
         service.create('company-1', {
@@ -50,7 +61,7 @@ describe('InvoicesService', () => {
     it('rechaza una factura vacía (sin mano de obra ni líneas)', async () => {
       const tx = makeTx();
       const prisma = makePrisma(tx);
-      const service = new InvoicesService(prisma as any, {} as any, {} as any);
+      const service = makeService(prisma);
 
       await expect(
         service.create('company-1', {
@@ -64,7 +75,7 @@ describe('InvoicesService', () => {
     it('numera la factura como PREFIJO-AÑO-0001 y calcula bien los totales', async () => {
       const tx = makeTx();
       const prisma = makePrisma(tx);
-      const service = new InvoicesService(prisma as any, {} as any, {} as any);
+      const service = makeService(prisma);
 
       await service.create('company-1', {
         taxRate: 21,
@@ -72,7 +83,7 @@ describe('InvoicesService', () => {
         lines: [{ description: 'Material eléctrico', quantity: 2, unitPrice: 25 }],
       } as any);
 
-      const year = new Date().getFullYear();
+      const year = documentYear();
       expect(tx.invoice.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
@@ -87,10 +98,26 @@ describe('InvoicesService', () => {
       );
     });
 
+    it('usa el contador de facturas del año (el mismo que ya existía)', async () => {
+      const tx = makeTx();
+      const prisma = makePrisma(tx);
+      const service = makeService(prisma);
+
+      await service.create('company-1', { taxRate: 21, laborAmount: 100 } as any);
+
+      expect(tx.companyCounter.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            companyId_key: { companyId: 'company-1', key: `invoice:${documentYear()}` },
+          },
+        }),
+      );
+    });
+
     it('calcula la mano de obra a partir de horas x tarifa cuando no hay importe directo', async () => {
       const tx = makeTx();
       const prisma = makePrisma(tx);
-      const service = new InvoicesService(prisma as any, {} as any, {} as any);
+      const service = makeService(prisma);
 
       await service.create('company-1', {
         taxRate: 0,
@@ -113,7 +140,7 @@ describe('InvoicesService', () => {
       const tx = makeTx();
       const prisma = makePrisma(tx);
       prisma.maintenanceReport.findFirst.mockResolvedValue(null);
-      const service = new InvoicesService(prisma as any, {} as any, {} as any);
+      const service = makeService(prisma);
 
       await expect(
         service.create('company-1', {
@@ -131,7 +158,7 @@ describe('InvoicesService', () => {
       const prisma = makePrisma(tx);
       prisma.invoice.findFirst.mockResolvedValue({ id: 'invoice-1' });
       prisma.invoice.update.mockResolvedValue({ id: 'invoice-1', status: 'PAID' });
-      const service = new InvoicesService(prisma as any, {} as any, {} as any);
+      const service = makeService(prisma);
 
       await service.updateStatus('company-1', 'invoice-1', 'PAID');
 
@@ -149,7 +176,7 @@ describe('InvoicesService', () => {
       const tx = makeTx();
       const prisma = makePrisma(tx);
       prisma.invoice.findFirst.mockResolvedValue(null);
-      const service = new InvoicesService(prisma as any, {} as any, {} as any);
+      const service = makeService(prisma);
 
       await expect(
         service.updateStatus('company-1', 'invoice-ajena', 'PAID'),

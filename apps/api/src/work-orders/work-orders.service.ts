@@ -263,6 +263,94 @@ Estados probados: ${candidates.join(', ')}`,
     return data;
   }
 
+  /**
+   * Comprueba que el cliente, el site, el equipo y el técnico que llegan
+   * son de ESTA empresa. Sin esto, alguien que conozca el ID de un cliente
+   * de otra empresa podría enlazarlo a su orden y ver su nombre y dirección.
+   *
+   * currentCustomerId: el cliente que ya tenía la orden (al editar), para
+   * comprobar que un site nuevo es de ese cliente.
+   */
+  private async assertReferencesBelongToCompany(
+    companyId: string,
+    data: WorkOrderPlainObject,
+    currentCustomerId?: string | null,
+  ): Promise<void> {
+    const customerId = this.pickString(data.customerId);
+    const siteId = this.pickString(data.siteId);
+    const assetId = this.pickString(data.assetId);
+    const technicianId = this.pickString(data.assignedToUserId);
+
+    if (customerId) {
+      const customer = await this.prisma.customer.findFirst({
+        where: { id: customerId, companyId },
+        select: { id: true },
+      });
+
+      if (!customer) {
+        throw new BadRequestException('El cliente elegido no existe en tu empresa.');
+      }
+    }
+
+    if (siteId) {
+      const site = await this.prisma.site.findFirst({
+        where: { id: siteId, companyId },
+        select: { id: true, customerId: true },
+      });
+
+      if (!site) {
+        throw new BadRequestException('El site elegido no existe en tu empresa.');
+      }
+
+      // Si la orden se queda sin cliente (null), no hay nada que comparar.
+      const effectiveCustomerId =
+        data.customerId === undefined ? currentCustomerId : customerId;
+
+      if (effectiveCustomerId && site.customerId !== effectiveCustomerId) {
+        throw new BadRequestException('El site elegido no es de ese cliente.');
+      }
+    }
+
+    if (assetId) {
+      const asset = await this.prisma.asset.findFirst({
+        where: { id: assetId, companyId },
+        select: { id: true },
+      });
+
+      if (!asset) {
+        throw new BadRequestException('El equipo elegido no existe en tu empresa.');
+      }
+    }
+
+    if (technicianId) {
+      await this.assertTechnicianBelongsToCompany(companyId, technicianId);
+    }
+  }
+
+  /**
+   * El técnico tiene que ser un usuario activo con acceso activo a esta empresa.
+   */
+  private async assertTechnicianBelongsToCompany(
+    companyId: string,
+    userId: string,
+  ): Promise<void> {
+    const membership = await this.prisma.userCompany.findFirst({
+      where: {
+        userId,
+        companyId,
+        active: true,
+        user: { isActive: true },
+      },
+      select: { id: true },
+    });
+
+    if (!membership) {
+      throw new BadRequestException(
+        'El técnico elegido no pertenece a tu empresa o está desactivado.',
+      );
+    }
+  }
+
   private resolveAssignedFilter(
     query: QueryWorkOrdersDto,
   ): string | undefined {
@@ -417,6 +505,8 @@ Estados probados: ${candidates.join(', ')}`,
 
     const data = this.normalizeWorkOrderData(dto);
 
+    await this.assertReferencesBelongToCompany(companyId, data);
+
     data.companyId = companyId;
 
     /**
@@ -446,9 +536,15 @@ Estados probados: ${candidates.join(', ')}`,
       throw new BadRequestException('Faltan datos para actualizar la orden');
     }
 
-    await this.findOne(companyId, id);
+    const current = await this.findOne(companyId, id);
 
     const data = this.normalizeWorkOrderData(dto);
+
+    await this.assertReferencesBelongToCompany(
+      companyId,
+      data,
+      (current as { customerId?: string | null }).customerId ?? null,
+    );
 
     return this.prisma.workOrder.update({
       where: {
@@ -483,6 +579,7 @@ Estados probados: ${candidates.join(', ')}`,
     }
 
     await this.findOne(companyId, id);
+    await this.assertTechnicianBelongsToCompany(companyId, assignedToId);
 
     return this.prisma.workOrder.update({
       where: {
