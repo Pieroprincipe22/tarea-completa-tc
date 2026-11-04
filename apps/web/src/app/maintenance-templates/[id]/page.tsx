@@ -2,223 +2,143 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
-import { readTcSession, } from '@/lib/tc/session';
-import { errMsg, isRecord, resolveCorePaths, tcGet } from '@/lib/tc/api';
+import { useEffect, useState } from 'react';
+import TemplateEditor from '@/components/templates/TemplateEditor';
+import { ChevronLeftIcon } from '@/components/templates/TemplateIcons';
+import TemplatePreview, {
+  previewFromTemplate,
+} from '@/components/templates/TemplatePreview';
+import { errMsg, tcGet } from '@/lib/tc/api';
+import { isAdminRole, readTcSession, type TcSession } from '@/lib/tc/session';
+import {
+  apiMessages,
+  parseTemplate,
+  templateToDraft,
+  type Template,
+} from '@/lib/tc/templates';
 
-type TemplateItem = {
-  id: string;
-  sortOrder: number;
-  label: string;
-  type: string;
-  required: boolean;
-  unit: string | null;
-  hint: string | null;
-};
-
-type TemplateDetail = {
-  id: string;
-  name: string;
-  description: string | null;
-  isActive: boolean;
-  intervalDays: number | null;
-  items: TemplateItem[];
-};
-
-type Load<T> =
+type Load =
   | { status: 'loading' }
-  | { status: 'ok'; data: T }
+  | { status: 'ok'; data: Template }
   | { status: 'error'; error: string };
 
-function asStr(v: unknown, fallback = ''): string {
-  return typeof v === 'string' ? v : fallback;
-}
-function asNum(v: unknown, fallback = 0): number {
-  return typeof v === 'number' ? v : fallback;
-}
-function asBool(v: unknown, fallback = false): boolean {
-  return typeof v === 'boolean' ? v : fallback;
-}
-function asArr(v: unknown): unknown[] {
-  return Array.isArray(v) ? v : [];
-}
-
-function joinPath(base: string, id: string) {
-  return base.endsWith('/') ? `${base}${id}` : `${base}/${id}`;
-}
-
-function prettyHttp(code: number) {
-  if (code === 401) return '401 Unauthorized. Revisa tu sesión (companyId/userId).';
-  if (code === 403) return '403 Forbidden (tenant). No eres miembro (UserCompany).';
-  if (code === 404) return '404 Not Found. No existe el template.';
-  return `HTTP ${code}`;
-}
-
 export default function MaintenanceTemplateDetailPage() {
-  const session = useMemo(() => readTcSession(), []);
   const params = useParams<{ id: string }>();
-  const id = String((params as { id?: string })?.id ?? '');
+  const id = String(params?.id ?? '');
 
-  const [state, setState] = useState<Load<TemplateDetail>>({ status: 'loading' });
+  const [session, setSession] = useState<TcSession | null>(null);
+  const [state, setState] = useState<Load>({ status: 'loading' });
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!session || !id) return;
+    const current = readTcSession();
+    setSession(current);
+
+    // Al venir de "Crear plantilla" se avisa de que ya está guardada.
+    const query = new URLSearchParams(window.location.search);
+    if (query.get('creada') === '1') {
+      setNotice('Plantilla creada. Ya la pueden usar tus técnicos.');
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+
+    if (!current || !id) {
+      setState({
+        status: 'error',
+        error: 'Tu sesión ha caducado. Vuelve a iniciar sesión.',
+      });
+      return;
+    }
 
     let cancelled = false;
-
     (async () => {
       try {
-        setState({ status: 'loading' });
-
-        const paths = resolveCorePaths(session);
-        const url = joinPath(paths.templates, id);
-
-        const r = await tcGet<unknown>(session, url);
-
+        const res = await tcGet<unknown>(
+          current,
+          `/maintenance-templates/${id}`,
+        );
         if (cancelled) return;
-        if (r.code < 200 || r.code >= 300) {
-          setState({ status: 'error', error: prettyHttp(r.code) });
+        const template =
+          res.code >= 200 && res.code < 300 ? parseTemplate(res.json) : null;
+        if (!template) {
+          setState({
+            status: 'error',
+            error:
+              res.code === 404
+                ? 'Esta plantilla no existe o es de otra empresa.'
+                : apiMessages(res.json, 'No se pudo cargar la plantilla.')[0],
+          });
           return;
         }
-
-        if (!isRecord(r.json)) {
-          setState({ status: 'error', error: 'Respuesta inválida (no es objeto).' });
-          return;
-        }
-
-        const root = r.json;
-
-        const rawItems = isRecord(root) ? (root.items as unknown) : undefined;
-        const items = asArr(rawItems).map((it): TemplateItem => {
-          if (!isRecord(it)) {
-            return {
-              id: '',
-              sortOrder: 0,
-              label: '',
-              type: '',
-              required: false,
-              unit: null,
-              hint: null,
-            };
-          }
-          return {
-            id: asStr(it.id),
-            sortOrder: asNum(it.sortOrder, 0),
-            label: asStr(it.label, '—'),
-            type: asStr(it.type, '—'),
-            required: asBool(it.required, false),
-            unit: (typeof it.unit === 'string' ? it.unit : null),
-            hint: (typeof it.hint === 'string' ? it.hint : null),
-          };
-        });
-
-        items.sort((a, b) => a.sortOrder - b.sortOrder);
-
-        const detail: TemplateDetail = {
-          id: asStr(root.id, id),
-          name: asStr(root.name, 'Maintenance Template'),
-          description: (typeof root.description === 'string' ? root.description : null),
-          isActive: asBool(root.isActive, true),
-          intervalDays: (typeof root.intervalDays === 'number' ? root.intervalDays : null),
-          items,
-        };
-
-        setState({ status: 'ok', data: detail });
-      } catch (e) {
-        if (!cancelled) setState({ status: 'error', error: errMsg(e) });
+        setState({ status: 'ok', data: template });
+      } catch (err) {
+        if (!cancelled) setState({ status: 'error', error: errMsg(err) });
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [session, id]);
+  }, [id]);
 
-  if (!session) {
+  if (state.status === 'loading') {
     return (
-      <div className="space-y-3">
-        <h1 className="text-xl font-semibold">Maintenance Template</h1>
-        <p className="text-sm text-ink-2">Sin sesión tenant. Ve a /login.</p>
-        <Link className="underline" href="/login">
-          Ir a /login
-        </Link>
+      <div className="tc-page">
+        <p className="text-sm text-muted">Cargando plantilla…</p>
       </div>
     );
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Link className="underline" href="/maintenance-templates">
-          ← Volver
-        </Link>
-        <Link className="underline" href="/dashboard">
-          Dashboard
-        </Link>
+  if (state.status === 'error' || !session) {
+    return (
+      <div className="tc-page">
+        <div className="tc-panel max-w-xl p-6">
+          <p className="text-sm text-danger">
+            {state.status === 'error' ? state.error : 'Tu sesión ha caducado.'}
+          </p>
+          <Link href="/maintenance-templates" className="tc-button mt-4">
+            Volver a las plantillas
+          </Link>
+        </div>
       </div>
+    );
+  }
 
-      {state.status === 'loading' ? (
-        <div className="rounded-lg border border-line bg-surface p-6">
-          Cargando…
-        </div>
-      ) : state.status === 'error' ? (
-        <div className="rounded-lg border border-danger bg-danger-soft p-6 text-danger">
-          {state.error}
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="rounded-lg border border-line bg-surface p-6">
-            <h1 className="text-xl font-semibold">{state.data.name}</h1>
-            <div className="mt-2 text-sm text-ink-2">
-              ID: {state.data.id}
-              {state.data.intervalDays != null ? ` · IntervalDays: ${state.data.intervalDays}` : null}
-              {' · '}
-              {state.data.isActive ? 'Activo' : 'Inactivo'}
-            </div>
-            {state.data.description ? (
-              <p className="mt-3 text-sm text-ink">{state.data.description}</p>
-            ) : null}
-          </div>
+  const template = state.data;
 
-          <div className="rounded-lg border border-line bg-surface p-6">
-            <h2 className="font-semibold">Items</h2>
+  // El administrador la edita; el técnico la consulta.
+  if (isAdminRole(session.role)) {
+    return (
+      <TemplateEditor
+        key={template.id}
+        session={session}
+        templateId={template.id}
+        initial={templateToDraft(template)}
+        archived={!template.isActive}
+        notice={notice}
+      />
+    );
+  }
 
-            {state.data.items.length === 0 ? (
-              <p className="mt-2 text-sm text-ink-2">Este template no trae items.</p>
-            ) : (
-              <div className="mt-3 overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="text-ink-2">
-                    <tr>
-                      <th className="text-left py-2">#</th>
-                      <th className="text-left py-2">Label</th>
-                      <th className="text-left py-2">Type</th>
-                      <th className="text-left py-2">Req</th>
-                      <th className="text-left py-2">Unit</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {state.data.items.map((it) => (
-                      <tr key={it.id} className="border-t border-line">
-                        <td className="py-2">{it.sortOrder || '—'}</td>
-                        <td className="py-2">
-                          <div className="font-medium">{it.label}</div>
-                          {it.hint ? (
-                            <div className="text-xs text-muted">{it.hint}</div>
-                          ) : null}
-                        </td>
-                        <td className="py-2">{it.type}</td>
-                        <td className="py-2">{it.required ? 'Sí' : 'No'}</td>
-                        <td className="py-2">{it.unit ?? '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+  return (
+    <div className="tc-page max-w-5xl">
+      <header className="mb-6">
+        <Link
+          href="/maintenance-templates"
+          className="inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
+        >
+          <ChevronLeftIcon className="h-4 w-4" />
+          Plantillas
+        </Link>
+        <h1 className="tc-title mt-2">{template.name}</h1>
+        {template.category || template.description ? (
+          <p className="tc-subtitle mt-1">
+            {[template.category, template.description]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
+        ) : null}
+      </header>
+      <TemplatePreview sections={previewFromTemplate(template)} />
     </div>
   );
 }

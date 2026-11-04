@@ -300,6 +300,8 @@ model MaintenanceTemplate {
   name        String?
   title       String?
   description String?
+  // Tipo de equipo al que se aplica (Split, VRF, Enfriadora…). Texto libre.
+  category    String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -328,6 +330,11 @@ model MaintenanceTemplateItem {
   unit        String?
   helpText    String?
   placeholder String?
+  // Sección de la hoja a la que pertenece el punto ("Unidad exterior"…).
+  section     String?
+  // Rango aceptable de una medición: fuera de él, el parte lo marca.
+  minValue    Float?
+  maxValue    Float?
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
 

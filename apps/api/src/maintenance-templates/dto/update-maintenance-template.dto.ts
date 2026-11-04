@@ -1,44 +1,48 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
   IsArray,
   IsBoolean,
-  IsInt,
+  IsNotEmpty,
   IsOptional,
   IsString,
   MaxLength,
-  Min,
   ValidateNested,
 } from 'class-validator';
-import { CreateMaintenanceTemplateItemDto } from './create-maintenance-template.dto';
+import { TemplateItemDto, trim, trimOrNull } from './create-maintenance-template.dto';
 
+// Todo es opcional: solo se cambia lo que llega.
+// Si llegan "items", sustituyen a todos los puntos de la plantilla.
 export class UpdateMaintenanceTemplateDto {
   @IsOptional()
-  @IsString()
-  @MaxLength(120)
-  title?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(120)
+  @Transform(trim)
+  @IsString({ message: 'La plantilla necesita un nombre.' })
+  @IsNotEmpty({ message: 'La plantilla necesita un nombre.' })
+  @MaxLength(120, { message: 'El nombre no puede superar 120 caracteres.' })
   name?: string;
 
   @IsOptional()
+  @Transform(trimOrNull)
   @IsString()
-  @MaxLength(500)
-  description?: string;
+  @MaxLength(60, { message: 'El tipo de equipo no puede superar 60 caracteres.' })
+  category?: string | null;
 
   @IsOptional()
-  @IsInt()
-  @Min(1)
-  intervalDays?: number;
+  @Transform(trimOrNull)
+  @IsString()
+  @MaxLength(500, { message: 'La descripción no puede superar 500 caracteres.' })
+  description?: string | null;
 
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
 
   @IsOptional()
-  @IsArray()
+  @IsArray({ message: 'La plantilla necesita al menos un punto.' })
+  @ArrayMinSize(1, { message: 'La plantilla necesita al menos un punto.' })
+  @ArrayMaxSize(300, { message: 'Una plantilla no puede tener más de 300 puntos.' })
   @ValidateNested({ each: true })
-  @Type(() => CreateMaintenanceTemplateItemDto)
-  items?: CreateMaintenanceTemplateItemDto[];
+  @Type(() => TemplateItemDto)
+  items?: TemplateItemDto[];
 }

@@ -230,32 +230,30 @@ export default function TopBar() {
   return (
     <header className="sticky top-0 z-40 h-[74px] border-b border-line bg-surface/95 text-ink backdrop-blur">
       <div className="flex h-full items-center">
-        <div className="flex h-full w-[270px] shrink-0 items-center border-r border-line px-6 xl:hidden">
+        <div className="flex h-full shrink-0 items-center border-r border-line px-4 sm:px-6 xl:hidden">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent font-mono text-sm font-medium text-white">
             AP
           </div>
         </div>
 
-        <div className="flex h-full flex-1 items-center justify-between gap-4 px-6">
-          <div className="flex min-w-0 items-center gap-5">
+        <div className="flex h-full min-w-0 flex-1 items-center justify-between gap-3 px-4 sm:px-6">
+          <div className="flex min-w-0 flex-1 items-center gap-4">
             <button
               type="button"
-              className="flex h-11 w-11 items-center justify-center rounded-lg border border-line bg-surface-2 text-ink-2 transition hover:border-accent hover:bg-accent-soft hover:text-ink"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-line bg-surface-2 text-ink-2 transition hover:border-accent hover:bg-accent-soft hover:text-ink"
               aria-label="Abrir menú"
             >
               <MenuIcon className="h-5 w-5" />
             </button>
 
-            <div className="hidden min-w-0 xl:block">
+            <div className="hidden min-w-0 max-w-[180px] shrink-0 xl:block">
               <p className="truncate text-sm font-semibold text-ink">
                 {currentSection?.title ?? 'Panel'}
               </p>
-              <p className="mt-0.5 truncate text-xs text-subtle">
-                AnPi Tech
-              </p>
+              <p className="mt-0.5 truncate text-xs text-subtle">AnPi Tech</p>
             </div>
 
-            <div className="relative hidden w-[380px] max-w-[42vw] lg:block">
+            <div className="relative hidden min-w-0 max-w-[380px] flex-1 lg:block">
               <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
 
               <input
@@ -269,7 +267,7 @@ export default function TopBar() {
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-3">
+          <div className="flex shrink-0 items-center gap-2 lg:gap-3">
             <button
               type="button"
               className="relative flex h-11 w-11 items-center justify-center rounded-lg border border-line bg-surface-2 text-ink-2 transition hover:border-accent hover:bg-accent-soft hover:text-ink"
@@ -283,7 +281,7 @@ export default function TopBar() {
 
             <button
               type="button"
-              className="hidden h-11 w-11 items-center justify-center rounded-lg border border-line bg-surface-2 text-ink-2 transition hover:border-accent hover:bg-accent-soft hover:text-ink sm:flex"
+              className="hidden h-11 w-11 items-center justify-center rounded-lg border border-line bg-surface-2 text-ink-2 transition hover:border-accent hover:bg-accent-soft hover:text-ink 2xl:flex"
               aria-label="Calendario"
             >
               <CalendarIcon className="h-5 w-5" />
@@ -291,7 +289,7 @@ export default function TopBar() {
 
             <button
               type="button"
-              className="hidden h-11 w-11 items-center justify-center rounded-lg border border-line bg-surface-2 text-ink-2 transition hover:border-accent hover:bg-accent-soft hover:text-ink sm:flex"
+              className="hidden h-11 w-11 items-center justify-center rounded-lg border border-line bg-surface-2 text-ink-2 transition hover:border-accent hover:bg-accent-soft hover:text-ink 2xl:flex"
               aria-label="Ayuda"
             >
               <HelpIcon className="h-5 w-5" />
@@ -319,7 +317,7 @@ export default function TopBar() {
                 {getInitials(session)}
               </span>
 
-              <span className="hidden max-w-[120px] truncate text-sm font-semibold text-ink lg:block">
+              <span className="hidden max-w-[120px] truncate text-sm font-semibold text-ink 2xl:block">
                 {mounted ? getUserLabel(session) : 'Admin'}
               </span>
             </div>

@@ -276,23 +276,10 @@ const ADMIN_SECTIONS: TcNavSection[] = [
         items: [
           leaf(
             'maintenance-templates',
-            'Plantillas de checklist',
+            'Plantillas de mantenimiento',
             '/maintenance-templates',
             {
-              description: 'Plantillas reutilizables para partes técnicos.',
-            },
-          ),
-          leaf('templates-home', 'Biblioteca de plantillas', '/templates', {
-            description: 'Resumen general de plantillas.',
-            comingSoon: true,
-          }),
-          leaf(
-            'templates-maintenance',
-            'Plantillas de mantenimiento',
-            '/templates/maintenance',
-            {
-              description: 'Plantillas avanzadas de mantenimiento.',
-              comingSoon: true,
+              description: 'Las hojas que rellenan los técnicos en cada mantenimiento.',
             },
           ),
         ],
