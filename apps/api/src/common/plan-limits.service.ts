@@ -114,6 +114,22 @@ export class PlanLimitsService {
     );
   }
 
+  // Para altas en bloque (el generador del edificio): comprueba que caben
+  // todos los equipos nuevos antes de crear ninguno.
+  async assertAssetCapacity(companyId: string, adding: number): Promise<void> {
+    if (adding <= 0) return;
+
+    const plan = await this.getPlan(companyId);
+    const max = PLAN_LIMITS[plan].maxAssets;
+    const current = await this.prisma.asset.count({ where: { companyId } });
+
+    if (current + adding > max) {
+      throw new BadRequestException(
+        `Tu plan ${plan} permite hasta ${max} equipos. Ahora tienes ${current} y con estos ${adding} serían ${current + adding}.`,
+      );
+    }
+  }
+
   // A diferencia de los demás (que comparan un conteo), el almacenamiento
   // compara bytes ya usados + lo que se va a subir contra el límite del
   // plan — se comprueba ANTES de subir el archivo a MinIO.

@@ -318,9 +318,16 @@ export default function SiteDetailPage() {
 
               <Link
                 href="/assets/new"
-                className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover"
+                className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink-2 transition hover:bg-surface-2"
               >
                 Crear activo
+              </Link>
+
+              <Link
+                href={`/sites/${site.id}/building`}
+                className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover"
+              >
+                Plantas y habitaciones
               </Link>
             </div>
           </div>
@@ -384,6 +391,13 @@ export default function SiteDetailPage() {
           </h2>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Link
+              href={`/sites/${site.id}/building`}
+              className="rounded-lg border border-line bg-surface p-4 text-sm font-semibold text-ink-2 transition hover:bg-surface-2"
+            >
+              Plantas, habitaciones y zonas comunes
+            </Link>
+
             <Link
               href="/assets/new"
               className="rounded-lg border border-line bg-surface p-4 text-sm font-semibold text-ink-2 transition hover:bg-surface-2"

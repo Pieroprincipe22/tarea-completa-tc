@@ -109,6 +109,29 @@ describe('PlanLimitsService', () => {
     });
   });
 
+  describe('assertAssetCapacity()', () => {
+    it('rechaza un alta en bloque que no cabe y dice cuántos serían', async () => {
+      prisma.company.findUniqueOrThrow.mockResolvedValue({ plan: 'PRO' });
+      prisma.asset.count.mockResolvedValue(400);
+
+      await expect(service.assertAssetCapacity('company-1', 165)).rejects.toThrow(
+        'Tu plan PRO permite hasta 500 equipos. Ahora tienes 400 y con estos 165 serían 565.',
+      );
+    });
+
+    it('permite si cabe justo en el límite', async () => {
+      prisma.company.findUniqueOrThrow.mockResolvedValue({ plan: 'PRO' });
+      prisma.asset.count.mockResolvedValue(335);
+
+      await expect(service.assertAssetCapacity('company-1', 165)).resolves.toBeUndefined();
+    });
+
+    it('sin equipos nuevos no consulta nada', async () => {
+      await expect(service.assertAssetCapacity('company-1', 0)).resolves.toBeUndefined();
+      expect(prisma.company.findUniqueOrThrow).not.toHaveBeenCalled();
+    });
+  });
+
   describe('assertStorageLimit()', () => {
     it('rechaza si lo ya usado más lo entrante supera el límite del plan BASIC (500MB)', async () => {
       prisma.company.findUniqueOrThrow.mockResolvedValue({ plan: 'BASIC' });

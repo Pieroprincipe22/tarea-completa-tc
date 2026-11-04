@@ -1,11 +1,9 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { PlanLimitsService } from '../common/plan-limits.service';
-import { CreateAssetDto } from './dto/create-asset.dto';
+import { assetLocation, spaceLabel } from '../building/building-plan';
+import { CreateAssetDto, UpdateAssetDto } from './dto/create-asset.dto';
 
 type AssetStatusValue = 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE' | 'RETIRED';
 
@@ -26,6 +24,26 @@ function normalizeAssetStatus(value?: string | null): AssetStatusValue | undefin
   throw new BadRequestException('status inválido para asset');
 }
 
+const ASSET_INCLUDE = {
+  site: {
+    select: {
+      id: true,
+      name: true,
+      customerId: true,
+    },
+  },
+  space: {
+    select: {
+      id: true,
+      kind: true,
+      name: true,
+      floor: { select: { id: true, name: true, level: true } },
+    },
+  },
+} satisfies Prisma.AssetInclude;
+
+type AssetWithRelations = Prisma.AssetGetPayload<{ include: typeof ASSET_INCLUDE }>;
+
 @Injectable()
 export class AssetsService {
   constructor(
@@ -43,31 +61,13 @@ export class AssetsService {
     return normalized;
   }
 
-  private serializeAsset(item: {
-    id: string;
-    companyId: string;
-    customerId: string | null;
-    siteId: string | null;
-    name: string;
-    code: string | null;
-    category: string | null;
-    brand: string | null;
-    model: string | null;
-    serialNumber: string | null;
-    internalCode: string | null;
-    status: AssetStatusValue;
-    installationAt: Date | null;
-    location: string | null;
-    notes: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-    site?: { id: string; name: string; customerId: string } | null;
-  }) {
+  private serializeAsset(item: AssetWithRelations) {
     return {
       id: item.id,
       companyId: item.companyId,
       customerId: item.customerId ?? item.site?.customerId ?? null,
       siteId: item.siteId,
+      spaceId: item.spaceId,
       name: item.name,
       code: item.code,
       category: item.category,
@@ -89,7 +89,30 @@ export class AssetsService {
             customerId: item.site.customerId,
           }
         : null,
+      space: item.space
+        ? {
+            id: item.space.id,
+            kind: item.space.kind,
+            name: item.space.name,
+            label: spaceLabel(item.space.kind, item.space.name),
+            floor: item.space.floor,
+          }
+        : null,
     };
+  }
+
+  // La habitación o zona tiene que ser del mismo sitio que el equipo.
+  private async findSpaceInSite(companyId: string, siteId: string, spaceId: string) {
+    const space = await this.prisma.space.findFirst({
+      where: { id: spaceId, companyId, siteId },
+      select: { id: true, kind: true, name: true, floor: { select: { name: true } } },
+    });
+
+    if (!space) {
+      throw new BadRequestException('La habitación o zona no es de este sitio.');
+    }
+
+    return space;
   }
 
   async list(companyId: string) {
@@ -98,19 +121,11 @@ export class AssetsService {
     const items = await this.prisma.asset.findMany({
       where: { companyId: normalizedCompanyId },
       orderBy: [{ name: 'asc' }, { createdAt: 'desc' }],
-      include: {
-        site: {
-          select: {
-            id: true,
-            name: true,
-            customerId: true,
-          },
-        },
-      },
+      include: ASSET_INCLUDE,
     });
 
     return {
-      items: items.map((asset: any) => this.serializeAsset(asset)),
+      items: items.map((asset) => this.serializeAsset(asset)),
       count: items.length,
     };
   }
@@ -120,15 +135,7 @@ export class AssetsService {
 
     const item = await this.prisma.asset.findFirst({
       where: { id, companyId: normalizedCompanyId },
-      include: {
-        site: {
-          select: {
-            id: true,
-            name: true,
-            customerId: true,
-          },
-        },
-      },
+      include: ASSET_INCLUDE,
     });
 
     if (!item) {
@@ -156,6 +163,10 @@ export class AssetsService {
       throw new NotFoundException('Site no encontrado para esta company.');
     }
 
+    const space = dto.spaceId
+      ? await this.findSpaceInSite(normalizedCompanyId, site.id, dto.spaceId)
+      : null;
+
     await this.planLimits.assertAssetLimit(normalizedCompanyId);
 
     const installationAt = dto.installationAt ? new Date(dto.installationAt) : null;
@@ -165,8 +176,7 @@ export class AssetsService {
     }
 
     const resolvedSerialNumber =
-      normalizeNullableString(dto.serialNumber) ??
-      normalizeNullableString(dto.serial);
+      normalizeNullableString(dto.serialNumber) ?? normalizeNullableString(dto.serial);
 
     const resolvedStatus = normalizeAssetStatus(dto.status);
 
@@ -175,6 +185,7 @@ export class AssetsService {
         companyId: normalizedCompanyId,
         customerId: site.customerId,
         siteId: dto.siteId,
+        spaceId: space?.id ?? null,
         name: dto.name.trim(),
         category: normalizeNullableString(dto.category),
         brand: normalizeNullableString(dto.brand),
@@ -183,18 +194,66 @@ export class AssetsService {
         internalCode: normalizeNullableString(dto.internalCode),
         ...(resolvedStatus ? { status: resolvedStatus } : {}),
         installationAt,
-        location: normalizeNullableString(dto.location),
+        // Si está en una habitación o zona, la ubicación sale de ahí.
+        location: space
+          ? assetLocation(space.floor.name, space.kind, space.name)
+          : normalizeNullableString(dto.location),
         notes: normalizeNullableString(dto.notes),
       },
-      include: {
-        site: {
-          select: {
-            id: true,
-            name: true,
-            customerId: true,
-          },
-        },
-      },
+      include: ASSET_INCLUDE,
+    });
+
+    return this.serializeAsset(item);
+  }
+
+  async update(companyId: string, id: string, dto: UpdateAssetDto) {
+    const normalizedCompanyId = this.ensureCompanyId(companyId);
+
+    const current = await this.prisma.asset.findFirst({
+      where: { id, companyId: normalizedCompanyId },
+      select: { id: true, siteId: true },
+    });
+
+    if (!current) {
+      throw new NotFoundException('Equipo no encontrado.');
+    }
+
+    const data: Prisma.AssetUncheckedUpdateInput = {};
+
+    if (dto.name !== undefined) data.name = dto.name.trim();
+    if (dto.category !== undefined) data.category = normalizeNullableString(dto.category);
+    if (dto.brand !== undefined) data.brand = normalizeNullableString(dto.brand);
+    if (dto.model !== undefined) data.model = normalizeNullableString(dto.model);
+    if (dto.serialNumber !== undefined) {
+      data.serialNumber = normalizeNullableString(dto.serialNumber);
+    }
+    if (dto.internalCode !== undefined) {
+      data.internalCode = normalizeNullableString(dto.internalCode);
+    }
+    if (dto.status !== undefined) data.status = dto.status;
+    if (dto.notes !== undefined) data.notes = normalizeNullableString(dto.notes);
+
+    // Mover el equipo a otra habitación o zona del mismo sitio, o sacarlo.
+    if (dto.spaceId !== undefined) {
+      if (dto.spaceId === null) {
+        data.spaceId = null;
+        data.location = null;
+      } else {
+        if (!current.siteId) {
+          throw new BadRequestException(
+            'El equipo no está en ningún sitio: no se puede colocar en una habitación.',
+          );
+        }
+        const space = await this.findSpaceInSite(normalizedCompanyId, current.siteId, dto.spaceId);
+        data.spaceId = space.id;
+        data.location = assetLocation(space.floor.name, space.kind, space.name);
+      }
+    }
+
+    const item = await this.prisma.asset.update({
+      where: { id: current.id },
+      data,
+      include: ASSET_INCLUDE,
     });
 
     return this.serializeAsset(item);

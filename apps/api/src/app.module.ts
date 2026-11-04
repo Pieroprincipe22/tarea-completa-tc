@@ -8,6 +8,7 @@ import { AppService } from './app.service';
 import { AssetsModule } from './assets/assets.module';
 import { AttachmentsModule } from './attachments/attachments.module';
 import { AuthModule } from './auth/auth.module';
+import { BuildingModule } from './building/building.module';
 import { CompaniesModule } from './companies/companies.module';
 import { CompanyUsersModule } from './company-users/company-users.module';
 import { ContactsModule } from './contacts/contacts.module';
@@ -43,6 +44,7 @@ import { CompanySettingsModule } from './company-settings/company-settings.modul
     CompaniesModule,
     CustomersModule,
     SitesModule,
+    BuildingModule,
     ContactsModule,
     AssetsModule,
     TechniciansModule,

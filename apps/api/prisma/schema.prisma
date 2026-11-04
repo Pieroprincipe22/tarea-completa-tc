@@ -109,6 +109,11 @@ enum CompanyPlan {
   ENTERPRISE
 }
 
+enum SpaceKind {
+  ROOM // Habitación
+  COMMON // Zona común: recepción, cocina, cuarto de rack…
+}
+
 model Company {
   id        String      @id @default(cuid())
   name      String
@@ -152,6 +157,8 @@ model Company {
   counters             CompanyCounter[]
   emergencyRequests    EmergencyRequest[]
   invoices             Invoice[]
+  floors               Floor[]
+  spaces               Space[]
 }
 
 model User {
@@ -242,8 +249,56 @@ model Site {
   workOrders         WorkOrder[]
   maintenanceReports MaintenanceReport[]
   emergencyRequests  EmergencyRequest[]
+  floors             Floor[]
+  spaces             Space[]
 
   @@index([companyId, customerId, name])
+}
+
+// Planta o nivel de un sitio: "Planta baja", "Planta 3", "Sótano -1", "Cubierta".
+model Floor {
+  id        String   @id @default(cuid())
+  companyId String
+  siteId    String
+  // Orden de abajo arriba: -1 sótano, 0 planta baja, 1, 2, 3…
+  level     Int
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  site    Site    @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  spaces  Space[]
+
+  // Un sitio no puede tener dos plantas en el mismo nivel.
+  @@unique([siteId, level])
+  @@index([companyId, siteId])
+}
+
+// Habitación o zona común dentro de una planta.
+model Space {
+  id        String    @id @default(cuid())
+  companyId String
+  siteId    String
+  floorId   String
+  kind      SpaceKind @default(ROOM)
+  // Habitación: su número ("204"). Zona común: su nombre ("Recepción").
+  name      String
+  // Tipo de zona común ("Cocina", "Cuarto de rack"…). Texto libre.
+  category  String?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  site    Site    @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  floor   Floor   @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  assets  Asset[]
+
+  // En una planta no se repite el nombre (dos "Office" en plantas distintas sí).
+  @@unique([floorId, name])
+  @@index([companyId, siteId])
+  @@index([siteId, kind])
 }
 
 model Contact {
@@ -270,6 +325,8 @@ model Asset {
   companyId      String
   customerId     String?
   siteId         String?
+  // Habitación o zona donde está el equipo (opcional).
+  spaceId        String?
   name           String
   code           String?
   internalCode   String?
@@ -287,6 +344,7 @@ model Asset {
   company            Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
   customer           Customer?           @relation(fields: [customerId], references: [id], onDelete: SetNull)
   site               Site?               @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  space              Space?              @relation(fields: [spaceId], references: [id], onDelete: SetNull)
   workOrders         WorkOrder[]
   maintenanceReports MaintenanceReport[]
   emergencyRequests  EmergencyRequest[]
@@ -294,6 +352,7 @@ model Asset {
   @@index([companyId, name])
   @@index([customerId])
   @@index([siteId])
+  @@index([spaceId])
 }
 
 model MaintenanceTemplate {
