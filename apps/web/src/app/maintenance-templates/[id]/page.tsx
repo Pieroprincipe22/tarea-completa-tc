@@ -34,10 +34,16 @@ export default function MaintenanceTemplateDetailPage() {
     const current = readTcSession();
     setSession(current);
 
-    // Al venir de "Crear plantilla" se avisa de que ya está guardada.
+    // Al venir de "Crear plantilla" o de una plantilla de partida se avisa
+    // de que ya está guardada.
     const query = new URLSearchParams(window.location.search);
     if (query.get('creada') === '1') {
       setNotice('Plantilla creada. Ya la pueden usar tus técnicos.');
+      window.history.replaceState(null, '', window.location.pathname);
+    } else if (query.get('copiada') === '1') {
+      setNotice(
+        'Plantilla copiada en tu empresa. Revisa los puntos y adáptalos a tus equipos: los cambios solo te afectan a ti.',
+      );
       window.history.replaceState(null, '', window.location.pathname);
     }
 

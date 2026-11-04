@@ -28,6 +28,19 @@ export class MaintenanceTemplatesController {
     return this.service.findAll(t.companyId, includeArchived === 'true');
   }
 
+  // Las rutas de "library" van antes de ":id" para que no se confundan.
+  @Get('library')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  library() {
+    return this.service.library();
+  }
+
+  @Post('library/:key')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  useLibraryTemplate(@Tenant() t: TenantContext, @Param('key') key: string) {
+    return this.service.useLibraryTemplate(t.companyId, key);
+  }
+
   @Get(':id')
   findOne(@Tenant() t: TenantContext, @Param('id') id: string) {
     return this.service.findOne(t.companyId, id);

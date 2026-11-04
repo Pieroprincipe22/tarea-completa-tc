@@ -47,6 +47,8 @@ enum MaintenanceItemType {
   CHECKLIST
   PHOTO
   SIGNATURE
+  // Estado: el técnico elige una de las opciones que define la empresa.
+  CHOICE
 }
 
 enum MaintenanceItemStatus {
@@ -335,6 +337,9 @@ model MaintenanceTemplateItem {
   // Rango aceptable de una medición: fuera de él, el parte lo marca.
   minValue    Float?
   maxValue    Float?
+  // Opciones de un punto de tipo Estado: [{ "label": "Bien", "result": "OK" }, …]
+  // "result" es OK (correcto), ISSUE (incidencia) o NA (no aplica).
+  options     Json?
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
 
@@ -468,6 +473,12 @@ model MaintenanceReportItem {
   sortOrder      Int                   @default(0)
   itemOrder      Int                   @default(0)
   unit           String?
+  // Copia de la plantilla en el momento de crear el parte: si la
+  // plantilla cambia después, el parte conserva cómo era.
+  section        String?
+  minValue       Float?
+  maxValue       Float?
+  options        Json?
   status         MaintenanceItemStatus @default(PENDING)
   value          String?
   notes          String?

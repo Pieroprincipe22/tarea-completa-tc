@@ -1,10 +1,13 @@
 import {
   ITEM_TYPE_INFO,
+  OPTION_RESULT_INFO,
   formatRange,
   groupBySection,
   parseDecimal,
   type Draft,
+  type ItemOption,
   type ItemType,
+  type OptionResult,
   type Template,
 } from '@/lib/tc/templates';
 
@@ -15,6 +18,7 @@ export type PreviewItem = {
   required: boolean;
   range: string | null;
   helpText: string | null;
+  options: ItemOption[];
 };
 
 export type PreviewSection = {
@@ -37,6 +41,7 @@ export function previewFromTemplate(template: Template): PreviewSection[] {
           ? (formatRange(item.minValue, item.maxValue, item.unit) ?? item.unit)
           : null,
       helpText: item.helpText,
+      options: item.type === 'CHOICE' ? item.options : [],
     })),
   }));
 }
@@ -67,8 +72,38 @@ export function previewFromDraft(draft: Draft): PreviewSection[] {
               (item.unit.trim() || null))
             : null,
         helpText: item.helpText.trim() || null,
+        options:
+          item.type === 'CHOICE'
+            ? item.options
+                .filter((o) => o.label.trim())
+                .map((o) => ({ label: o.label.trim(), result: o.result }))
+            : [],
       })),
     }));
+}
+
+const OPTION_STYLE: Record<OptionResult, string> = {
+  OK: 'border-success/30 bg-success-soft text-success',
+  ISSUE: 'border-danger/30 bg-danger-soft text-danger',
+  NA: 'border-line bg-surface-2 text-muted',
+};
+
+// Las opciones de un punto de tipo Estado, como las verá el técnico.
+export function OptionChips({ options }: { options: ItemOption[] }) {
+  if (options.length === 0) return null;
+  return (
+    <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="Opciones">
+      {options.map((option) => (
+        <li
+          key={option.label}
+          title={OPTION_RESULT_INFO[option.result].label}
+          className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${OPTION_STYLE[option.result]}`}
+        >
+          {option.label}
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 // [3, 2, 4] → [0, 3, 5]: cuántos puntos hay antes de cada sección.
@@ -100,6 +135,9 @@ export default function TemplatePreview({
 
   // Numeración continua de los puntos a lo largo de todas las secciones.
   const offsets = startPositions(sections.map((s) => s.items.length));
+  const hasOptions = sections.some((s) =>
+    s.items.some((item) => item.options.length > 0),
+  );
 
   return (
     <div className="space-y-4">
@@ -133,6 +171,7 @@ export default function TemplatePreview({
                         {item.helpText}
                       </p>
                     ) : null}
+                    <OptionChips options={item.options} />
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1 text-right">
                     <span className="rounded-full border border-line bg-surface-2 px-2.5 py-0.5 text-[11px] font-medium text-ink-2">
@@ -154,6 +193,7 @@ export default function TemplatePreview({
       <p className="text-xs text-subtle">
         <span className="text-danger">*</span> Obligatorio: el técnico tiene que
         rellenarlo.
+        {hasOptions ? ' Las opciones en rojo cuentan como incidencia.' : ''}
       </p>
     </div>
   );

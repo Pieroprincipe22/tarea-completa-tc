@@ -1,5 +1,8 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { MaintenanceTemplatesService } from './maintenance-templates.service';
+import { TEMPLATE_LIBRARY } from './template-library';
+import type { TemplateItemType } from './template-item-types';
 
 const SPLIT = {
   id: 't1',
@@ -26,6 +29,7 @@ const SPLIT = {
       section: 'Unidad interior',
       minValue: null,
       maxValue: null,
+      options: null,
     },
     {
       id: 'i2',
@@ -43,9 +47,37 @@ const SPLIT = {
       section: 'Unidad exterior',
       minValue: 18,
       maxValue: 28,
+      options: null,
+    },
+    {
+      id: 'i3',
+      label: 'Estado del ventilador',
+      title: 'Estado del ventilador',
+      description: null,
+      type: 'CHOICE',
+      valueType: 'CHOICE',
+      required: false,
+      sortOrder: 3,
+      itemOrder: 3,
+      unit: null,
+      helpText: null,
+      placeholder: null,
+      section: 'Unidad exterior',
+      minValue: null,
+      maxValue: null,
+      options: [
+        { label: 'Bien', result: 'OK' },
+        { label: 'Mal estado', result: 'ISSUE' },
+      ],
     },
   ],
 };
+
+const STATE = [
+  { label: 'Bien', result: 'OK' as const },
+  { label: 'Mal estado', result: 'ISSUE' as const },
+  { label: 'Requiere cambio', result: 'ISSUE' as const },
+];
 
 function setup() {
   const prisma = {
@@ -174,6 +206,15 @@ describe('MaintenanceTemplatesService', () => {
         minValue: 18,
         maxValue: 28,
         sortOrder: 2,
+        options: Prisma.DbNull,
+      }),
+      expect.objectContaining({
+        label: 'Estado del ventilador',
+        sortOrder: 3,
+        options: [
+          { label: 'Bien', result: 'OK' },
+          { label: 'Mal estado', result: 'ISSUE' },
+        ],
       }),
     ]);
   });
@@ -211,5 +252,149 @@ describe('MaintenanceTemplatesService', () => {
 
     await service.findAll('c1', true);
     expect(prisma.maintenanceTemplate.findMany.mock.calls[1][0].where).toEqual({ companyId: 'c1' });
+  });
+
+  describe('puntos de tipo Estado', () => {
+    async function createWith(options: unknown) {
+      const { prisma, service } = setup();
+      const attempt = service.create('c1', {
+        name: 'Fancoil',
+        items: [{ label: 'Desagüe', type: 'CHOICE', options: options as never }],
+      });
+      return { prisma, attempt };
+    }
+
+    it('guarda las opciones tal como las pone la empresa', async () => {
+      const { prisma, attempt } = await createWith(STATE);
+      await attempt;
+
+      const [row] = prisma.maintenanceTemplate.create.mock.calls[0][0].data.items.create;
+      expect(row).toMatchObject({ type: 'CHOICE', options: STATE, unit: null });
+    });
+
+    it('pide al menos dos opciones', async () => {
+      const { prisma, attempt } = await createWith([{ label: 'Bien', result: 'OK' }]);
+
+      await expect(attempt).rejects.toThrow(
+        'En «Desagüe» pon al menos 2 opciones para que el técnico pueda elegir.',
+      );
+      expect(prisma.maintenanceTemplate.create).not.toHaveBeenCalled();
+    });
+
+    it('no deja repetir una opción aunque cambien mayúsculas o tildes', async () => {
+      const { attempt } = await createWith([
+        { label: 'Obstruído', result: 'ISSUE' },
+        { label: 'Bien', result: 'OK' },
+        { label: 'obstruido', result: 'ISSUE' },
+      ]);
+
+      await expect(attempt).rejects.toThrow('En «Desagüe» la opción «obstruido» está repetida.');
+    });
+
+    it('exige al menos una opción correcta', async () => {
+      const { attempt } = await createWith([
+        { label: 'Obstruido', result: 'ISSUE' },
+        { label: 'No aplica', result: 'NA' },
+      ]);
+
+      await expect(attempt).rejects.toBeInstanceOf(BadRequestException);
+      await expect(attempt).rejects.toThrow('al menos una opción tiene que ser «Correcto»');
+    });
+
+    it('los demás tipos no guardan opciones', async () => {
+      const { prisma, service } = setup();
+
+      await service.create('c1', {
+        name: 'Revisión',
+        items: [{ label: 'Observaciones', type: 'TEXTAREA', options: STATE }],
+      });
+
+      const [row] = prisma.maintenanceTemplate.create.mock.calls[0][0].data.items.create;
+      expect(row.options).toBe(Prisma.DbNull);
+    });
+  });
+
+  describe('plantillas de partida', () => {
+    it('todas son válidas: se podrían guardar tal cual', async () => {
+      for (const template of TEMPLATE_LIBRARY) {
+        const { service } = setup();
+        await expect(
+          service.create('c1', {
+            name: template.name,
+            category: template.category,
+            items: template.items.map((item) => ({ ...item, type: item.type as TemplateItemType })),
+          }),
+        ).resolves.toBeDefined();
+      }
+    });
+
+    it('la de fancoil tiene los puntos acordados en su orden', () => {
+      const fancoil = TEMPLATE_LIBRARY.find((t) => t.key === 'fancoil');
+      expect(fancoil?.items.map((i) => `${i.section} · ${i.label} · ${i.type}`)).toEqual([
+        'Limpieza · Limpieza de filtros · CHOICE',
+        'Limpieza · Limpieza de batería · CHOICE',
+        'Limpieza · Bandeja de condensados · CHOICE',
+        'Limpieza · Desagüe de condensados · CHOICE',
+        'Ventilación · Estado del ventilador · CHOICE',
+        'Ventilación · Motor: ruidos y vibraciones · CHOICE',
+        'Ventilación · Velocidades V1-V2-V3 · CHOICE',
+        'Mediciones · Temperatura de impulsión · NUMBER',
+        'Mediciones · Temperatura de retorno · NUMBER',
+        'Control · Termostato / mando · CHOICE',
+        'Control · Válvula · CHOICE',
+        'Cierre · Incidencias observadas · TEXTAREA',
+        'Cierre · Foto del equipo · PHOTO',
+      ]);
+    });
+
+    it('copia la plantilla en la empresa con sus opciones', async () => {
+      const { prisma, service } = setup();
+      prisma.maintenanceTemplate.findMany.mockResolvedValue([]);
+
+      await service.useLibraryTemplate('c1', 'fancoil');
+
+      const data = prisma.maintenanceTemplate.create.mock.calls[0][0].data;
+      expect(data).toMatchObject({
+        companyId: 'c1',
+        name: 'Mantenimiento de fancoil',
+        category: 'Fancoil',
+      });
+      expect(data.items.create).toHaveLength(13);
+      expect(data.items.create[3]).toMatchObject({
+        label: 'Desagüe de condensados',
+        options: [
+          { label: 'Bien', result: 'OK' },
+          { label: 'Obstruido', result: 'ISSUE' },
+          { label: 'Con fuga', result: 'ISSUE' },
+        ],
+      });
+    });
+
+    it('si ya tiene una con ese nombre, la copia se numera', async () => {
+      const { prisma, service } = setup();
+      prisma.maintenanceTemplate.findMany.mockResolvedValue([
+        { name: 'Mantenimiento de fancoil' },
+        { name: 'Mantenimiento de fancoil (2)' },
+      ]);
+
+      await service.useLibraryTemplate('c1', 'fancoil');
+
+      expect(prisma.maintenanceTemplate.findMany.mock.calls[0][0].where).toEqual({
+        companyId: 'c1',
+        name: { startsWith: 'Mantenimiento de fancoil' },
+      });
+      expect(prisma.maintenanceTemplate.create.mock.calls[0][0].data.name).toBe(
+        'Mantenimiento de fancoil (3)',
+      );
+    });
+
+    it('avisa si la plantilla de partida no existe', async () => {
+      const { prisma, service } = setup();
+
+      await expect(service.useLibraryTemplate('c1', 'nevera')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(prisma.maintenanceTemplate.create).not.toHaveBeenCalled();
+    });
   });
 });

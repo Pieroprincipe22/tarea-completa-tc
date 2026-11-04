@@ -12,7 +12,14 @@ import {
   MaxLength,
   ValidateNested,
 } from 'class-validator';
-import { TEMPLATE_ITEM_TYPES, type TemplateItemType } from '../template-item-types';
+import {
+  OPTION_LABEL_MAX,
+  OPTION_RESULTS,
+  OPTIONS_MAX,
+  TEMPLATE_ITEM_TYPES,
+  type OptionResult,
+  type TemplateItemType,
+} from '../template-item-types';
 
 type TransformArg = { value: unknown };
 
@@ -28,6 +35,22 @@ export const trimOrNull = ({ value }: TransformArg) => {
 
 // Un número vacío ("" o null) se guarda como "sin límite".
 const numberOrNull = ({ value }: TransformArg) => (value === '' ? null : value);
+
+// Una opción de un punto de tipo Estado: "Bien", "Mal estado"…
+export class TemplateItemOptionDto {
+  @Transform(trim)
+  @IsString({ message: 'Cada opción necesita un nombre.' })
+  @IsNotEmpty({ message: 'Cada opción necesita un nombre.' })
+  @MaxLength(OPTION_LABEL_MAX, {
+    message: `El nombre de una opción no puede superar ${OPTION_LABEL_MAX} caracteres.`,
+  })
+  label!: string;
+
+  @IsIn(OPTION_RESULTS, {
+    message: 'Cada opción tiene que ser Correcto, Incidencia o No aplica.',
+  })
+  result!: OptionResult;
+}
 
 export class TemplateItemDto {
   @Transform(trim)
@@ -70,6 +93,16 @@ export class TemplateItemDto {
   @IsString()
   @MaxLength(300, { message: 'Las instrucciones no pueden superar 300 caracteres.' })
   helpText?: string | null;
+
+  // Solo para los puntos de tipo Estado; en los demás se ignora.
+  @IsOptional()
+  @IsArray({ message: 'Las opciones tienen que ser una lista.' })
+  @ArrayMaxSize(OPTIONS_MAX, {
+    message: `Un punto no puede tener más de ${OPTIONS_MAX} opciones.`,
+  })
+  @ValidateNested({ each: true })
+  @Type(() => TemplateItemOptionDto)
+  options?: TemplateItemOptionDto[] | null;
 }
 
 export class CreateMaintenanceTemplateDto {

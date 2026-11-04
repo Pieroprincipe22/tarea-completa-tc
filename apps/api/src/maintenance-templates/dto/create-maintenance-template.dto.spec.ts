@@ -72,4 +72,44 @@ describe('CreateMaintenanceTemplateDto', () => {
 
     expect(messages.length).toBeGreaterThan(0);
   });
+
+  it('valida las opciones de un punto de tipo Estado', async () => {
+    const { dto, messages } = await check({
+      name: 'Fancoil',
+      items: [
+        {
+          label: 'Desagüe',
+          type: 'CHOICE',
+          options: [
+            { label: ' Bien ', result: 'OK' },
+            { label: '', result: 'ISSUE' },
+            { label: 'Raro', result: 'MAL' },
+          ],
+        },
+      ],
+    });
+
+    expect(messages).toEqual(
+      expect.arrayContaining([
+        'Cada opción necesita un nombre.',
+        'Cada opción tiene que ser Correcto, Incidencia o No aplica.',
+      ]),
+    );
+    expect(dto.items[0].options?.[0].label).toBe('Bien');
+  });
+
+  it('no deja meter más de 10 opciones', async () => {
+    const { messages } = await check({
+      name: 'Fancoil',
+      items: [
+        {
+          label: 'Estado',
+          type: 'CHOICE',
+          options: Array.from({ length: 11 }, (_, i) => ({ label: `Opción ${i}`, result: 'OK' })),
+        },
+      ],
+    });
+
+    expect(messages).toContain('Un punto no puede tener más de 10 opciones.');
+  });
 });

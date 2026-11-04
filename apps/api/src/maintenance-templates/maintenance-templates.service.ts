@@ -6,7 +6,14 @@ import {
   TemplateItemDto,
 } from './dto/create-maintenance-template.dto';
 import { UpdateMaintenanceTemplateDto } from './dto/update-maintenance-template.dto';
-import { MEASUREMENT_TYPE } from './template-item-types';
+import { findLibraryTemplate, TEMPLATE_LIBRARY } from './template-library';
+import {
+  CHOICE_TYPE,
+  MEASUREMENT_TYPE,
+  OPTIONS_MAX,
+  OPTIONS_MIN,
+  type TemplateItemOption,
+} from './template-item-types';
 
 // Los puntos siempre salen en el orden en que la empresa los colocó.
 const TEMPLATE_INCLUDE = {
@@ -19,6 +26,20 @@ const NAME_MAX = 120;
 
 function formatNumber(value: number): string {
   return String(value).replace('.', ',');
+}
+
+// Para comparar nombres de opciones sin mayúsculas ni tildes.
+function comparable(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
+
+// Una columna JSON opcional no acepta null directamente al crear.
+function jsonOrNull(value: Prisma.JsonValue | TemplateItemOption[] | null) {
+  return value === null ? Prisma.DbNull : (value as Prisma.InputJsonValue);
 }
 
 @Injectable()
@@ -125,6 +146,7 @@ export class MaintenanceTemplatesService {
             section: item.section,
             minValue: item.minValue,
             maxValue: item.maxValue,
+            options: jsonOrNull(item.options),
           })),
         },
       },
@@ -142,6 +164,78 @@ export class MaintenanceTemplatesService {
       include: TEMPLATE_INCLUDE,
     });
   }
+
+  // ---------------------------------------------------------------
+  // Plantillas de partida
+  // ---------------------------------------------------------------
+
+  library() {
+    return TEMPLATE_LIBRARY.map((template) => ({
+      key: template.key,
+      name: template.name,
+      category: template.category,
+      description: template.description,
+      items: template.items.map((item) => ({
+        section: item.section,
+        label: item.label,
+        type: item.type,
+        required: item.required ?? false,
+        unit: item.unit ?? null,
+        minValue: item.minValue ?? null,
+        maxValue: item.maxValue ?? null,
+        helpText: item.helpText ?? null,
+        options: item.options ?? null,
+      })),
+    }));
+  }
+
+  /**
+   * Copia una plantilla de partida en la empresa. La copia es de la
+   * empresa: puede cambiarla entera sin afectar a nadie más.
+   */
+  async useLibraryTemplate(companyId: string, key: string) {
+    const source = findLibraryTemplate(key);
+    if (!source) {
+      throw new NotFoundException('Esa plantilla de partida no existe.');
+    }
+
+    const name = await this.freeName(companyId, source.name);
+
+    return this.create(companyId, {
+      name,
+      category: source.category,
+      description: source.description,
+      items: source.items.map((item) => ({
+        label: item.label,
+        section: item.section,
+        type: item.type,
+        required: item.required ?? false,
+        unit: item.unit ?? null,
+        minValue: item.minValue ?? null,
+        maxValue: item.maxValue ?? null,
+        helpText: item.helpText ?? null,
+        options: item.options ? item.options.map((option) => ({ ...option })) : null,
+      })),
+    });
+  }
+
+  // "Mantenimiento de fancoil" → si ya existe, "Mantenimiento de fancoil (2)"…
+  private async freeName(companyId: string, base: string): Promise<string> {
+    const existing = await this.prisma.maintenanceTemplate.findMany({
+      where: { companyId, name: { startsWith: base } },
+      select: { name: true },
+    });
+    const taken = new Set(existing.map((t) => t.name));
+    if (!taken.has(base)) return base;
+
+    for (let n = 2; n < 1000; n += 1) {
+      const candidate = `${base} (${n})`;
+      if (!taken.has(candidate)) return candidate;
+    }
+    return `${base} (${Date.now()})`;
+  }
+
+  // ---------------------------------------------------------------
 
   /**
    * Convierte los puntos que llegan del editor en filas de la base de datos.
@@ -161,6 +255,8 @@ export class MaintenanceTemplatesService {
         );
       }
 
+      const options = item.type === CHOICE_TYPE ? this.checkOptions(item) : null;
+
       return {
         label: item.label,
         title: item.label,
@@ -174,7 +270,46 @@ export class MaintenanceTemplatesService {
         minValue,
         maxValue,
         helpText: item.helpText ?? null,
+        options: jsonOrNull(options),
       };
     });
+  }
+
+  // Un punto de tipo Estado necesita opciones con sentido.
+  private checkOptions(item: TemplateItemDto): TemplateItemOption[] {
+    const options = (item.options ?? []).map((option) => ({
+      label: option.label,
+      result: option.result,
+    }));
+
+    if (options.length < OPTIONS_MIN) {
+      throw new BadRequestException(
+        `En «${item.label}» pon al menos ${OPTIONS_MIN} opciones para que el técnico pueda elegir.`,
+      );
+    }
+    if (options.length > OPTIONS_MAX) {
+      throw new BadRequestException(
+        `En «${item.label}» no puede haber más de ${OPTIONS_MAX} opciones.`,
+      );
+    }
+
+    const seen = new Set<string>();
+    for (const option of options) {
+      const key = comparable(option.label);
+      if (seen.has(key)) {
+        throw new BadRequestException(
+          `En «${item.label}» la opción «${option.label}» está repetida.`,
+        );
+      }
+      seen.add(key);
+    }
+
+    if (!options.some((option) => option.result === 'OK')) {
+      throw new BadRequestException(
+        `En «${item.label}» al menos una opción tiene que ser «Correcto».`,
+      );
+    }
+
+    return options;
   }
 }

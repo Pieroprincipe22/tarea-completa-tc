@@ -1,5 +1,9 @@
 import { ForbiddenException } from '@nestjs/common';
-import { MaintenanceReportsService } from './maintenance-reports.service';
+import { Prisma } from '@prisma/client';
+import {
+  MaintenanceReportsService,
+  snapshotTemplateItem,
+} from './maintenance-reports.service';
 
 // Estas reglas deciden quién puede tocar un parte de mantenimiento: son
 // la última barrera antes de que un técnico pueda editar el trabajo de
@@ -98,5 +102,73 @@ describe('MaintenanceReportsService — permisos', () => {
       const admin = makeActor({ companyRole: 'ADMIN' });
       expect(() => service.ensureAdmin(admin)).not.toThrow();
     });
+  });
+});
+
+// Un parte guarda su propia copia de cada punto de la plantilla.
+describe('snapshotTemplateItem()', () => {
+  const base = {
+    id: 'ti-1',
+    templateId: 't-1',
+    label: 'Desagüe de condensados',
+    title: 'Desagüe de condensados',
+    description: null,
+    type: 'CHOICE' as const,
+    valueType: 'CHOICE',
+    required: true,
+    sortOrder: 4,
+    itemOrder: 4,
+    unit: null,
+    helpText: null,
+    placeholder: null,
+    section: 'Limpieza',
+    minValue: null,
+    maxValue: null,
+    options: [
+      { label: 'Bien', result: 'OK' },
+      { label: 'Obstruido', result: 'ISSUE' },
+    ],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  it('copia la sección y las opciones de un punto de tipo Estado', () => {
+    const row = snapshotTemplateItem('r-1', base, 3);
+
+    expect(row).toMatchObject({
+      reportId: 'r-1',
+      templateItemId: 'ti-1',
+      label: 'Desagüe de condensados',
+      type: 'CHOICE',
+      required: true,
+      sortOrder: 4,
+      section: 'Limpieza',
+      status: 'PENDING',
+      options: [
+        { label: 'Bien', result: 'OK' },
+        { label: 'Obstruido', result: 'ISSUE' },
+      ],
+    });
+  });
+
+  it('copia el rango y la unidad de una medición', () => {
+    const row = snapshotTemplateItem(
+      'r-1',
+      {
+        ...base,
+        label: 'Tensión de alimentación',
+        title: 'Tensión de alimentación',
+        type: 'NUMBER',
+        valueType: 'NUMBER',
+        unit: 'V',
+        minValue: 207,
+        maxValue: 253,
+        options: null,
+      },
+      0,
+    );
+
+    expect(row).toMatchObject({ unit: 'V', minValue: 207, maxValue: 253 });
+    expect(row.options).toBe(Prisma.DbNull);
   });
 });

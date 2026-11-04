@@ -216,13 +216,18 @@ export default function MaintenanceTemplatesPage() {
           </p>
         </div>
         {canEdit ? (
-          <Link
-            href="/maintenance-templates/new"
-            className="tc-button-primary gap-1.5 self-start"
-          >
-            <PlusIcon className="h-4 w-4" />
-            Nueva plantilla
-          </Link>
+          <div className="flex flex-wrap gap-2 self-start">
+            <Link href="/maintenance-templates/library" className="tc-button">
+              Plantillas de partida
+            </Link>
+            <Link
+              href="/maintenance-templates/new"
+              className="tc-button-primary gap-1.5"
+            >
+              <PlusIcon className="h-4 w-4" />
+              Nueva plantilla
+            </Link>
+          </div>
         ) : null}
       </header>
 
@@ -285,13 +290,21 @@ export default function MaintenanceTemplatesPage() {
             cada parte.
           </p>
           {canEdit ? (
-            <Link
-              href="/maintenance-templates/new"
-              className="tc-button-primary mt-5 gap-1.5"
-            >
-              <PlusIcon className="h-4 w-4" />
-              Crear la primera plantilla
-            </Link>
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              <Link
+                href="/maintenance-templates/library"
+                className="tc-button-primary"
+              >
+                Empezar con una plantilla de partida
+              </Link>
+              <Link
+                href="/maintenance-templates/new"
+                className="tc-button gap-1.5"
+              >
+                <PlusIcon className="h-4 w-4" />
+                Crear desde cero
+              </Link>
+            </div>
           ) : null}
         </div>
       ) : visible.length === 0 ? (

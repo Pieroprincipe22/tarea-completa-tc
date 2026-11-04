@@ -20,18 +20,29 @@ import {
   ITEM_TYPE_INFO,
   LABEL_MAX,
   NAME_MAX,
+  OPTION_LABEL_MAX,
+  OPTION_PRESETS,
+  OPTION_RESULTS,
+  OPTION_RESULT_INFO,
+  OPTIONS_MAX,
+  OPTIONS_MIN,
   SECTION_MAX,
   UNIT_MAX,
   apiMessages,
+  comparable,
   draftToPayload,
   emptyItem,
+  emptyOption,
   emptySection,
   newKey,
   parseTemplate,
+  presetOptions,
   type Draft,
   type DraftItem,
+  type DraftOption,
   type DraftSection,
   type ItemType,
+  type OptionResult,
 } from '@/lib/tc/templates';
 import TemplatePreview, {
   previewFromDraft,
@@ -73,6 +84,7 @@ function snapshot(draft: Draft): string {
         i.minValue,
         i.maxValue,
         i.helpText,
+        i.type === 'CHOICE' ? i.options.map((o) => [o.label, o.result]) : [],
       ]),
     })),
   });
@@ -104,6 +116,118 @@ function IconButton({
     >
       {children}
     </button>
+  );
+}
+
+function OptionsEditor({
+  item,
+  position,
+  disabled,
+  onLabel,
+  onResult,
+  onAdd,
+  onRemove,
+  onPreset,
+}: {
+  item: DraftItem;
+  position: number;
+  disabled: boolean;
+  onLabel: (optionKey: string, label: string) => void;
+  onResult: (optionKey: string, result: OptionResult) => void;
+  onAdd: () => void;
+  onRemove: (optionKey: string) => void;
+  onPreset: (presetKey: string) => void;
+}) {
+  return (
+    <div className="rounded-lg border border-line bg-surface-2 p-3">
+      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-medium text-muted">
+          Opciones que puede elegir el técnico
+        </p>
+        <div className="flex flex-wrap items-center gap-1.5 text-xs">
+          <span className="text-subtle">Usar lista:</span>
+          {OPTION_PRESETS.map((preset) => (
+            <button
+              key={preset.key}
+              type="button"
+              className="rounded-md border border-line bg-surface px-2 py-1 font-medium text-ink-2 transition hover:border-accent hover:text-accent disabled:opacity-50"
+              title={preset.options.map((o) => o.label).join(' / ')}
+              onClick={() => onPreset(preset.key)}
+              disabled={disabled}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <ul className="space-y-2">
+        {item.options.map((option, oIndex) => (
+          <li
+            key={option.key}
+            className="flex flex-wrap items-center gap-2 border-b border-line pb-2 last:border-0 last:pb-0 sm:border-0 sm:pb-0"
+          >
+            <input
+              id={`option-${option.key}`}
+              aria-label={`Punto ${position}: opción ${oIndex + 1}`}
+              className="tc-input min-w-0 flex-[1_1_10rem] bg-surface py-1.5"
+              value={option.label}
+              maxLength={OPTION_LABEL_MAX}
+              placeholder={`Opción ${oIndex + 1}: p. ej. Obstruido`}
+              onChange={(e) => onLabel(option.key, e.target.value)}
+              disabled={disabled}
+            />
+            <div className="flex items-center gap-1">
+              <select
+                aria-label={`Punto ${position}: qué significa la opción ${oIndex + 1}`}
+                className={`tc-input w-[8.5rem] bg-surface py-1.5 ${
+                  option.result === 'ISSUE'
+                    ? 'text-danger'
+                    : option.result === 'OK'
+                      ? 'text-success'
+                      : ''
+                }`}
+                value={option.result}
+                onChange={(e) =>
+                  onResult(option.key, e.target.value as OptionResult)
+                }
+                disabled={disabled}
+              >
+                {OPTION_RESULTS.map((result) => (
+                  <option key={result} value={result}>
+                    {OPTION_RESULT_INFO[result].label}
+                  </option>
+                ))}
+              </select>
+              <IconButton
+                label={`Quitar la opción ${oIndex + 1}`}
+                onClick={() => onRemove(option.key)}
+                disabled={disabled || item.options.length <= OPTIONS_MIN}
+                danger
+              >
+                <TrashIcon className="h-4 w-4" />
+              </IconButton>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      {item.options.length < OPTIONS_MAX ? (
+        <button
+          type="button"
+          className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-accent hover:text-accent-hover disabled:opacity-50"
+          onClick={onAdd}
+          disabled={disabled}
+        >
+          <PlusIcon className="h-3.5 w-3.5" />
+          Añadir opción
+        </button>
+      ) : (
+        <p className="mt-2 text-xs text-subtle">
+          Máximo {OPTIONS_MAX} opciones.
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -140,6 +264,7 @@ export default function TemplateEditor({
       ).length,
       required: items.filter((i) => i.required).length,
       measurements: items.filter((i) => i.type === 'NUMBER').length,
+      states: items.filter((i) => i.type === 'CHOICE').length,
     };
   }, [draft]);
 
@@ -156,7 +281,11 @@ export default function TemplateEditor({
 
   useEffect(() => {
     if (!message) return;
-    const timer = window.setTimeout(() => setMessage(null), 4000);
+    // Los avisos largos se quedan más tiempo para que dé tiempo a leerlos.
+    const timer = window.setTimeout(
+      () => setMessage(null),
+      Math.max(4000, message.length * 60),
+    );
     return () => window.clearTimeout(timer);
   }, [message]);
 
@@ -258,7 +387,15 @@ export default function TemplateEditor({
         if (s.key !== sectionKey) return s;
         const index = s.items.findIndex((i) => i.key === itemKey);
         if (index < 0) return s;
-        const copy = { ...s.items[index], key: newKey('item') };
+        const original = s.items[index];
+        const copy = {
+          ...original,
+          key: newKey('item'),
+          options: original.options.map((o) => ({
+            ...o,
+            key: newKey('option'),
+          })),
+        };
         const items = [...s.items];
         items.splice(index + 1, 0, copy);
         return { ...s, items };
@@ -304,13 +441,93 @@ export default function TemplateEditor({
 
   function changeType(sectionKey: string, item: DraftItem, type: ItemType) {
     // Al dejar de ser medición, la unidad y el rango ya no tienen sentido.
-    setItem(
-      sectionKey,
-      item.key,
+    const patch: Partial<DraftItem> =
       type === 'NUMBER'
         ? { type }
-        : { type, unit: '', minValue: '', maxValue: '' },
+        : { type, unit: '', minValue: '', maxValue: '' };
+    // Un Estado nuevo empieza con Bien / Mal estado / Requiere cambio.
+    if (type === 'CHOICE' && item.options.length === 0) {
+      patch.options = presetOptions('state');
+    }
+    setItem(sectionKey, item.key, patch);
+  }
+
+  // ---------------------------------------------------------------
+  // Opciones de un punto de tipo Estado
+  // ---------------------------------------------------------------
+
+  function updateOptions(
+    sectionKey: string,
+    itemKey: string,
+    update: (options: DraftOption[]) => DraftOption[],
+  ) {
+    change((d) => ({
+      ...d,
+      sections: d.sections.map((s) =>
+        s.key === sectionKey
+          ? {
+              ...s,
+              items: s.items.map((i) =>
+                i.key === itemKey ? { ...i, options: update(i.options) } : i,
+              ),
+            }
+          : s,
+      ),
+    }));
+  }
+
+  function setOption(
+    sectionKey: string,
+    itemKey: string,
+    optionKey: string,
+    patch: Partial<DraftOption>,
+  ) {
+    updateOptions(sectionKey, itemKey, (options) =>
+      options.map((o) => (o.key === optionKey ? { ...o, ...patch } : o)),
     );
+  }
+
+  function addOption(sectionKey: string, itemKey: string) {
+    const option = emptyOption();
+    updateOptions(sectionKey, itemKey, (options) =>
+      options.length >= OPTIONS_MAX ? options : [...options, option],
+    );
+    window.setTimeout(
+      () => document.getElementById(`option-${option.key}`)?.focus(),
+      0,
+    );
+  }
+
+  function removeOption(
+    sectionKey: string,
+    itemKey: string,
+    optionKey: string,
+  ) {
+    updateOptions(sectionKey, itemKey, (options) =>
+      options.filter((o) => o.key !== optionKey),
+    );
+  }
+
+  function applyPreset(sectionKey: string, item: DraftItem, presetKey: string) {
+    const preset = OPTION_PRESETS.find((p) => p.key === presetKey);
+    if (!preset) return;
+    const current = item.options
+      .map((o) => comparable(o.label))
+      .filter(Boolean)
+      .join('|');
+    const target = preset.options.map((o) => comparable(o.label)).join('|');
+    if (
+      current &&
+      current !== target &&
+      !window.confirm(
+        `¿Cambiar las opciones por las de «${preset.label}» (${preset.options
+          .map((o) => o.label)
+          .join(' / ')})?`,
+      )
+    ) {
+      return;
+    }
+    updateOptions(sectionKey, item.key, () => presetOptions(presetKey));
   }
 
   function toggleHelp(item: DraftItem, sectionKey: string) {
@@ -528,6 +745,9 @@ export default function TemplateEditor({
               {stats.measurements > 0
                 ? ` · ${stats.measurements} medici${stats.measurements === 1 ? 'ón' : 'ones'}`
                 : ''}
+              {stats.states > 0
+                ? ` · ${stats.states} estado${stats.states === 1 ? '' : 's'}`
+                : ''}
               {stats.required > 0
                 ? ` · ${stats.required} obligatorio${stats.required === 1 ? '' : 's'}`
                 : ''}
@@ -699,6 +919,45 @@ export default function TemplateEditor({
                                     </div>
                                   ))}
                                 </div>
+                              ) : null}
+
+                              {item.type === 'CHOICE' ? (
+                                <OptionsEditor
+                                  item={item}
+                                  position={position}
+                                  disabled={saving}
+                                  onLabel={(optionKey, label) =>
+                                    setOption(
+                                      section.key,
+                                      item.key,
+                                      optionKey,
+                                      {
+                                        label,
+                                      },
+                                    )
+                                  }
+                                  onResult={(optionKey, result) =>
+                                    setOption(
+                                      section.key,
+                                      item.key,
+                                      optionKey,
+                                      {
+                                        result,
+                                      },
+                                    )
+                                  }
+                                  onAdd={() => addOption(section.key, item.key)}
+                                  onRemove={(optionKey) =>
+                                    removeOption(
+                                      section.key,
+                                      item.key,
+                                      optionKey,
+                                    )
+                                  }
+                                  onPreset={(presetKey) =>
+                                    applyPreset(section.key, item, presetKey)
+                                  }
+                                />
                               ) : null}
 
                               <div className="flex flex-wrap items-center gap-x-5 gap-y-2">

@@ -8,6 +8,7 @@ import { isRecord } from '@/lib/tc/api';
 
 export const ITEM_TYPES = [
   'CHECKLIST',
+  'CHOICE',
   'NUMBER',
   'TEXT',
   'TEXTAREA',
@@ -24,6 +25,10 @@ export const ITEM_TYPE_INFO: Record<ItemType, { label: string; hint: string }> =
     CHECKLIST: {
       label: 'Comprobación',
       hint: 'El técnico marca Correcto, Incorrecto o No aplica.',
+    },
+    CHOICE: {
+      label: 'Estado',
+      hint: 'El técnico elige una de tus opciones. Las de incidencia salen en el resumen del informe.',
     },
     NUMBER: {
       label: 'Medición',
@@ -72,6 +77,75 @@ export const LABEL_MAX = 200;
 export const SECTION_MAX = 80;
 export const UNIT_MAX = 20;
 export const HELP_MAX = 300;
+export const OPTION_LABEL_MAX = 60;
+export const OPTIONS_MIN = 2;
+export const OPTIONS_MAX = 10;
+
+// ---------------------------------------------------------------
+// Opciones de un punto de tipo Estado
+// ---------------------------------------------------------------
+
+// OK = correcto · ISSUE = incidencia · NA = no aplica
+export const OPTION_RESULTS = ['OK', 'ISSUE', 'NA'] as const;
+export type OptionResult = (typeof OPTION_RESULTS)[number];
+
+export const OPTION_RESULT_INFO: Record<OptionResult, { label: string }> = {
+  OK: { label: 'Correcto' },
+  ISSUE: { label: 'Incidencia' },
+  NA: { label: 'No aplica' },
+};
+
+export type ItemOption = { label: string; result: OptionResult };
+
+// Listas de opciones listas para usar con un clic.
+export const OPTION_PRESETS: {
+  key: string;
+  label: string;
+  options: ItemOption[];
+}[] = [
+  {
+    key: 'task',
+    label: 'Tarea',
+    options: [
+      { label: 'Hecho', result: 'OK' },
+      { label: 'No se pudo hacer', result: 'ISSUE' },
+      { label: 'No aplica', result: 'NA' },
+    ],
+  },
+  {
+    key: 'state',
+    label: 'Estado',
+    options: [
+      { label: 'Bien', result: 'OK' },
+      { label: 'Mal estado', result: 'ISSUE' },
+      { label: 'Requiere cambio', result: 'ISSUE' },
+    ],
+  },
+];
+
+export function parseOptions(value: unknown): ItemOption[] {
+  if (!Array.isArray(value)) return [];
+  const options: ItemOption[] = [];
+  for (const entry of value) {
+    if (!isRecord(entry)) continue;
+    const label = typeof entry.label === 'string' ? entry.label.trim() : '';
+    if (!label) continue;
+    const result = (OPTION_RESULTS as readonly unknown[]).includes(entry.result)
+      ? (entry.result as OptionResult)
+      : 'OK';
+    options.push({ label, result });
+  }
+  return options;
+}
+
+// Para comparar textos sin mayúsculas ni tildes.
+export function comparable(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
 
 // ---------------------------------------------------------------
 // Lo que llega de la API
@@ -87,6 +161,7 @@ export type TemplateItem = {
   minValue: number | null;
   maxValue: number | null;
   helpText: string | null;
+  options: ItemOption[];
 };
 
 export type Template = {
@@ -128,6 +203,7 @@ function parseItem(value: unknown, index: number): TemplateItem | null {
     minValue: num(value.minValue),
     maxValue: num(value.maxValue),
     helpText: str(value.helpText),
+    options: parseOptions(value.options),
   };
 }
 
@@ -187,6 +263,12 @@ export function formatRange(
 // Lo que edita la empresa (borrador)
 // ---------------------------------------------------------------
 
+export type DraftOption = {
+  key: string;
+  label: string;
+  result: OptionResult;
+};
+
 export type DraftItem = {
   key: string;
   label: string;
@@ -196,6 +278,8 @@ export type DraftItem = {
   minValue: string;
   maxValue: string;
   helpText: string;
+  // Solo se usan si el tipo es Estado.
+  options: DraftOption[];
 };
 
 export type DraftSection = {
@@ -217,6 +301,24 @@ export function newKey(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${keySeq}`;
 }
 
+export function toDraftOptions(options: ItemOption[]): DraftOption[] {
+  return options.map((option) => ({
+    key: newKey('option'),
+    label: option.label,
+    result: option.result,
+  }));
+}
+
+export function presetOptions(presetKey: string): DraftOption[] {
+  const preset =
+    OPTION_PRESETS.find((p) => p.key === presetKey) ?? OPTION_PRESETS[1];
+  return toDraftOptions(preset.options);
+}
+
+export function emptyOption(): DraftOption {
+  return { key: newKey('option'), label: '', result: 'ISSUE' };
+}
+
 export function emptyItem(type: ItemType = 'CHECKLIST'): DraftItem {
   return {
     key: newKey('item'),
@@ -227,6 +329,7 @@ export function emptyItem(type: ItemType = 'CHECKLIST'): DraftItem {
     minValue: '',
     maxValue: '',
     helpText: '',
+    options: type === 'CHOICE' ? presetOptions('state') : [],
   };
 }
 
@@ -266,6 +369,7 @@ export function templateToDraft(template: Template): Draft {
               minValue: numberToField(item.minValue),
               maxValue: numberToField(item.maxValue),
               helpText: item.helpText ?? '',
+              options: toDraftOptions(item.options),
             })),
           }))
         : [emptySection()],
@@ -292,6 +396,7 @@ export type TemplatePayload = {
     minValue: number | null;
     maxValue: number | null;
     helpText: string | null;
+    options: ItemOption[] | null;
   }[];
 };
 
@@ -339,6 +444,10 @@ export function draftToPayload(
         problems.push(`En ${where} el mínimo es mayor que el máximo.`);
       }
 
+      const options =
+        item.type === 'CHOICE' ? checkOptions(item.options, where) : null;
+      if (options && !options.ok) problems.push(...options.problems);
+
       items.push({
         label,
         section: sectionName || null,
@@ -348,6 +457,7 @@ export function draftToPayload(
         minValue,
         maxValue,
         helpText: item.helpText.trim() || null,
+        options: options && options.ok ? options.options : null,
       });
     }
   }
@@ -368,8 +478,50 @@ export function draftToPayload(
   };
 }
 
+// Las mismas reglas que comprueba la API para un punto de tipo Estado.
+function checkOptions(
+  draftOptions: DraftOption[],
+  where: string,
+): { ok: true; options: ItemOption[] } | { ok: false; problems: string[] } {
+  const problems: string[] = [];
+  const options = draftOptions.map((o) => ({
+    label: o.label.trim(),
+    result: o.result,
+  }));
+
+  if (options.some((o) => !o.label)) {
+    problems.push(`En ${where} hay una opción sin nombre.`);
+  }
+  const named = options.filter((o) => o.label);
+  if (named.length < OPTIONS_MIN) {
+    problems.push(
+      `En ${where} pon al menos ${OPTIONS_MIN} opciones para que el técnico pueda elegir.`,
+    );
+  }
+  if (options.length > OPTIONS_MAX) {
+    problems.push(`En ${where} no puede haber más de ${OPTIONS_MAX} opciones.`);
+  }
+
+  const seen = new Set<string>();
+  for (const option of named) {
+    const key = comparable(option.label);
+    if (seen.has(key)) {
+      problems.push(`En ${where} la opción «${option.label}» está repetida.`);
+      break;
+    }
+    seen.add(key);
+  }
+
+  if (named.length > 0 && !named.some((o) => o.result === 'OK')) {
+    problems.push(`En ${where} al menos una opción tiene que ser «Correcto».`);
+  }
+
+  return problems.length > 0 ? { ok: false, problems } : { ok: true, options };
+}
+
 // La API devuelve "message" como texto o como lista. Los errores de un punto
-// llegan como "items.3.Cada punto necesita un nombre." → "Punto 4: …".
+// llegan como "items.3.Cada punto necesita un nombre." → "Punto 4: …" y los
+// de una opción como "items.3.options.1.…" → "Punto 4, opción 2: …".
 export function apiMessages(json: unknown, fallback: string): string[] {
   if (isRecord(json)) {
     const message = json.message;
@@ -380,10 +532,49 @@ export function apiMessages(json: unknown, fallback: string): string[] {
         : [];
     if (list.length > 0) {
       return list.map((m) => {
+        const option = /^items\.(\d+)\.options\.(\d+)\.(.+)$/.exec(m);
+        if (option) {
+          return `Punto ${Number(option[1]) + 1}, opción ${Number(option[2]) + 1}: ${option[3]}`;
+        }
         const match = /^items\.(\d+)\.(.+)$/.exec(m);
         return match ? `Punto ${Number(match[1]) + 1}: ${match[2]}` : m;
       });
     }
   }
   return [fallback];
+}
+
+// ---------------------------------------------------------------
+// Plantillas de partida
+// ---------------------------------------------------------------
+
+export type LibraryTemplate = {
+  key: string;
+  name: string;
+  category: string | null;
+  description: string | null;
+  items: TemplateItem[];
+};
+
+export function parseLibrary(value: unknown): LibraryTemplate[] {
+  if (!Array.isArray(value)) return [];
+  const list: LibraryTemplate[] = [];
+  for (const entry of value) {
+    if (!isRecord(entry)) continue;
+    const key = str(entry.key);
+    const name = str(entry.name);
+    if (!key || !name) continue;
+    const rawItems = Array.isArray(entry.items) ? entry.items : [];
+    list.push({
+      key,
+      name,
+      category: str(entry.category),
+      description: str(entry.description),
+      items: rawItems
+        .map((item, index) => parseItem(item, index))
+        .filter((item): item is TemplateItem => item !== null)
+        .map((item, index) => ({ ...item, id: `${key}-${index}` })),
+    });
+  }
+  return list;
 }

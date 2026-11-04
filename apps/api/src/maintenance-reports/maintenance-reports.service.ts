@@ -15,6 +15,7 @@ import {
 import { PrismaService } from '../database/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { PdfService } from '../pdf/pdf.service';
+import { readOptions } from '../maintenance-templates/template-item-types';
 import { CreateMaintenanceReportDto } from './dto/create-maintenance-report.dto';
 import { ReviewMaintenanceReportDto } from './dto/review-maintenance-report.dto';
 import { UpdateMaintenanceReportItemDto } from './dto/update-maintenance-report-items.dto';
@@ -270,6 +271,43 @@ function serializeReportMaterial(material: ReportMaterialEntity) {
   };
 }
 
+type TemplateItemEntity = Prisma.MaintenanceTemplateItemGetPayload<object>;
+
+/**
+ * Copia de un punto de la plantilla dentro del parte. El parte guarda
+ * cómo era el punto al crearse (nombre, sección, rango y opciones), así
+ * que cambiar o archivar la plantilla después no altera partes hechos.
+ */
+export function snapshotTemplateItem(
+  reportId: string,
+  item: TemplateItemEntity,
+  index: number,
+): Prisma.MaintenanceReportItemCreateManyInput {
+  return {
+    reportId,
+    templateItemId: item.id,
+    label: item.label ?? item.title ?? `Item ${index + 1}`,
+    title: item.title ?? item.label ?? `Item ${index + 1}`,
+    description: item.description ?? null,
+    type: item.type ?? null,
+    valueType: item.valueType ?? null,
+    required: item.required,
+    sortOrder: item.sortOrder ?? index + 1,
+    itemOrder: item.itemOrder ?? index + 1,
+    unit: item.unit ?? null,
+    section: item.section ?? null,
+    minValue: item.minValue ?? null,
+    maxValue: item.maxValue ?? null,
+    options:
+      item.options === null
+        ? Prisma.DbNull
+        : (item.options as Prisma.InputJsonValue),
+    status: MaintenanceItemStatus.PENDING,
+    value: null,
+    notes: null,
+  };
+}
+
 function serializeReportItem(item: ReportItemEntity) {
   const parsedNumber =
     item.value !== null && item.value.trim() !== '' ? Number(item.value) : NaN;
@@ -287,6 +325,10 @@ function serializeReportItem(item: ReportItemEntity) {
     itemOrder: item.itemOrder,
     sortOrder: item.sortOrder,
     unit: item.unit,
+    section: item.section,
+    minValue: item.minValue,
+    maxValue: item.maxValue,
+    options: readOptions(item.options),
     status: item.status,
 
     value: item.value,
@@ -296,7 +338,8 @@ function serializeReportItem(item: ReportItemEntity) {
     valueBoolean: item.valueBoolean,
     valueDate: item.valueDate,
     valueJson: item.valueJson,
-    valueChoice: null,
+    // En un punto de tipo Estado, la opción elegida se guarda como texto.
+    valueChoice: item.type === 'CHOICE' ? (item.valueText ?? item.value) : null,
 
     notes: item.notes,
     resultValue: item.value,
@@ -645,22 +688,9 @@ export class MaintenanceReportsService {
 
       if (template?.items.length) {
         await tx.maintenanceReportItem.createMany({
-          data: template.items.map((item, index) => ({
-            reportId: created.id,
-            templateItemId: item.id,
-            label: item.label ?? item.title ?? `Item ${index + 1}`,
-            title: item.title ?? item.label ?? `Item ${index + 1}`,
-            description: item.description ?? null,
-            type: item.type ?? null,
-            valueType: item.valueType ?? null,
-            required: item.required,
-            sortOrder: item.sortOrder ?? index + 1,
-            itemOrder: item.itemOrder ?? index + 1,
-            unit: item.unit ?? null,
-            status: MaintenanceItemStatus.PENDING,
-            value: null,
-            notes: null,
-          })),
+          data: template.items.map((item, index) =>
+            snapshotTemplateItem(created.id, item, index),
+          ),
         });
       }
 
@@ -889,22 +919,9 @@ export class MaintenanceReportsService {
       });
 
       await tx.maintenanceReportItem.createMany({
-        data: template.items.map((item, index) => ({
-          reportId: report.id,
-          templateItemId: item.id,
-          label: item.label ?? item.title ?? `Item ${index + 1}`,
-          title: item.title ?? item.label ?? `Item ${index + 1}`,
-          description: item.description ?? null,
-          type: item.type ?? null,
-          valueType: item.valueType ?? null,
-          required: item.required,
-          sortOrder: item.sortOrder ?? index + 1,
-          itemOrder: item.itemOrder ?? index + 1,
-          unit: item.unit ?? null,
-          status: MaintenanceItemStatus.PENDING,
-          value: null,
-          notes: null,
-        })),
+        data: template.items.map((item, index) =>
+          snapshotTemplateItem(report.id, item, index),
+        ),
       });
 
       const fullReport = await tx.maintenanceReport.findFirst({
