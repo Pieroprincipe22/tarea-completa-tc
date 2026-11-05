@@ -20,7 +20,7 @@ if (process.env.SENTRY_DSN) {
 function getAllowedOrigins(): string[] {
   const raw =
     process.env.CORS_ORIGINS ||
-    'http://localhost:3000,http://localhost:3001,http://localhost:3003';
+    'http://localhost:3000,http://localhost:3001,http://localhost:3003,http://localhost:3004';
 
   return raw
     .split(',')

@@ -82,6 +82,7 @@ enum AttachmentOwnerType {
   MAINTENANCE_TEMPLATE
   EMERGENCY_REQUEST
   INVOICE
+  INVENTORY_PART
   OTHER
 }
 
@@ -107,16 +108,44 @@ enum CompanyPlan {
   ENTERPRISE
 }
 
+// Programas de AnPi Tech que una empresa puede tener contratados.
+enum Product {
+  MAINTENANCE
+  INVENTORY
+}
+
+enum InventoryLocationType {
+  WAREHOUSE
+  RACK
+  SHELF
+  VAN
+}
+
+enum InventoryMovementType {
+  INITIAL
+  IN
+  OUT
+  TRANSFER
+  ADJUST
+}
+
+enum InventoryPurchaseStatus {
+  PENDING
+  ORDERED
+  RECEIVED
+  CANCELLED
+}
+
 model Company {
-  id        String      @id @default(cuid())
-  name      String
-  slug      String?     @unique
-  isActive  Boolean     @default(true)
-  existe    Boolean     @default(true)
+  id            String      @id @default(cuid())
+  name          String
+  slug          String?     @unique
+  isActive      Boolean     @default(true)
+  existe        Boolean     @default(true)
   plan          CompanyPlan @default(BASIC)
   invoicePrefix String?
   createdAt     DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  updatedAt     DateTime    @updatedAt
 
   users                User[]
   userCompanies        UserCompany[]
@@ -131,6 +160,16 @@ model Company {
   counters             CompanyCounter[]
   emergencyRequests    EmergencyRequest[]
   invoices             Invoice[]
+
+  products               CompanyProduct[]
+  inventoryCategories    InventoryCategory[]
+  inventoryParts         InventoryPart[]
+  inventoryPartAliases   InventoryPartAlias[]
+  inventoryPartBarcodes  InventoryPartBarcode[]
+  inventoryLocations     InventoryLocation[]
+  inventoryStocks        InventoryStock[]
+  inventoryMovements     InventoryMovement[]
+  inventoryPurchaseItems InventoryPurchaseItem[]
 }
 
 model User {
@@ -158,6 +197,11 @@ model User {
   reviewedMaintenanceReports      MaintenanceReport[] @relation("MaintenanceReportReviewedBy")
   uploadedAttachments             Attachment[]        @relation("AttachmentUploadedByUser")
   assignedEmergencyRequests       EmergencyRequest[]  @relation("EmergencyRequestAssignedTo")
+
+  assignedInventoryLocations InventoryLocation[]     @relation("InventoryLocationAssignedUser")
+  inventoryMovements         InventoryMovement[]     @relation("InventoryMovementUser")
+  reviewedInventoryMovements InventoryMovement[]     @relation("InventoryMovementReviewedBy")
+  addedInventoryPurchases    InventoryPurchaseItem[] @relation("InventoryPurchaseItemAddedBy")
 
   @@index([companyId])
   @@index([companyId, role])
@@ -615,4 +659,207 @@ model InvoiceItem {
 
   @@index([invoiceId, sortOrder])
   @@index([maintenanceReportMaterialId])
+}
+
+// ============================================================================
+// Plataforma AnPi Tech: programas contratados por empresa
+// ============================================================================
+
+model CompanyProduct {
+  id        String      @id @default(cuid())
+  companyId String
+  product   Product
+  plan      CompanyPlan @default(BASIC)
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, product])
+}
+
+// ============================================================================
+// Inventorio
+// ============================================================================
+
+model InventoryCategory {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  parts   InventoryPart[]
+
+  @@unique([companyId, name])
+  @@index([companyId, sortOrder])
+}
+
+model InventoryPart {
+  id           String   @id @default(cuid())
+  companyId    String
+  categoryId   String?
+  name         String
+  reference    String?
+  brand        String?
+  // ud, m, kg, l, caja, rollo, par
+  unit         String   @default("ud")
+  // Formato de compra: "caja" de 130, "rollo" de 50 m
+  packLabel    String?
+  packSize     Decimal? @db.Decimal(12, 3)
+  minStock     Decimal? @db.Decimal(12, 3)
+  // Recambios: cliente o máquina para los que se compró
+  purchasedFor String?
+  notes        String?
+  // Nombre, referencia, marca y apodos en minúsculas y sin tildes
+  searchText   String   @default("")
+  isArchived   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company       Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category      InventoryCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  aliases       InventoryPartAlias[]
+  barcodes      InventoryPartBarcode[]
+  stocks        InventoryStock[]
+  movements     InventoryMovement[]
+  purchaseItems InventoryPurchaseItem[]
+
+  @@index([companyId, name])
+  @@index([companyId, categoryId])
+  @@index([companyId, reference])
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin)
+}
+
+model InventoryPartAlias {
+  id        String   @id @default(cuid())
+  companyId String
+  partId    String
+  alias     String
+  createdAt DateTime @default(now())
+
+  company Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  part    InventoryPart @relation(fields: [partId], references: [id], onDelete: Cascade)
+
+  @@unique([partId, alias])
+  @@index([companyId])
+}
+
+model InventoryPartBarcode {
+  id        String   @id @default(cuid())
+  companyId String
+  partId    String
+  code      String
+  createdAt DateTime @default(now())
+
+  company Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  part    InventoryPart @relation(fields: [partId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, code])
+  @@index([partId])
+}
+
+model InventoryLocation {
+  id             String                @id @default(cuid())
+  companyId      String
+  parentId       String?
+  type           InventoryLocationType
+  // Código corto que va en la etiqueta: E1, E1-B2, F1
+  code           String
+  name           String
+  assignedUserId String?
+  notes          String?
+  sortOrder      Int                   @default(0)
+  isActive       Boolean               @default(true)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  company       Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  parent        InventoryLocation?  @relation("InventoryLocationTree", fields: [parentId], references: [id], onDelete: NoAction)
+  children      InventoryLocation[] @relation("InventoryLocationTree")
+  assignedUser  User?               @relation("InventoryLocationAssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  stocks        InventoryStock[]
+  movementsFrom InventoryMovement[] @relation("InventoryMovementFrom")
+  movementsTo   InventoryMovement[] @relation("InventoryMovementTo")
+
+  @@unique([companyId, code])
+  @@index([companyId, parentId])
+  @@index([assignedUserId])
+}
+
+model InventoryStock {
+  id         String   @id @default(cuid())
+  companyId  String
+  partId     String
+  locationId String
+  quantity   Decimal  @default(0) @db.Decimal(12, 3)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  company  Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  part     InventoryPart     @relation(fields: [partId], references: [id], onDelete: Cascade)
+  location InventoryLocation @relation(fields: [locationId], references: [id], onDelete: NoAction)
+
+  @@unique([partId, locationId])
+  @@index([companyId, locationId])
+}
+
+model InventoryMovement {
+  id             String                @id @default(cuid())
+  companyId      String
+  // Generado por el móvil: evita duplicados al sincronizar sin señal
+  clientId       String?
+  type           InventoryMovementType
+  partId         String
+  quantity       Decimal               @db.Decimal(12, 3)
+  fromLocationId String?
+  toLocationId   String?
+  userId         String?
+  // Obra u orden de trabajo, como texto en la v1
+  jobRef         String?
+  note           String?
+  // Marcado al sincronizar si el stock no cuadraba
+  needsReview    Boolean               @default(false)
+  reviewedAt     DateTime?
+  reviewedById   String?
+  // Cuándo ocurrió en el móvil (puede ser antes de llegar al servidor)
+  occurredAt     DateTime              @default(now())
+  createdAt      DateTime              @default(now())
+
+  company      Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  part         InventoryPart      @relation(fields: [partId], references: [id], onDelete: NoAction)
+  fromLocation InventoryLocation? @relation("InventoryMovementFrom", fields: [fromLocationId], references: [id], onDelete: NoAction)
+  toLocation   InventoryLocation? @relation("InventoryMovementTo", fields: [toLocationId], references: [id], onDelete: NoAction)
+  user         User?              @relation("InventoryMovementUser", fields: [userId], references: [id], onDelete: SetNull)
+  reviewedBy   User?              @relation("InventoryMovementReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, clientId])
+  @@index([companyId, partId, createdAt])
+  @@index([companyId, createdAt])
+  @@index([companyId, needsReview])
+  @@index([userId])
+}
+
+model InventoryPurchaseItem {
+  id          String                  @id @default(cuid())
+  companyId   String
+  partId      String?
+  // Para lo que aún no está en el catálogo
+  description String?
+  quantity    Decimal                 @db.Decimal(12, 3)
+  status      InventoryPurchaseStatus @default(PENDING)
+  addedById   String?
+  note        String?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  company Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  part    InventoryPart? @relation(fields: [partId], references: [id], onDelete: SetNull)
+  addedBy User?          @relation("InventoryPurchaseItemAddedBy", fields: [addedById], references: [id], onDelete: SetNull)
+
+  @@index([companyId, status])
 }
