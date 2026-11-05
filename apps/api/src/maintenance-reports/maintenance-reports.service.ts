@@ -273,6 +273,10 @@ function serializeReportMaterial(material: ReportMaterialEntity) {
 
 type TemplateItemEntity = Prisma.MaintenanceTemplateItemGetPayload<object>;
 
+// Una ronda no tiene un parte único: cada equipo de la ronda lleva su hoja.
+const ROUND_ORDER_MESSAGE =
+  'Esta orden es una ronda: cada equipo tiene su propia hoja y se rellena habitación por habitación.';
+
 /**
  * Copia de un punto de la plantilla dentro del parte. El parte guarda
  * cómo era el punto al crearse (nombre, sección, rango y opciones), así
@@ -533,8 +537,9 @@ export class MaintenanceReportsService {
   async list(companyId: string) {
     const normalizedCompanyId = normalizeCompanyId(companyId);
 
+    // Las hojas de cada equipo de una ronda se ven dentro de la ronda, no aquí.
     const items = await this.prisma.maintenanceReport.findMany({
-      where: { companyId: normalizedCompanyId },
+      where: { companyId: normalizedCompanyId, roundStopId: null },
       orderBy: { createdAt: 'desc' },
       include: reportInclude,
     });
@@ -622,11 +627,16 @@ export class MaintenanceReportsService {
         assignedTechnicianId: true,
         assignedToUserId: true,
         maintenanceTemplateId: true,
+        round: { select: { id: true } },
       },
     });
 
     if (!workOrder) {
       throw new NotFoundException('WorkOrder no encontrada para esta company.');
+    }
+
+    if (workOrder.round) {
+      throw new BadRequestException(ROUND_ORDER_MESSAGE);
     }
 
     if (
@@ -823,6 +833,7 @@ export class MaintenanceReportsService {
           assetId: string | null;
           assignedTechnicianId: string | null;
           assignedToUserId: string | null;
+          round: { id: string } | null;
         }
       | null = null;
 
@@ -839,11 +850,16 @@ export class MaintenanceReportsService {
           assetId: true,
           assignedTechnicianId: true,
           assignedToUserId: true,
+          round: { select: { id: true } },
         },
       });
 
       if (!linkedWorkOrder) {
         throw new NotFoundException('WorkOrder no encontrada para esta company.');
+      }
+
+      if (linkedWorkOrder.round) {
+        throw new BadRequestException(ROUND_ORDER_MESSAGE);
       }
 
       if (customerId && linkedWorkOrder.customerId !== customerId) {

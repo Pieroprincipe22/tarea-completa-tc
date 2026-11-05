@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
+import AssetHistory from '@/components/rounds/AssetHistory';
 import { errMsg, isRecord, resolveCorePaths, tcGet } from '@/lib/tc/api';
 import { readTcSession, type TcSession } from '@/lib/tc/session';
 
@@ -410,6 +411,8 @@ export default function AssetDetailPage() {
             {asset.notes?.trim() ? asset.notes : 'Este activo no tiene notas registradas.'}
           </div>
         </section>
+
+        {session ? <AssetHistory session={session} assetId={asset.id} /> : null}
       </div>
     </main>
   );

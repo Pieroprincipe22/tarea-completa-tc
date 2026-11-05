@@ -77,7 +77,28 @@ export class WorkOrdersService {
         email: true,
       },
     },
+    // Si la orden es una ronda de muchos equipos.
+    round: {
+      select: {
+        id: true,
+        status: true,
+      },
+    },
   };
+
+  /**
+   * Una ronda se cierra, se reabre y se cancela desde la propia ronda, que
+   * lleva la cuenta de sus equipos. Desde la orden solo se cambian sus datos.
+   */
+  private assertNotRound(workOrder: unknown): void {
+    const round = (workOrder as { round?: { id: string } | null }).round;
+
+    if (round) {
+      throw new BadRequestException(
+        'Esta orden es una ronda: ciérrala, reábrela o cancélala desde la propia ronda.',
+      );
+    }
+  }
 
   private cleanUndefined(data: object): WorkOrderPlainObject {
     return Object.fromEntries(
@@ -540,6 +561,15 @@ Estados probados: ${candidates.join(', ')}`,
 
     const data = this.normalizeWorkOrderData(dto);
 
+    // En una ronda no se cambia el estado ni dónde se hace: eso lo lleva la ronda.
+    if (
+      ['status', 'customerId', 'siteId', 'assetId', 'maintenanceTemplateId'].some(
+        (field) => data[field] !== undefined,
+      )
+    ) {
+      this.assertNotRound(current);
+    }
+
     await this.assertReferencesBelongToCompany(
       companyId,
       data,
@@ -560,7 +590,7 @@ Estados probados: ${candidates.join(', ')}`,
       throw new BadRequestException('Falta el estado de la orden');
     }
 
-    await this.findOne(companyId, id);
+    this.assertNotRound(await this.findOne(companyId, id));
 
     return this.prisma.workOrder.update({
       where: {
@@ -596,7 +626,9 @@ Estados probados: ${candidates.join(', ')}`,
   async start(companyIdOrId: string, maybeId?: string) {
     const { companyId, id } = this.resolveScopedArgs(companyIdOrId, maybeId);
 
-    await this.findOne(companyId ?? id, companyId ? id : undefined);
+    this.assertNotRound(
+      await this.findOne(companyId ?? id, companyId ? id : undefined),
+    );
 
     const status = this.resolveStatusFromAction([
       'IN_PROGRESS',
@@ -620,7 +652,9 @@ Estados probados: ${candidates.join(', ')}`,
   async markDone(companyIdOrId: string, maybeId?: string) {
     const { companyId, id } = this.resolveScopedArgs(companyIdOrId, maybeId);
 
-    await this.findOne(companyId ?? id, companyId ? id : undefined);
+    this.assertNotRound(
+      await this.findOne(companyId ?? id, companyId ? id : undefined),
+    );
 
     const status = this.resolveStatusFromAction([
       'DONE',
@@ -644,7 +678,9 @@ Estados probados: ${candidates.join(', ')}`,
   async reopen(companyIdOrId: string, maybeId?: string) {
     const { companyId, id } = this.resolveScopedArgs(companyIdOrId, maybeId);
 
-    await this.findOne(companyId ?? id, companyId ? id : undefined);
+    this.assertNotRound(
+      await this.findOne(companyId ?? id, companyId ? id : undefined),
+    );
 
     const status = this.resolveStatusFromAction(['PENDING', 'OPEN', 'TODO']);
 
@@ -663,7 +699,9 @@ Estados probados: ${candidates.join(', ')}`,
   async cancel(companyIdOrId: string, maybeId?: string) {
     const { companyId, id } = this.resolveScopedArgs(companyIdOrId, maybeId);
 
-    await this.findOne(companyId ?? id, companyId ? id : undefined);
+    this.assertNotRound(
+      await this.findOne(companyId ?? id, companyId ? id : undefined),
+    );
 
     const status = this.resolveStatusFromAction([
       'CANCELED',

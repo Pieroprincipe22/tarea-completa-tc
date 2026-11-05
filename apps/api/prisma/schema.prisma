@@ -114,6 +114,25 @@ enum SpaceKind {
   COMMON // Zona común: recepción, cocina, cuarto de rack…
 }
 
+// Cada cuánto se repite un plan preventivo.
+enum PlanIntervalUnit {
+  WEEK
+  MONTH
+}
+
+enum RoundStatus {
+  OPEN // Creada, sin empezar
+  IN_PROGRESS // Ya hay equipos revisados
+  DONE // Cerrada
+  CANCELLED
+}
+
+enum RoundStopStatus {
+  PENDING
+  DONE
+  NO_ACCESS // No se pudo entrar: se vuelve otro día
+}
+
 model Company {
   id        String      @id @default(cuid())
   name      String
@@ -159,6 +178,9 @@ model Company {
   invoices             Invoice[]
   floors               Floor[]
   spaces               Space[]
+  maintenancePlans     MaintenancePlan[]
+  maintenanceRounds    MaintenanceRound[]
+  roundStops           RoundStop[]
 }
 
 model User {
@@ -187,6 +209,9 @@ model User {
   uploadedAttachments             Attachment[]        @relation("AttachmentUploadedByUser")
   assignedEmergencyRequests       EmergencyRequest[]  @relation("EmergencyRequestAssignedTo")
   passwordResetTokens             PasswordResetToken[]
+  maintenancePlans                MaintenancePlan[]   @relation("MaintenancePlanTechnician")
+  closedMaintenanceRounds         MaintenanceRound[]  @relation("MaintenanceRoundClosedBy")
+  doneRoundStops                  RoundStop[]         @relation("RoundStopDoneBy")
 
   @@index([companyId])
   @@index([companyId, role])
@@ -251,6 +276,8 @@ model Site {
   emergencyRequests  EmergencyRequest[]
   floors             Floor[]
   spaces             Space[]
+  maintenancePlans   MaintenancePlan[]
+  maintenanceRounds  MaintenanceRound[]
 
   @@index([companyId, customerId, name])
 }
@@ -290,10 +317,11 @@ model Space {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  site    Site    @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  floor   Floor   @relation(fields: [floorId], references: [id], onDelete: Cascade)
-  assets  Asset[]
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  site       Site        @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  floor      Floor       @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  assets     Asset[]
+  roundStops RoundStop[]
 
   // En una planta no se repite el nombre (dos "Office" en plantas distintas sí).
   @@unique([floorId, name])
@@ -348,6 +376,7 @@ model Asset {
   workOrders         WorkOrder[]
   maintenanceReports MaintenanceReport[]
   emergencyRequests  EmergencyRequest[]
+  roundStops         RoundStop[]
 
   @@index([companyId, name])
   @@index([customerId])
@@ -371,6 +400,8 @@ model MaintenanceTemplate {
   items              MaintenanceTemplateItem[]
   workOrders         WorkOrder[]
   maintenanceReports MaintenanceReport[]
+  maintenancePlans   MaintenancePlan[]
+  maintenanceRounds  MaintenanceRound[]
 
   @@index([companyId, isActive])
   @@index([companyId, name])
@@ -441,6 +472,8 @@ model WorkOrder {
   maintenanceTemplate MaintenanceTemplate? @relation(fields: [maintenanceTemplateId], references: [id], onDelete: SetNull)
   maintenanceReport   MaintenanceReport?
   invoice             Invoice?
+  // Si la orden es una ronda (muchos equipos, uno detrás de otro).
+  round               MaintenanceRound?
 
   @@index([companyId, status])
   @@index([assignedTechnicianId, status])
@@ -457,6 +490,8 @@ model MaintenanceReport {
   id                   String                  @id @default(cuid())
   companyId            String
   workOrderId          String?                 @unique
+  // Parada de una ronda a la que pertenece este parte (un equipo de la ronda).
+  roundStopId          String?                 @unique
   templateId           String?
   customerId           String?
   siteId               String?
@@ -507,6 +542,7 @@ model MaintenanceReport {
   assignedTechnician User?                       @relation("MaintenanceReportAssignedTechnician", fields: [assignedTechnicianId], references: [id], onDelete: SetNull)
   submittedBy        User?                       @relation("MaintenanceReportSubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull)
   reviewedBy         User?                       @relation("MaintenanceReportReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  roundStop          RoundStop?                  @relation(fields: [roundStopId], references: [id], onDelete: Cascade)
   items              MaintenanceReportItem[]
   materials          MaintenanceReportMaterial[]
   invoice            Invoice?
@@ -579,6 +615,117 @@ model MaintenanceReportMaterial {
   invoiceItems InvoiceItem[]
 
   @@index([reportId, sortOrder])
+}
+
+// Plan preventivo de un sitio: cada cuánto se revisa un tipo de equipo
+// ("los fancoils de las habitaciones, cada 3 meses"). Cuando toca, crea
+// sola una ronda con todos los equipos de ese tipo.
+model MaintenancePlan {
+  id                   String           @id @default(cuid())
+  companyId            String
+  siteId               String
+  templateId           String
+  // Tipo de equipo que entra en la ronda ("Fancoil"). Se compara sin
+  // distinguir mayúsculas con el tipo de cada equipo del sitio.
+  category             String
+  name                 String
+  // Cada cuánto: "every" semanas o meses.
+  every                Int
+  unit                 PlanIntervalUnit @default(MONTH)
+  // Fecha de la primera ronda. Las siguientes se cuentan desde ella, así
+  // un plan que empieza el día 31 cae siempre a final de mes.
+  startsOn             DateTime
+  // Fecha de la próxima ronda. Se crea "leadDays" días antes.
+  nextDueAt            DateTime
+  leadDays             Int              @default(7)
+  assignedTechnicianId String?
+  isActive             Boolean          @default(true)
+  // Si la última vez no se pudo crear la ronda, el motivo.
+  lastError            String?
+  lastErrorAt          DateTime?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  company            Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  site               Site                @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  template           MaintenanceTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  assignedTechnician User?               @relation("MaintenancePlanTechnician", fields: [assignedTechnicianId], references: [id], onDelete: SetNull)
+  rounds             MaintenanceRound[]
+
+  @@index([companyId, isActive, nextDueAt])
+  @@index([siteId])
+  @@index([templateId])
+}
+
+// Ronda de mantenimiento: una orden de trabajo que recorre muchos equipos,
+// por ejemplo los 165 fancoils de un hotel. Cada equipo es una parada.
+model MaintenanceRound {
+  id          String      @id @default(cuid())
+  companyId   String
+  siteId      String
+  workOrderId String      @unique
+  planId      String?
+  templateId  String?
+  category    String
+  status      RoundStatus @default(OPEN)
+  // Fecha que toca según el plan (o la elegida al crearla a mano).
+  dueAt       DateTime
+  startedAt   DateTime?
+  closedAt    DateTime?
+  closedById  String?
+  closeNote   String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  company   Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  site      Site                 @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  workOrder WorkOrder            @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  plan      MaintenancePlan?     @relation(fields: [planId], references: [id], onDelete: SetNull)
+  template  MaintenanceTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  closedBy  User?                @relation("MaintenanceRoundClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  stops     RoundStop[]
+
+  // Un plan no crea dos veces la ronda de la misma fecha.
+  @@unique([planId, dueAt])
+  @@index([companyId, status])
+  @@index([siteId, dueAt])
+}
+
+// Una parada de la ronda: un equipo, dónde estaba y cómo quedó.
+model RoundStop {
+  id             String          @id @default(cuid())
+  companyId      String
+  roundId        String
+  assetId        String?
+  spaceId        String?
+  // Copia de dónde estaba el equipo al crear la ronda: la ronda se sigue
+  // leyendo igual aunque después se muevan equipos o habitaciones.
+  floorLevel     Int?
+  floorName      String?
+  spaceKind      SpaceKind?
+  spaceName      String?
+  assetName      String
+  sortOrder      Int             @default(0)
+  status         RoundStopStatus @default(PENDING)
+  // Por qué no se pudo entrar: ocupada, no molestar, sin llave…
+  noAccessReason String?
+  hasIssue       Boolean         @default(false)
+  doneAt         DateTime?
+  doneById       String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  company Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  round   MaintenanceRound   @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  asset   Asset?             @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  space   Space?             @relation(fields: [spaceId], references: [id], onDelete: SetNull)
+  doneBy  User?              @relation("RoundStopDoneBy", fields: [doneById], references: [id], onDelete: SetNull)
+  report  MaintenanceReport?
+
+  @@unique([roundId, assetId])
+  @@index([roundId, sortOrder])
+  @@index([assetId, doneAt])
+  @@index([companyId])
 }
 
 model Attachment {

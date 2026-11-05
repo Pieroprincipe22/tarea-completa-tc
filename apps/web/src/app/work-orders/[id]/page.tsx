@@ -72,6 +72,8 @@ type WorkOrderDetail = {
   asset?: EntityRow | null;
   assignedTo?: EntityRow | null;
   assignedTechnician?: EntityRow | null;
+  // Si la orden es una ronda de muchos equipos.
+  roundId?: string | null;
 };
 
 function asStr(value: unknown, fallback = ''): string {
@@ -146,6 +148,7 @@ function parseDetail(value: unknown): WorkOrderDetail | null {
     asset: parseEntity(value.asset),
     assignedTo: parseEntity(value.assignedTo),
     assignedTechnician: parseEntity(value.assignedTechnician),
+    roundId: isRecord(value.round) ? asNullableStr(value.round.id) : null,
   };
 }
 
@@ -614,34 +617,50 @@ export default function WorkOrderDetailPage() {
           </section>
         )}
 
-        <section className="rounded-xl border border-line bg-surface p-6">
-          <h3 className="text-xl font-semibold">Cambiar estado</h3>
-          <p className="mt-1 text-sm text-muted">
-            Disponible para administración y técnico.
-          </p>
+        {state.status === 'ok' && state.data.roundId ? (
+          <section className="rounded-xl border border-accent/25 bg-accent-soft p-6">
+            <h3 className="text-xl font-semibold">Ronda de mantenimiento</h3>
+            <p className="mt-1 text-sm text-ink-2">
+              Esta orden recorre muchos equipos, uno detrás de otro. Se sigue,
+              se cierra y se reabre desde la ronda.
+            </p>
+            <Link
+              href={`/rounds/${state.data.roundId}`}
+              className="mt-4 inline-flex rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-hover"
+            >
+              Abrir la ronda
+            </Link>
+          </section>
+        ) : (
+          <section className="rounded-xl border border-line bg-surface p-6">
+            <h3 className="text-xl font-semibold">Cambiar estado</h3>
+            <p className="mt-1 text-sm text-muted">
+              Disponible para administración y técnico.
+            </p>
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            {WORK_ORDER_STATUSES.map((status) => {
-              const isCurrent = state.status === 'ok' && state.data.status === status;
+            <div className="mt-4 flex flex-wrap gap-2">
+              {WORK_ORDER_STATUSES.map((status) => {
+                const isCurrent = state.status === 'ok' && state.data.status === status;
 
-              return (
-                <button
-                  key={status}
-                  type="button"
-                  onClick={() => void handleStatusChange(status)}
-                  disabled={
-                    actionState.status === 'saving' ||
-                    isCurrent ||
-                    state.status !== 'ok'
-                  }
-                  className="rounded-lg border border-line px-4 py-2 text-sm font-bold text-ink hover:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {formatStatus(status)}
-                </button>
-              );
-            })}
-          </div>
-        </section>
+                return (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => void handleStatusChange(status)}
+                    disabled={
+                      actionState.status === 'saving' ||
+                      isCurrent ||
+                      state.status !== 'ok'
+                    }
+                    className="rounded-lg border border-line px-4 py-2 text-sm font-bold text-ink hover:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {formatStatus(status)}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {canAssignTechnician ? (
           <section className="rounded-xl border border-line bg-surface p-6">

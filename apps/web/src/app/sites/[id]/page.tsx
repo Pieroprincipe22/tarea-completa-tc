@@ -324,6 +324,13 @@ export default function SiteDetailPage() {
               </Link>
 
               <Link
+                href={`/sites/${site.id}/plan`}
+                className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink-2 transition hover:bg-surface-2"
+              >
+                Plan preventivo
+              </Link>
+
+              <Link
                 href={`/sites/${site.id}/building`}
                 className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover"
               >
@@ -396,6 +403,13 @@ export default function SiteDetailPage() {
               className="rounded-lg border border-line bg-surface p-4 text-sm font-semibold text-ink-2 transition hover:bg-surface-2"
             >
               Plantas, habitaciones y zonas comunes
+            </Link>
+
+            <Link
+              href={`/sites/${site.id}/plan`}
+              className="rounded-lg border border-line bg-surface p-4 text-sm font-semibold text-ink-2 transition hover:bg-surface-2"
+            >
+              Plan preventivo y rondas
             </Link>
 
             <Link

@@ -58,6 +58,8 @@ type WorkOrderDetail = {
   completedAt?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+  // Si la orden es una ronda de muchos equipos.
+  roundId?: string | null;
 };
 
 type Load<T> =
@@ -130,6 +132,7 @@ function parseWorkOrder(value: unknown): WorkOrderDetail {
     completedAt: asNullableStr(value.completedAt),
     createdAt: asNullableStr(value.createdAt),
     updatedAt: asNullableStr(value.updatedAt),
+    roundId: isRecord(value.round) ? asNullableStr(value.round.id) : null,
   };
 }
 
@@ -231,15 +234,19 @@ function priorityBadgeClass(priority?: WorkOrderPriority | null): string {
   }
 }
 
+// Una ronda no se inicia ni tiene un parte único: va equipo por equipo.
 function canStart(order: WorkOrderDetail): boolean {
+  if (order.roundId) return false;
   return order.status === 'OPEN' || order.status === 'ASSIGNED';
 }
 
 function canFillReport(order: WorkOrderDetail): boolean {
+  if (order.roundId) return false;
   return order.status === 'ASSIGNED' || order.status === 'IN_PROGRESS';
 }
 
 function canReopen(order: WorkOrderDetail): boolean {
+  if (order.roundId) return false;
   return (
     order.status === 'DONE' ||
     order.status === 'CANCELLED' ||
@@ -593,6 +600,22 @@ export default function TechnicianWorkOrderDetailPage() {
               {actionError ? (
                 <div className="mt-5 rounded-lg border border-danger/30 bg-danger-soft p-4 text-sm font-semibold text-danger">
                   {actionError}
+                </div>
+              ) : null}
+
+              {order.roundId ? (
+                <div className="mt-5 rounded-lg border border-accent/25 bg-accent-soft p-4 text-sm text-ink-2">
+                  <p className="font-semibold text-ink">Ronda de mantenimiento</p>
+                  <p className="mt-1">
+                    Cada equipo tiene su hoja y se revisa habitación por
+                    habitación.
+                  </p>
+                  <Link
+                    href={`/rounds/${order.roundId}`}
+                    className="mt-3 inline-flex items-center justify-center rounded-lg bg-accent px-5 py-2.5 text-sm font-bold text-white transition hover:bg-accent-hover"
+                  >
+                    Ver la ronda
+                  </Link>
                 </div>
               ) : null}
 
