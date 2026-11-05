@@ -118,6 +118,13 @@ async function main() {
     },
   });
 
+  // Inventorio activo en la empresa de demo para poder probar apps/inventario.
+  await prisma.companyProduct.upsert({
+    where: { companyId_product: { companyId: company.id, product: 'INVENTORY' } },
+    update: { isActive: true },
+    create: { companyId: company.id, product: 'INVENTORY', isActive: true },
+  });
+
   const adminUser = await prisma.user.upsert({
     where: { email: adminEmail },
     update: {
