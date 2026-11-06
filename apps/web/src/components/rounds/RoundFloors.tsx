@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { errMsg, tcGet } from '@/lib/tc/api';
 import { apiError } from '@/lib/tc/building';
@@ -268,6 +269,15 @@ export function StopDrawer({
             >
               {error}
             </div>
+          ) : null}
+
+          {stop.assetId ? (
+            <Link
+              href={`/assets/${stop.assetId}`}
+              className="tc-button w-full justify-center"
+            >
+              Ver el equipo y su historial
+            </Link>
           ) : null}
 
           {!detail && !error ? (

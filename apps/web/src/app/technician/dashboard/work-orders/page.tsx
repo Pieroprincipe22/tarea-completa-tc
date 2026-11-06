@@ -10,6 +10,7 @@ import {
   tcGet,
   tcPatch,
 } from '@/lib/tc/api';
+import { apiError } from '@/lib/tc/building';
 import {
   isTechnicianSession,
   readTcSession,
@@ -59,6 +60,8 @@ type WorkOrderRow = {
   completedAt?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+  // Si la orden es una ronda de muchos equipos.
+  roundId?: string | null;
 };
 
 type Load<T> =
@@ -134,6 +137,7 @@ function parseWorkOrder(value: unknown): WorkOrderRow {
     completedAt: asNullableStr(value.completedAt),
     createdAt: asNullableStr(value.createdAt),
     updatedAt: asNullableStr(value.updatedAt),
+    roundId: isRecord(value.round) ? asNullableStr(value.round.id) : null,
   };
 }
 
@@ -225,15 +229,19 @@ function priorityBadgeClass(priority?: WorkOrderPriority | null): string {
   }
 }
 
+// Una ronda no se inicia ni tiene un parte único: va equipo por equipo.
 function canStart(order: WorkOrderRow): boolean {
+  if (order.roundId) return false;
   return order.status === 'OPEN' || order.status === 'ASSIGNED';
 }
 
 function canFillReport(order: WorkOrderRow): boolean {
+  if (order.roundId) return false;
   return order.status === 'ASSIGNED' || order.status === 'IN_PROGRESS';
 }
 
 function canReopen(order: WorkOrderRow): boolean {
+  if (order.roundId) return false;
   return (
     order.status === 'DONE' ||
     order.status === 'CANCELLED' ||
@@ -384,7 +392,12 @@ export default function TechnicianWorkOrdersPage() {
       );
 
       if (response.code < 200 || response.code >= 300) {
-        setActionError(`No se pudo actualizar la orden. HTTP ${response.code}`);
+        setActionError(
+          apiError(
+            response.json,
+            `No se pudo actualizar la orden. HTTP ${response.code}`,
+          ),
+        );
         return;
       }
 
@@ -597,6 +610,12 @@ export default function TechnicianWorkOrdersPage() {
                                 {order.code}
                               </span>
                             ) : null}
+
+                            {order.roundId ? (
+                              <span className="inline-flex rounded-full border border-accent/25 bg-accent-soft px-3 py-1 text-xs font-bold text-accent">
+                                Ronda de mantenimiento
+                              </span>
+                            ) : null}
                           </div>
 
                           <h3 className="mt-3 text-xl font-semibold text-ink">
@@ -675,6 +694,15 @@ export default function TechnicianWorkOrdersPage() {
                           >
                             Ver detalle
                           </Link>
+
+                          {order.roundId ? (
+                            <Link
+                              href={`/rounds/${order.roundId}`}
+                              className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover"
+                            >
+                              Ver la ronda
+                            </Link>
+                          ) : null}
 
                           {canStart(order) ? (
                             <button
