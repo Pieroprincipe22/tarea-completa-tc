@@ -19,6 +19,16 @@ export const PLAN_NAME_MAX = 80;
 export const CLOSE_NOTE_MAX = 1000;
 // Una ronda no puede tener más equipos que esto (un hotel grande cabe de sobra).
 export const ROUND_STOPS_MAX = 2000;
+// Técnicos que pueden ir a la vez a una ronda.
+export const TEAM_MAX = 10;
+export const NO_ACCESS_REASON_MAX = 200;
+export const RETURN_NOTE_MAX = 1000;
+export const ITEM_VALUE_MAX = 2000;
+export const PART_NAME_MAX = 120;
+export const PARTS_MAX = 30;
+// Un móvil con la hora adelantada no puede "bloquear" una habitación: la
+// hora que manda se limita a unos minutos por delante de la del servidor.
+export const SAVED_AT_SKEW_MS = 5 * 60_000;
 
 const DAY_MS = 86_400_000;
 
@@ -271,18 +281,27 @@ export type StopCounts = {
   pending: number;
   noAccess: number;
   issues: number;
+  urgent: number;
 };
 
 export function countStops(
-  stops: { status: 'PENDING' | 'DONE' | 'NO_ACCESS'; hasIssue: boolean }[],
+  stops: { status: 'PENDING' | 'DONE' | 'NO_ACCESS'; hasIssue: boolean; urgent?: boolean }[],
 ): StopCounts {
-  const counts: StopCounts = { total: 0, done: 0, pending: 0, noAccess: 0, issues: 0 };
+  const counts: StopCounts = {
+    total: 0,
+    done: 0,
+    pending: 0,
+    noAccess: 0,
+    issues: 0,
+    urgent: 0,
+  };
   for (const stop of stops) {
     counts.total += 1;
     if (stop.status === 'DONE') counts.done += 1;
     else if (stop.status === 'NO_ACCESS') counts.noAccess += 1;
     else counts.pending += 1;
     if (stop.hasIssue) counts.issues += 1;
+    if (stop.urgent) counts.urgent += 1;
   }
   return counts;
 }
@@ -290,4 +309,119 @@ export function countStops(
 // El texto de una incidencia anotada a mano ("Incidencias observadas").
 export function isIssueNotesLabel(label: string | null): boolean {
   return Boolean(label && /incidencia/i.test(label));
+}
+
+// ---------------------------------------------------------------
+// Rellenar una parada
+// ---------------------------------------------------------------
+
+export type SheetItem = {
+  label: string | null;
+  type: string | null;
+  required: boolean;
+  status: string;
+  value: string | null;
+};
+
+// Puntos que el técnico no rellena en la hoja (las fotos van aparte).
+const NOT_FILLED_IN_SHEET = new Set(['PHOTO', 'SIGNATURE']);
+
+/** Puntos obligatorios sin rellenar: sin ellos no se puede dar por hecha. */
+export function missingRequired<T extends SheetItem>(items: T[]): T[] {
+  return items.filter(
+    (item) =>
+      item.required && !NOT_FILLED_IN_SHEET.has(item.type ?? '') && item.status === 'PENDING',
+  );
+}
+
+/**
+ * Un equipo sale "con incidencia" si algún punto quedó como incidencia,
+ * si se escribió algo en "Incidencias observadas" o si se marcó urgente.
+ */
+export function stopHasIssue(items: SheetItem[], urgent: boolean): boolean {
+  if (urgent) return true;
+  return items.some(
+    (item) =>
+      item.status === 'FAIL' ||
+      (isIssueNotesLabel(item.label) && Boolean(item.value && item.value.trim())),
+  );
+}
+
+/** "21,5" o "21.5" → 21.5. null si no es un número. */
+export function parseNumberValue(value: string): number | null {
+  const clean = value.trim().replace(',', '.');
+  if (!/^-?\d+(\.\d+)?$/.test(clean)) return null;
+  const parsed = Number(clean);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/** La hora del móvil, sin dejar que vaya más de unos minutos por delante. */
+export function clampSavedAt(savedAt: Date, now: Date = new Date()): Date {
+  const limit = now.getTime() + SAVED_AT_SKEW_MS;
+  return savedAt.getTime() > limit ? new Date(limit) : savedAt;
+}
+
+// ---------------------------------------------------------------
+// Recambios
+// ---------------------------------------------------------------
+
+export type PartLine = { name: string; quantity: number; unit: string | null; place: string };
+
+export type PartTotal = {
+  name: string;
+  unit: string | null;
+  quantity: number;
+  places: string[];
+};
+
+function partKey(name: string, unit: string | null): string {
+  return `${name.trim().toLocaleLowerCase('es')}|${(unit ?? '').trim().toLocaleLowerCase('es')}`;
+}
+
+/**
+ * Los recambios de toda la ronda, sumados: "Motor ventilador × 3 (Hab. 204,
+ * Hab. 512, Recepción)". Se juntan los que se escriben igual sin contar
+ * mayúsculas; de más a menos cantidad.
+ */
+export function sumParts(lines: PartLine[]): PartTotal[] {
+  const totals = new Map<string, PartTotal>();
+  for (const line of lines) {
+    const key = partKey(line.name, line.unit);
+    const current = totals.get(key);
+    if (current) {
+      current.quantity += line.quantity;
+      if (!current.places.includes(line.place)) current.places.push(line.place);
+    } else {
+      totals.set(key, {
+        name: line.name.trim(),
+        unit: line.unit?.trim() || null,
+        quantity: line.quantity,
+        places: [line.place],
+      });
+    }
+  }
+  return [...totals.values()].sort(
+    (a, b) => b.quantity - a.quantity || a.name.localeCompare(b.name, 'es'),
+  );
+}
+
+// ---------------------------------------------------------------
+// Técnicos de una orden
+// ---------------------------------------------------------------
+
+/**
+ * Los técnicos de una orden: el asignado de siempre más los del equipo,
+ * sin repetir y en ese orden.
+ */
+export function teamIds(order: {
+  assignedTechnicianId: string | null;
+  assignedToUserId: string | null;
+  technicians?: { userId: string }[];
+}): string[] {
+  const ids = [
+    order.assignedTechnicianId,
+    order.assignedToUserId,
+    ...(order.technicians ?? []).map((t) => t.userId),
+  ];
+  return [...new Set(ids.filter((id): id is string => Boolean(id)))];
 }

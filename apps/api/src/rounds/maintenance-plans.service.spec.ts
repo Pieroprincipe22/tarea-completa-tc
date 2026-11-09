@@ -24,6 +24,7 @@ const PLAN_ROW = {
   lastErrorAt: null,
   template: { id: 't1', name: 'Mantenimiento de fancoil', title: null, isActive: true },
   assignedTechnician: { id: 'u-tech', name: 'Piero' },
+  technicians: [],
 };
 
 function setup() {
@@ -48,18 +49,31 @@ function setup() {
       delete: jest.fn().mockResolvedValue({}),
     },
     maintenanceRound: { findFirst: jest.fn().mockResolvedValue(null) },
+    maintenancePlanTechnician: {
+      createMany: jest.fn().mockResolvedValue({ count: 0 }),
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
     asset: {
       groupBy: jest.fn().mockResolvedValue([{ category: 'Fancoil', _count: { _all: 165 } }]),
     },
     $transaction: jest.fn(),
   };
-  prisma.$transaction.mockImplementation((fn: (tx: typeof prisma) => unknown) => fn(prisma));
+  prisma.$transaction.mockImplementation((arg: unknown) =>
+    typeof arg === 'function'
+      ? (arg as (tx: typeof prisma) => unknown)(prisma)
+      : Promise.all(arg as unknown[]),
+  );
 
   const rounds = {
     createRound: jest
       .fn()
       .mockResolvedValue({ id: 'round1', workOrderId: 'wo1', code: 'OT-2026-0001', stops: 165 }),
     assertMember: jest.fn().mockResolvedValue(undefined),
+    assertTeam: jest
+      .fn()
+      .mockImplementation((_c: unknown, _co: string, ids: string[]) =>
+        Promise.resolve([...new Set(ids)]),
+      ),
     list: jest.fn().mockResolvedValue({ items: [] }),
   };
   const service = new MaintenancePlansService(prisma as never, rounds as never);
@@ -102,6 +116,39 @@ describe('MaintenancePlansService', () => {
         nextDueAt: day('2026-12-01'),
         leadDays: 7,
         assignedTechnicianId: null,
+      });
+    });
+
+    it('guarda los técnicos del plan: el primero queda como asignado', async () => {
+      const { prisma, rounds, service } = setup();
+      prisma.maintenancePlan.findUnique.mockResolvedValue({
+        ...PLAN_ROW,
+        nextDueAt: day('2027-05-05'),
+      });
+
+      await service.create(
+        'c1',
+        's1',
+        {
+          templateId: 't1',
+          category: 'Fancoil',
+          every: 6,
+          unit: 'MONTH',
+          startsOn: '2027-05-05',
+          technicianIds: ['u-piero', 'u-marc'],
+        },
+        NOW,
+      );
+
+      expect(rounds.assertTeam).toHaveBeenCalledWith(prisma, 'c1', ['u-piero', 'u-marc']);
+      expect(prisma.maintenancePlan.create.mock.calls[0][0].data.assignedTechnicianId).toBe(
+        'u-piero',
+      );
+      expect(prisma.maintenancePlanTechnician.createMany).toHaveBeenCalledWith({
+        data: [
+          { companyId: 'c1', planId: 'p1', userId: 'u-piero' },
+          { companyId: 'c1', planId: 'p1', userId: 'u-marc' },
+        ],
       });
     });
 
@@ -156,12 +203,26 @@ describe('MaintenancePlansService', () => {
           templateId: 't1',
           category: 'Fancoil',
           dueAt: day('2026-11-08'),
-          technicianId: 'u-tech',
+          technicianIds: ['u-tech'],
           planId: 'p1',
         },
         null,
         prisma,
       );
+    });
+
+    it('la ronda lleva a todos los técnicos del plan', async () => {
+      const { prisma, rounds, service } = setup();
+      const withTeam = {
+        ...PLAN_ROW,
+        technicians: [{ userId: 'u-tech' }, { userId: 'u-marc' }],
+      };
+      prisma.maintenancePlan.findUnique
+        .mockResolvedValueOnce(withTeam)
+        .mockResolvedValueOnce({ ...withTeam, nextDueAt: day('2027-02-08') });
+
+      await service.materializePlan('p1', new Date('2026-11-02T10:00:00Z'));
+      expect(rounds.createRound.mock.calls[0][1].technicianIds).toEqual(['u-tech', 'u-marc']);
     });
 
     it('antes de tiempo no hace nada', async () => {

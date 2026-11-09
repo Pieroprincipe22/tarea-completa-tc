@@ -122,8 +122,9 @@ enum PlanIntervalUnit {
 
 enum RoundStatus {
   OPEN // Creada, sin empezar
-  IN_PROGRESS // Ya hay equipos revisados
-  DONE // Cerrada
+  IN_PROGRESS // Iniciada por un técnico
+  SUBMITTED // Enviada al encargado, pendiente de revisión
+  DONE // Aprobada o cerrada por la oficina
   CANCELLED
 }
 
@@ -181,6 +182,9 @@ model Company {
   maintenancePlans     MaintenancePlan[]
   maintenanceRounds    MaintenanceRound[]
   roundStops           RoundStop[]
+  workOrderTechnicians WorkOrderTechnician[]
+  planTechnicians      MaintenancePlanTechnician[]
+  roundStopParts       RoundStopPart[]
 }
 
 model User {
@@ -211,7 +215,10 @@ model User {
   passwordResetTokens             PasswordResetToken[]
   maintenancePlans                MaintenancePlan[]   @relation("MaintenancePlanTechnician")
   closedMaintenanceRounds         MaintenanceRound[]  @relation("MaintenanceRoundClosedBy")
+  submittedMaintenanceRounds      MaintenanceRound[]  @relation("MaintenanceRoundSubmittedBy")
   doneRoundStops                  RoundStop[]         @relation("RoundStopDoneBy")
+  workOrderTeams                  WorkOrderTechnician[]
+  planTeams                       MaintenancePlanTechnician[]
 
   @@index([companyId])
   @@index([companyId, role])
@@ -474,6 +481,8 @@ model WorkOrder {
   invoice             Invoice?
   // Si la orden es una ronda (muchos equipos, uno detrás de otro).
   round               MaintenanceRound?
+  // Técnicos que van a hacerla (una ronda puede llevar 2 o 3).
+  technicians         WorkOrderTechnician[]
 
   @@index([companyId, status])
   @@index([assignedTechnicianId, status])
@@ -651,6 +660,8 @@ model MaintenancePlan {
   template           MaintenanceTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   assignedTechnician User?               @relation("MaintenancePlanTechnician", fields: [assignedTechnicianId], references: [id], onDelete: SetNull)
   rounds             MaintenanceRound[]
+  // Técnicos que harán cada ronda (además de assignedTechnicianId, que es el primero).
+  technicians        MaintenancePlanTechnician[]
 
   @@index([companyId, isActive, nextDueAt])
   @@index([siteId])
@@ -671,19 +682,27 @@ model MaintenanceRound {
   // Fecha que toca según el plan (o la elegida al crearla a mano).
   dueAt       DateTime
   startedAt   DateTime?
+  // Cuando los técnicos la envían al encargado (con todo hecho).
+  submittedAt   DateTime?
+  submittedById String?
+  // Si el encargado la devuelve, por qué (y cuándo).
+  returnNote    String?
+  returnedAt    DateTime?
+  // Aprobada por el encargado o cerrada por la oficina.
   closedAt    DateTime?
   closedById  String?
   closeNote   String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  company   Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  site      Site                 @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  workOrder WorkOrder            @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
-  plan      MaintenancePlan?     @relation(fields: [planId], references: [id], onDelete: SetNull)
-  template  MaintenanceTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  closedBy  User?                @relation("MaintenanceRoundClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
-  stops     RoundStop[]
+  company     Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  site        Site                 @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  workOrder   WorkOrder            @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  plan        MaintenancePlan?     @relation(fields: [planId], references: [id], onDelete: SetNull)
+  template    MaintenanceTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  closedBy    User?                @relation("MaintenanceRoundClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  submittedBy User?                @relation("MaintenanceRoundSubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull)
+  stops       RoundStop[]
 
   // Un plan no crea dos veces la ronda de la misma fecha.
   @@unique([planId, dueAt])
@@ -710,8 +729,13 @@ model RoundStop {
   // Por qué no se pudo entrar: ocupada, no molestar, sin llave…
   noAccessReason String?
   hasIssue       Boolean         @default(false)
+  // Incidencia que hay que arreglar cuanto antes.
+  urgent         Boolean         @default(false)
   doneAt         DateTime?
   doneById       String?
+  // Hora del móvil en que se guardó: si llega tarde un cambio más viejo
+  // (estaba sin cobertura), no pisa al más nuevo.
+  savedAt        DateTime?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -721,10 +745,65 @@ model RoundStop {
   space   Space?             @relation(fields: [spaceId], references: [id], onDelete: SetNull)
   doneBy  User?              @relation("RoundStopDoneBy", fields: [doneById], references: [id], onDelete: SetNull)
   report  MaintenanceReport?
+  // Recambios que hacen falta en este equipo.
+  parts   RoundStopPart[]
 
   @@unique([roundId, assetId])
   @@index([roundId, sortOrder])
   @@index([assetId, doneAt])
+  @@index([companyId])
+}
+
+// Recambio que hace falta en un equipo de la ronda (no se ha puesto todavía).
+model RoundStopPart {
+  id        String   @id @default(cuid())
+  companyId String
+  stopId    String
+  name      String
+  quantity  Float    @default(1)
+  unit      String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  company Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  stop    RoundStop @relation(fields: [stopId], references: [id], onDelete: Cascade)
+
+  @@index([stopId, sortOrder])
+  @@index([companyId])
+}
+
+// Técnicos de una orden. Una ronda puede llevar 2 o 3 que se reparten el
+// trabajo como quieran. WorkOrder.assignedTechnicianId sigue siendo el primero.
+model WorkOrderTechnician {
+  id          String   @id @default(cuid())
+  companyId   String
+  workOrderId String
+  userId      String
+  createdAt   DateTime @default(now())
+
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workOrderId, userId])
+  @@index([userId])
+  @@index([companyId])
+}
+
+// Técnicos que harán las rondas de un plan preventivo.
+model MaintenancePlanTechnician {
+  id        String   @id @default(cuid())
+  companyId String
+  planId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  company Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  plan    MaintenancePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, userId])
+  @@index([userId])
   @@index([companyId])
 }
 

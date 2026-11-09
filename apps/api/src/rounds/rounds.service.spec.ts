@@ -62,6 +62,10 @@ function setup() {
       create: jest.fn().mockResolvedValue({ id: 'wo1', code: 'OT-2026-0007' }),
       update: jest.fn().mockResolvedValue({}),
     },
+    workOrderTechnician: {
+      createMany: jest.fn().mockResolvedValue({ count: 0 }),
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
     maintenanceRound: {
       create: jest.fn().mockResolvedValue({ id: 'round1' }),
       findFirst: jest.fn(),
@@ -81,6 +85,7 @@ function setup() {
       count: jest.fn().mockResolvedValue(0),
     },
     maintenanceReport: {
+      updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       createManyAndReturn: jest
         .fn()
         .mockImplementation(({ data }) =>
@@ -106,7 +111,7 @@ const NEW_ROUND = {
   templateId: 't1',
   category: ' Fancoil ',
   dueAt: DUE,
-  technicianId: 'u-tech',
+  technicianIds: ['u-tech'],
   planId: 'p1',
 };
 
@@ -187,9 +192,30 @@ describe('RoundsService', () => {
       });
     });
 
+    it('con 2 técnicos: el primero queda asignado y los dos en el equipo', async () => {
+      const { tx, service } = setup();
+      await service.createRound(
+        'c1',
+        { ...NEW_ROUND, technicianIds: ['u-piero', 'u-marc', 'u-piero'] },
+        null,
+      );
+      expect(tx.workOrder.create.mock.calls[0][0].data).toMatchObject({
+        status: 'ASSIGNED',
+        assignedTechnicianId: 'u-piero',
+        assignedToUserId: 'u-piero',
+      });
+      expect(tx.workOrderTechnician.createMany).toHaveBeenCalledWith({
+        data: [
+          { companyId: 'c1', workOrderId: 'wo1', userId: 'u-piero' },
+          { companyId: 'c1', workOrderId: 'wo1', userId: 'u-marc' },
+        ],
+      });
+      expect(tx.userCompany.findFirst).toHaveBeenCalledTimes(2);
+    });
+
     it('sin técnico, la orden queda abierta', async () => {
       const { tx, service } = setup();
-      await service.createRound('c1', { ...NEW_ROUND, technicianId: null }, null);
+      await service.createRound('c1', { ...NEW_ROUND, technicianIds: [] }, null);
       expect(tx.workOrder.create.mock.calls[0][0].data.status).toBe('OPEN');
       expect(tx.userCompany.findFirst).not.toHaveBeenCalled();
     });
@@ -265,6 +291,71 @@ describe('RoundsService', () => {
       });
     });
 
+    it('una ronda enviada no se cierra: se aprueba o se devuelve', async () => {
+      const { service } = withRound('SUBMITTED');
+      await expect(service.close('c1', 'round1', ADMIN, null)).rejects.toThrow(
+        'apruébala o devuélvela',
+      );
+    });
+
+    it('aprobar deja la ronda y la orden terminadas', async () => {
+      const { tx, service } = withRound('SUBMITTED');
+      await service.approve('c1', 'round1', ADMIN, 'Todo correcto');
+      expect(tx.maintenanceRound.update.mock.calls[0][0].data).toMatchObject({
+        status: 'DONE',
+        closedById: 'u-admin',
+        closeNote: 'Todo correcto',
+      });
+      expect(tx.workOrder.update.mock.calls[0][0].data).toMatchObject({ status: 'DONE' });
+    });
+
+    it('devolver la deja otra vez en curso con la nota', async () => {
+      const { tx, service } = withRound('SUBMITTED');
+      await service.returnToTeam('c1', 'round1', ADMIN, 'Repasad la 204');
+      expect(tx.maintenanceRound.update.mock.calls[0][0].data).toMatchObject({
+        status: 'IN_PROGRESS',
+        returnNote: 'Repasad la 204',
+        submittedAt: null,
+        submittedById: null,
+      });
+      expect(tx.workOrder.update.mock.calls[0][0].data).toEqual({
+        status: 'IN_PROGRESS',
+        completedAt: null,
+      });
+    });
+
+    it('solo se aprueba o devuelve una ronda enviada', async () => {
+      const { service } = withRound('IN_PROGRESS');
+      await expect(service.approve('c1', 'round1', ADMIN, null)).rejects.toThrow('Solo se aprueba');
+      await expect(service.returnToTeam('c1', 'round1', ADMIN, 'x')).rejects.toThrow(
+        'Solo se devuelve',
+      );
+    });
+
+    it('cambiar los técnicos: el primero queda asignado', async () => {
+      const ctx = withRound('OPEN');
+      ctx.tx.maintenanceRound.findFirst.mockResolvedValue({
+        id: 'round1',
+        status: 'OPEN',
+        workOrderId: 'wo1',
+        workOrder: {
+          status: 'OPEN',
+          assignedTechnicianId: null,
+          assignedToUserId: null,
+          technicians: [],
+        },
+      });
+      await ctx.service.setTechnicians('c1', 'round1', ['u-marc', 'u-ana'], ADMIN);
+      expect(ctx.tx.workOrderTechnician.deleteMany).toHaveBeenCalledWith({
+        where: { workOrderId: 'wo1' },
+      });
+      expect(ctx.tx.workOrder.update.mock.calls[0][0].data).toEqual({
+        assignedTechnicianId: 'u-marc',
+        assignedToUserId: 'u-marc',
+        status: 'ASSIGNED',
+      });
+    });
+
     it('no se cierra dos veces ni se cancela una cerrada', async () => {
       const { service } = withRound('DONE');
       await expect(service.close('c1', 'round1', ADMIN, null)).rejects.toThrow('ya está cerrada');
@@ -281,6 +372,8 @@ describe('RoundsService', () => {
         closedAt: null,
         closedById: null,
         closeNote: null,
+        submittedAt: null,
+        submittedById: null,
       });
       expect(tx.workOrder.update.mock.calls[0][0].data).toEqual({
         status: 'IN_PROGRESS',
@@ -302,6 +395,20 @@ describe('RoundsService', () => {
   });
 
   describe('get()', () => {
+    it('un técnico del equipo también la ve', () => {
+      const { service } = setup();
+      expect(() =>
+        service.assertCanSee(
+          {
+            assignedTechnicianId: 'u-piero',
+            assignedToUserId: 'u-piero',
+            technicians: [{ userId: 'u-piero' }, { userId: 'u-marc' }],
+          },
+          { userId: 'u-marc', role: 'TECHNICIAN' },
+        ),
+      ).not.toThrow();
+    });
+
     it('un técnico solo ve sus rondas', async () => {
       const { tx, service } = setup();
       tx.maintenanceRound.findFirst.mockResolvedValue({

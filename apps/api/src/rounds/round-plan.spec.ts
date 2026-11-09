@@ -1,18 +1,24 @@
 import {
+  clampSavedAt,
   compareStops,
   countStops,
   defaultPlanName,
   describeFrequency,
   firstDueFrom,
   formatDay,
+  missingRequired,
   occurrence,
   occurrenceAfter,
   parseDay,
+  parseNumberValue,
   pickDue,
   roundStartsAt,
   roundTitle,
+  stopHasIssue,
   stopLabel,
   stopPlace,
+  sumParts,
+  teamIds,
   todayInSpain,
   type PlanTiming,
   type StopPlace,
@@ -171,14 +177,93 @@ describe('Paradas de la ronda', () => {
     expect(stopPlace(sorted[6])).toBe('Sin habitación');
   });
 
-  it('cuenta hechas, pendientes, sin acceso e incidencias', () => {
+  it('cuenta hechas, pendientes, sin acceso, incidencias y urgentes', () => {
     expect(
       countStops([
-        { status: 'DONE', hasIssue: true },
+        { status: 'DONE', hasIssue: true, urgent: true },
         { status: 'DONE', hasIssue: false },
         { status: 'NO_ACCESS', hasIssue: false },
         { status: 'PENDING', hasIssue: false },
       ]),
-    ).toEqual({ total: 4, done: 2, pending: 1, noAccess: 1, issues: 1 });
+    ).toEqual({ total: 4, done: 2, pending: 1, noAccess: 1, issues: 1, urgent: 1 });
+  });
+});
+
+describe('Rellenar una habitación', () => {
+  const item = (
+    label: string,
+    status: string,
+    extra: { type?: string; required?: boolean; value?: string | null } = {},
+  ) => ({
+    label,
+    status,
+    type: extra.type ?? 'CHOICE',
+    required: extra.required ?? true,
+    value: extra.value ?? null,
+  });
+
+  it('no se da por hecha si falta un punto obligatorio (las fotos aparte)', () => {
+    const items = [
+      item('Limpieza de filtros', 'OK'),
+      item('Temperatura de impulsión', 'PENDING', { type: 'NUMBER' }),
+      item('Foto del equipo', 'PENDING', { type: 'PHOTO' }),
+      item('Incidencias observadas', 'PENDING', { type: 'TEXT', required: false }),
+    ];
+    expect(missingRequired(items).map((i) => i.label)).toEqual(['Temperatura de impulsión']);
+  });
+
+  it('sale con incidencia si algo falla, si se escribe una incidencia o si es urgente', () => {
+    const ok = [item('Filtro', 'OK'), item('Incidencias observadas', 'OK', { value: '' })];
+    expect(stopHasIssue(ok, false)).toBe(false);
+    expect(stopHasIssue(ok, true)).toBe(true);
+    expect(stopHasIssue([item('Motor', 'FAIL')], false)).toBe(true);
+    expect(
+      stopHasIssue([item('Incidencias observadas', 'OK', { value: 'Gotea la bandeja' })], false),
+    ).toBe(true);
+  });
+
+  it('lee temperaturas con coma o punto', () => {
+    expect(parseNumberValue('21,5')).toBe(21.5);
+    expect(parseNumberValue(' 7.0 ')).toBe(7);
+    expect(parseNumberValue('-3')).toBe(-3);
+    expect(parseNumberValue('21º')).toBeNull();
+    expect(parseNumberValue('')).toBeNull();
+  });
+
+  it('un móvil con la hora adelantada no bloquea la habitación', () => {
+    const now = new Date('2026-11-05T10:00:00Z');
+    expect(clampSavedAt(new Date('2026-11-05T09:58:00Z'), now).toISOString()).toBe(
+      '2026-11-05T09:58:00.000Z',
+    );
+    expect(clampSavedAt(new Date('2026-11-05T12:00:00Z'), now).toISOString()).toBe(
+      '2026-11-05T10:05:00.000Z',
+    );
+  });
+});
+
+describe('Recambios y técnicos', () => {
+  it('suma los recambios de toda la ronda', () => {
+    expect(
+      sumParts([
+        { name: 'Motor ventilador', quantity: 1, unit: null, place: 'Hab. 204' },
+        { name: 'Filtro G4', quantity: 2, unit: 'ud', place: 'Hab. 101' },
+        { name: 'motor ventilador ', quantity: 1, unit: null, place: 'Hab. 512' },
+        { name: 'Filtro G4', quantity: 1, unit: 'ud', place: 'Hab. 101' },
+      ]),
+    ).toEqual([
+      { name: 'Filtro G4', unit: 'ud', quantity: 3, places: ['Hab. 101'] },
+      { name: 'Motor ventilador', unit: null, quantity: 2, places: ['Hab. 204', 'Hab. 512'] },
+    ]);
+  });
+
+  it('los técnicos de una orden, sin repetir y el asignado primero', () => {
+    expect(
+      teamIds({
+        assignedTechnicianId: 'u-piero',
+        assignedToUserId: 'u-piero',
+        technicians: [{ userId: 'u-marc' }, { userId: 'u-piero' }, { userId: 'u-ana' }],
+      }),
+    ).toEqual(['u-piero', 'u-marc', 'u-ana']);
+    expect(teamIds({ assignedTechnicianId: null, assignedToUserId: null })).toEqual([]);
   });
 });

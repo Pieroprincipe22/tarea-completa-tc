@@ -39,6 +39,10 @@ const ACTIVE_ASSET_STATUSES = ['ACTIVE', 'MAINTENANCE'] as const;
 const PLAN_INCLUDE = {
   template: { select: { id: true, name: true, title: true, isActive: true } },
   assignedTechnician: { select: { id: true, name: true } },
+  technicians: {
+    orderBy: { createdAt: 'asc' },
+    select: { userId: true, user: { select: { id: true, name: true } } },
+  },
 } satisfies Prisma.MaintenancePlanInclude;
 
 type PlanRow = Prisma.MaintenancePlanGetPayload<{ include: typeof PLAN_INCLUDE }>;
@@ -49,6 +53,38 @@ function isUniqueViolation(error: unknown): boolean {
 
 function categoryKey(category: string): string {
   return category.trim().toLocaleLowerCase('es');
+}
+
+// Los técnicos del plan, sin repetir: el asignado primero.
+function planTeam(plan: {
+  assignedTechnician: { id: string; name: string } | null;
+  technicians: { user: { id: string; name: string } }[];
+}): { id: string; name: string }[] {
+  const people = [plan.assignedTechnician, ...plan.technicians.map((t) => t.user)].filter(
+    (p): p is { id: string; name: string } => p !== null,
+  );
+  const seen = new Set<string>();
+  return people.filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)));
+}
+
+function planTeamIds(plan: {
+  assignedTechnicianId: string | null;
+  technicians: { userId: string }[];
+}): string[] {
+  const ids = [plan.assignedTechnicianId, ...plan.technicians.map((t) => t.userId)];
+  return [...new Set(ids.filter((id): id is string => Boolean(id)))];
+}
+
+// Lo que pide el formulario: la lista nueva o, si no viene, el técnico de siempre.
+function requestedTeam(dto: {
+  technicianIds?: string[];
+  assignedTechnicianId?: string | null;
+}): string[] | undefined {
+  if (dto.technicianIds !== undefined) return dto.technicianIds;
+  if (dto.assignedTechnicianId !== undefined) {
+    return dto.assignedTechnicianId ? [dto.assignedTechnicianId] : [];
+  }
+  return undefined;
 }
 
 @Injectable()
@@ -133,6 +169,7 @@ export class MaintenancePlansService {
       technician: plan.assignedTechnician
         ? { id: plan.assignedTechnician.id, name: plan.assignedTechnician.name }
         : null,
+      technicians: planTeam(plan),
       isActive: plan.isActive,
       lastError: plan.lastError,
       lastErrorAt: plan.lastErrorAt,
@@ -218,9 +255,7 @@ export class MaintenancePlansService {
     await this.findSite(companyId, siteId);
     await this.assertTemplate(companyId, dto.templateId);
     this.assertEvery(dto.every, dto.unit);
-    if (dto.assignedTechnicianId) {
-      await this.rounds.assertMember(this.prisma, companyId, dto.assignedTechnicianId);
-    }
+    const team = await this.rounds.assertTeam(this.prisma, companyId, requestedTeam(dto) ?? []);
 
     const startsOn = this.parseStart(dto.startsOn);
     const timing: PlanTiming = { startsOn, unit: dto.unit, every: dto.every };
@@ -239,10 +274,15 @@ export class MaintenancePlansService {
         // Si la fecha de inicio ya pasó, la próxima es la primera que cae de hoy en adelante.
         nextDueAt: firstDueFrom(timing, todayInSpain(now)),
         leadDays: dto.leadDays ?? LEAD_DAYS_DEFAULT,
-        assignedTechnicianId: dto.assignedTechnicianId ?? null,
+        assignedTechnicianId: team[0] ?? null,
       },
       select: { id: true },
     });
+    if (team.length > 0) {
+      await this.prisma.maintenancePlanTechnician.createMany({
+        data: team.map((userId) => ({ companyId, planId: plan.id, userId })),
+      });
+    }
 
     // Si la primera ronda ya toca, se crea ahora mismo.
     await this.materializePlan(plan.id, now);
@@ -261,9 +301,11 @@ export class MaintenancePlansService {
     if (dto.templateId && dto.templateId !== current.templateId) {
       await this.assertTemplate(companyId, dto.templateId);
     }
-    if (dto.assignedTechnicianId) {
-      await this.rounds.assertMember(this.prisma, companyId, dto.assignedTechnicianId);
-    }
+    const requested = requestedTeam(dto);
+    const team =
+      requested === undefined
+        ? undefined
+        : await this.rounds.assertTeam(this.prisma, companyId, requested);
 
     const unit = dto.unit ?? current.unit;
     const every = dto.every ?? current.every;
@@ -291,10 +333,8 @@ export class MaintenancePlansService {
     }
     if (dto.leadDays !== undefined)
       data.leadDays = Math.min(Math.max(dto.leadDays, 0), LEAD_DAYS_MAX);
-    if (dto.assignedTechnicianId !== undefined) {
-      data.assignedTechnician = dto.assignedTechnicianId
-        ? { connect: { id: dto.assignedTechnicianId } }
-        : { disconnect: true };
+    if (team !== undefined) {
+      data.assignedTechnician = team[0] ? { connect: { id: team[0] } } : { disconnect: true };
     }
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
 
@@ -311,7 +351,17 @@ export class MaintenancePlansService {
       data.nextDueAt = occurrenceAfter({ startsOn, unit, every }, from);
     }
 
-    await this.prisma.maintenancePlan.update({ where: { id: current.id }, data });
+    if (team === undefined) {
+      await this.prisma.maintenancePlan.update({ where: { id: current.id }, data });
+    } else {
+      await this.prisma.$transaction([
+        this.prisma.maintenancePlan.update({ where: { id: current.id }, data }),
+        this.prisma.maintenancePlanTechnician.deleteMany({ where: { planId: current.id } }),
+        this.prisma.maintenancePlanTechnician.createMany({
+          data: team.map((userId) => ({ companyId, planId: current.id, userId })),
+        }),
+      ]);
+    }
     await this.materializePlan(current.id, now);
     return this.reload(companyId, siteId, current.id);
   }
@@ -350,7 +400,7 @@ export class MaintenancePlansService {
               templateId: plan.templateId,
               category: plan.category,
               dueAt,
-              technicianId: plan.assignedTechnicianId,
+              technicianIds: planTeamIds(plan),
               planId: plan.id,
             },
             userId,
@@ -418,6 +468,7 @@ export class MaintenancePlansService {
           templateId: true,
           category: true,
           assignedTechnicianId: true,
+          technicians: { orderBy: { createdAt: 'asc' }, select: { userId: true } },
           isActive: true,
           startsOn: true,
           unit: true,
@@ -449,7 +500,7 @@ export class MaintenancePlansService {
                 templateId: plan.templateId,
                 category: plan.category,
                 dueAt: pick.dueAt,
-                technicianId: plan.assignedTechnicianId,
+                technicianIds: planTeamIds(plan),
                 planId: plan.id,
               },
               null,

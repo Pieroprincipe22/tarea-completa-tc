@@ -1,4 +1,5 @@
 import { isRecord } from '@/lib/tc/api';
+import { parseOptions, type ItemOption } from '@/lib/tc/templates';
 
 /**
  * Planes preventivos y rondas de mantenimiento. Las fechas de los planes
@@ -7,7 +8,12 @@ import { isRecord } from '@/lib/tc/api';
  */
 
 export type PlanUnit = 'WEEK' | 'MONTH';
-export type RoundStatus = 'OPEN' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED';
+export type RoundStatus =
+  | 'OPEN'
+  | 'IN_PROGRESS'
+  | 'SUBMITTED'
+  | 'DONE'
+  | 'CANCELLED';
 export type StopStatus = 'PENDING' | 'DONE' | 'NO_ACCESS';
 export type SpaceKind = 'ROOM' | 'COMMON';
 
@@ -17,6 +23,9 @@ export const LEAD_DAYS_DEFAULT = 7;
 export const PLAN_NAME_MAX = 80;
 export const CATEGORY_MAX = 60;
 export const CLOSE_NOTE_MAX = 1000;
+export const RETURN_NOTE_MAX = 1000;
+export const TEAM_MAX = 10;
+export const PARTS_MAX = 30;
 
 export const FREQUENCY_PRESETS: {
   key: string;
@@ -45,6 +54,10 @@ export const ROUND_STATUS_INFO: Record<
   IN_PROGRESS: {
     label: 'En curso',
     className: 'border-accent/25 bg-accent-soft text-accent',
+  },
+  SUBMITTED: {
+    label: 'En revisión',
+    className: 'border-special/30 bg-special-soft text-special',
   },
   DONE: {
     label: 'Cerrada',
@@ -244,7 +257,7 @@ function numOrNull(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-type Person = { id: string; name: string };
+export type Person = { id: string; name: string };
 
 function parsePerson(value: unknown): Person | null {
   if (!isRecord(value)) return null;
@@ -253,12 +266,43 @@ function parsePerson(value: unknown): Person | null {
   return { id, name: str(value.name) ?? 'Sin nombre' };
 }
 
+function parsePeople(value: unknown): Person[] {
+  return Array.isArray(value)
+    ? value.map(parsePerson).filter((p): p is Person => p !== null)
+    : [];
+}
+
+// "Piero", "Piero y Marc", "Piero, Marc y Ana"
+export function namesList(people: Person[]): string {
+  const names = people.map((p) => p.name);
+  if (names.length <= 1) return names[0] ?? '';
+  return `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}`;
+}
+
+export type TechnicianOption = { userId: string; name: string };
+
+// La lista de técnicos de la empresa (GET /technicians).
+export function parseTechnicianOptions(rows: unknown[]): TechnicianOption[] {
+  return rows
+    .map((row) => {
+      if (!isRecord(row)) return null;
+      const userId = str(row.userId) ?? str(row.id) ?? '';
+      const name = str(row.name) ?? str(row.email) ?? '';
+      if (!userId || !name || row.isActive === false) return null;
+      return { userId, name };
+    })
+    .filter((t): t is TechnicianOption => t !== null);
+}
+
 function parseUnit(value: unknown): PlanUnit {
   return value === 'WEEK' ? 'WEEK' : 'MONTH';
 }
 
 function parseRoundStatus(value: unknown): RoundStatus {
-  return value === 'IN_PROGRESS' || value === 'DONE' || value === 'CANCELLED'
+  return value === 'IN_PROGRESS' ||
+    value === 'SUBMITTED' ||
+    value === 'DONE' ||
+    value === 'CANCELLED'
     ? value
     : 'OPEN';
 }
@@ -273,6 +317,7 @@ export type StopCounts = {
   pending: number;
   noAccess: number;
   issues: number;
+  urgent: number;
 };
 
 function parseCounts(value: unknown): StopCounts {
@@ -283,6 +328,7 @@ function parseCounts(value: unknown): StopCounts {
     pending: num(v.pending),
     noAccess: num(v.noAccess),
     issues: num(v.issues),
+    urgent: num(v.urgent),
   };
 }
 
@@ -307,6 +353,7 @@ export type PlanView = {
   leadDays: number;
   createsOn: string;
   technician: Person | null;
+  technicians: Person[];
   isActive: boolean;
   lastError: string | null;
 };
@@ -333,6 +380,7 @@ function parsePlan(value: unknown): PlanView | null {
     leadDays: num(value.leadDays, LEAD_DAYS_DEFAULT),
     createsOn: str(value.createsOn) ?? '',
     technician: parsePerson(value.technician),
+    technicians: parsePeople(value.technicians),
     isActive: value.isActive !== false,
     lastError: str(value.lastError),
   };
@@ -346,6 +394,7 @@ export type RoundRow = {
   workOrder: { id: string; code: string | null; title: string };
   plan: { id: string; name: string } | null;
   technician: Person | null;
+  technicians: Person[];
   counts: StopCounts;
 };
 
@@ -370,6 +419,7 @@ function parseRoundRow(value: unknown): RoundRow | null {
         ? { id: str(plan.id) ?? '', name: str(plan.name) ?? 'Plan' }
         : null,
     technician: parsePerson(value.technician),
+    technicians: parsePeople(value.technicians),
     counts: parseCounts(value.counts),
   };
 }
@@ -422,6 +472,7 @@ export type StopView = {
   place: string;
   status: StopStatus;
   hasIssue: boolean;
+  urgent: boolean;
   noAccessReason: string | null;
   doneAt: string | null;
   doneBy: Person | null;
@@ -448,6 +499,7 @@ function parseStop(value: unknown): StopView | null {
     place: str(value.place) ?? label,
     status: parseStopStatus(value.status),
     hasIssue: value.hasIssue === true,
+    urgent: value.urgent === true,
     noAccessReason: str(value.noAccessReason),
     doneAt: str(value.doneAt),
     doneBy: parsePerson(value.doneBy),
@@ -473,6 +525,30 @@ function parseProblem(value: unknown): Problem | null {
   };
 }
 
+export type PartTotal = {
+  name: string;
+  unit: string | null;
+  quantity: number;
+  places: string[];
+};
+
+export type PartLine = { name: string; quantity: number; unit: string | null };
+
+function parsePartLine(value: unknown): PartLine | null {
+  if (!isRecord(value)) return null;
+  const name = str(value.name);
+  if (!name) return null;
+  return { name, quantity: num(value.quantity, 1), unit: str(value.unit) };
+}
+
+// "2", "1,5 m"
+export function formatQuantity(quantity: number, unit: string | null): string {
+  const text = new Intl.NumberFormat('es-ES', {
+    maximumFractionDigits: 2,
+  }).format(quantity);
+  return unit ? `${text} ${unit}` : text;
+}
+
 export type RoundFloor = {
   level: number | null;
   name: string;
@@ -484,11 +560,17 @@ export type RoundView = {
   status: RoundStatus;
   category: string;
   dueOn: string;
+  startedAt: string | null;
+  submittedAt: string | null;
+  submittedBy: Person | null;
+  returnNote: string | null;
+  returnedAt: string | null;
   closedAt: string | null;
   closeNote: string | null;
   closedBy: Person | null;
   workOrder: { id: string; code: string | null; title: string };
   technician: Person | null;
+  technicians: Person[];
   site: { id: string; name: string; customerName: string | null };
   template: { id: string; name: string } | null;
   plan: { id: string; name: string; frequency: string } | null;
@@ -498,10 +580,12 @@ export type RoundView = {
     stopId: string;
     place: string;
     assetName: string;
+    urgent: boolean;
     doneAt: string | null;
     doneBy: Person | null;
     problems: Problem[];
   }[];
+  parts: PartTotal[];
   noAccess: {
     stopId: string;
     place: string;
@@ -525,6 +609,11 @@ export function parseRound(value: unknown): RoundView | null {
     status: parseRoundStatus(value.status),
     category: str(value.category) ?? '',
     dueOn: str(value.dueOn) ?? '',
+    startedAt: str(value.startedAt),
+    submittedAt: str(value.submittedAt),
+    submittedBy: parsePerson(value.submittedBy),
+    returnNote: str(value.returnNote),
+    returnedAt: str(value.returnedAt),
     closedAt: str(value.closedAt),
     closeNote: str(value.closeNote),
     closedBy: parsePerson(value.closedBy),
@@ -534,6 +623,7 @@ export function parseRound(value: unknown): RoundView | null {
       title: str(value.workOrder.title) ?? 'Ronda',
     },
     technician: parsePerson(value.technician),
+    technicians: parsePeople(value.technicians),
     site: {
       id: str(value.site.id) ?? '',
       name: str(value.site.name) ?? 'Sitio',
@@ -577,6 +667,7 @@ export function parseRound(value: unknown): RoundView | null {
           stopId: str(incident.stopId) ?? '',
           place: str(incident.place) ?? '',
           assetName: str(incident.assetName) ?? 'Equipo',
+          urgent: incident.urgent === true,
           doneAt: str(incident.doneAt),
           doneBy: parsePerson(incident.doneBy),
           problems: Array.isArray(incident.problems)
@@ -595,6 +686,19 @@ export function parseRound(value: unknown): RoundView | null {
           at: str(row.at),
         }))
       : [],
+    parts: Array.isArray(value.parts)
+      ? value.parts
+          .filter(isRecord)
+          .map((row) => ({
+            name: str(row.name) ?? '',
+            unit: str(row.unit),
+            quantity: num(row.quantity, 1),
+            places: Array.isArray(row.places)
+              ? row.places.filter((p): p is string => typeof p === 'string')
+              : [],
+          }))
+          .filter((row) => row.name)
+      : [],
   };
 }
 
@@ -604,20 +708,35 @@ export type StopItem = {
   section: string | null;
   type: string | null;
   unit: string | null;
+  required: boolean;
   minValue: number | null;
   maxValue: number | null;
+  options: ItemOption[];
   status: string;
   value: string | null;
   notes: string | null;
 };
 
-export type StopDetail = StopView & { items: StopItem[] };
+export type StopDetail = StopView & {
+  roundStatus: RoundStatus | null;
+  items: StopItem[];
+  parts: PartLine[];
+  stale: boolean;
+};
 
 export function parseStopDetail(value: unknown): StopDetail | null {
   const stop = parseStop(value);
   if (!stop || !isRecord(value)) return null;
   return {
     ...stop,
+    roundStatus:
+      value.roundStatus === undefined
+        ? null
+        : parseRoundStatus(value.roundStatus),
+    stale: value.stale === true,
+    parts: Array.isArray(value.parts)
+      ? value.parts.map(parsePartLine).filter((p): p is PartLine => p !== null)
+      : [],
     items: Array.isArray(value.items)
       ? value.items.filter(isRecord).map((item, index) => ({
           id: str(item.id) ?? `item-${index}`,
@@ -625,8 +744,10 @@ export function parseStopDetail(value: unknown): StopDetail | null {
           section: str(item.section),
           type: str(item.type),
           unit: str(item.unit),
+          required: item.required === true,
           minValue: numOrNull(item.minValue),
           maxValue: numOrNull(item.maxValue),
+          options: parseOptions(item.options),
           status: str(item.status) ?? 'PENDING',
           value: str(item.value),
           notes: str(item.notes),

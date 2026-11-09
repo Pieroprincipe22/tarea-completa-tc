@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import PlanForm, { type TechnicianOption } from '@/components/rounds/PlanForm';
+import PlanForm from '@/components/rounds/PlanForm';
 import {
   Modal,
   ProgressBar,
@@ -23,11 +23,14 @@ import {
 import { apiError } from '@/lib/tc/building';
 import {
   formatDay,
+  namesList,
   parsePlanOverview,
+  parseTechnicianOptions,
   todayString,
   type PlanOverview,
   type PlanView,
   type RoundRow,
+  type TechnicianOption,
 } from '@/lib/tc/rounds';
 import { isAdminRole, readTcSession, type TcSession } from '@/lib/tc/session';
 import { parseTemplate, type Template } from '@/lib/tc/templates';
@@ -36,28 +39,6 @@ type Load =
   | { status: 'loading' }
   | { status: 'ok'; data: PlanOverview }
   | { status: 'error'; error: string };
-
-function parseTechnicians(json: unknown): TechnicianOption[] {
-  return normalizeList(json)
-    .items.map((row) => {
-      if (!isRecord(row)) return null;
-      const userId =
-        typeof row.userId === 'string'
-          ? row.userId
-          : typeof row.id === 'string'
-            ? row.id
-            : '';
-      const name =
-        typeof row.name === 'string' && row.name.trim()
-          ? row.name.trim()
-          : typeof row.email === 'string'
-            ? row.email
-            : '';
-      if (!userId || !name || row.isActive === false) return null;
-      return { userId, name };
-    })
-    .filter((t): t is TechnicianOption => t !== null);
-}
 
 function PlanCard({
   plan,
@@ -101,7 +82,9 @@ function PlanCard({
             {plan.assetCount} equipo
             {plan.assetCount === 1 ? '' : 's'} de tipo «{plan.category}» · Hoja
             «{plan.templateName}»
-            {plan.technician ? ` · ${plan.technician.name}` : ' · Sin técnico'}
+            {plan.technicians.length > 0
+              ? ` · ${namesList(plan.technicians)}`
+              : ' · Sin técnicos'}
           </p>
           {plan.isActive ? (
             <p className="mt-2 text-sm text-ink-2">
@@ -188,7 +171,9 @@ function RoundItem({ round }: { round: RoundRow }) {
             </p>
             <p className="truncate text-xs text-muted">
               {round.workOrder.code ?? 'Sin número'}
-              {round.technician ? ` · ${round.technician.name}` : ''}
+              {round.technicians.length > 0
+                ? ` · ${namesList(round.technicians)}`
+                : ''}
               {round.plan ? '' : ' · Ronda suelta'}
             </p>
           </div>
@@ -269,7 +254,9 @@ export default function SitePlanPage() {
           );
         }
         if (tech.code >= 200 && tech.code < 300) {
-          setTechnicians(parseTechnicians(tech.json));
+          setTechnicians(
+            parseTechnicianOptions(normalizeList(tech.json).items),
+          );
         }
       } catch {
         // El formulario avisa si no hay plantillas.

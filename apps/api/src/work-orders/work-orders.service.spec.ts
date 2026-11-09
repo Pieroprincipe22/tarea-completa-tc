@@ -276,5 +276,18 @@ describe('WorkOrdersService', () => {
       );
       expect(prisma.workOrder.update).not.toHaveBeenCalled();
     });
+
+    it('en una ronda no se cambia el técnico desde la orden', async () => {
+      prisma.workOrder.findFirst.mockResolvedValue({
+        id: 'wo-1',
+        companyId: 'company-1',
+        round: { id: 'round-1', status: 'OPEN' },
+      });
+
+      await expect(service.assign('company-1', 'wo-1', 'user-1')).rejects.toThrow(
+        'Los técnicos de una ronda se cambian desde la propia ronda.',
+      );
+      expect(prisma.workOrder.update).not.toHaveBeenCalled();
+    });
   });
 });

@@ -18,12 +18,11 @@ import {
   type CategoryOption,
   type PlanUnit,
   type PlanView,
+  type TechnicianOption,
 } from '@/lib/tc/rounds';
 import type { TcSession } from '@/lib/tc/session';
 import { comparable, type Template } from '@/lib/tc/templates';
-import { ErrorBox } from './RoundsUi';
-
-export type TechnicianOption = { userId: string; name: string };
+import { ErrorBox, TechnicianPicker } from './RoundsUi';
 
 function Field({
   id,
@@ -131,7 +130,9 @@ export default function PlanForm({
   const [leadDays, setLeadDays] = useState(
     String(plan?.leadDays ?? LEAD_DAYS_DEFAULT),
   );
-  const [technicianId, setTechnicianId] = useState(plan?.technician?.id ?? '');
+  const [technicianIds, setTechnicianIds] = useState<string[]>(
+    () => plan?.technicians.map((t) => t.id) ?? [],
+  );
   // Vacío = nombre automático ("Fancoil · cada 3 meses").
   const [name, setName] = useState(() =>
     plan && plan.name !== defaultPlanName(plan.category, plan.every, plan.unit)
@@ -214,7 +215,7 @@ export default function PlanForm({
         unit,
         startsOn,
         leadDays: leadNumber,
-        assignedTechnicianId: technicianId || null,
+        technicianIds,
       };
       const res = plan
         ? await tcPatch<unknown>(
@@ -365,22 +366,13 @@ export default function PlanForm({
         próxima se calcula sola.
       </p>
 
-      <Field id="plan-technician" label="Técnico" hint="(opcional)">
-        <select
-          id="plan-technician"
-          className="tc-input"
-          value={technicianId}
-          onChange={(e) => setTechnicianId(e.target.value)}
-          disabled={saving}
-        >
-          <option value="">Sin asignar</option>
-          {technicians.map((technician) => (
-            <option key={technician.userId} value={technician.userId}>
-              {technician.name}
-            </option>
-          ))}
-        </select>
-      </Field>
+      <TechnicianPicker
+        legend="Quién hace las rondas"
+        technicians={technicians}
+        selected={technicianIds}
+        onChange={setTechnicianIds}
+        disabled={saving}
+      />
 
       <Field id="plan-name" label="Nombre" hint="(opcional)">
         <input

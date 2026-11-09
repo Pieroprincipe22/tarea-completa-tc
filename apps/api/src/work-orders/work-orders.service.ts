@@ -424,6 +424,8 @@ Estados probados: ${candidates.join(', ')}`,
         OR: [
           { assignedToUserId: assignedTo },
           { assignedTechnicianId: assignedTo },
+          // También las órdenes en las que va con otros técnicos.
+          { technicians: { some: { userId: assignedTo } } },
         ],
       });
     }
@@ -608,7 +610,15 @@ Estados probados: ${candidates.join(', ')}`,
       throw new BadRequestException('Falta el ID del técnico asignado');
     }
 
-    await this.findOne(companyId, id);
+    const current = await this.findOne(companyId, id);
+
+    // Una ronda puede llevar varios técnicos: se cambian desde la ronda.
+    if ((current as { round?: { id: string } | null }).round) {
+      throw new BadRequestException(
+        'Los técnicos de una ronda se cambian desde la propia ronda.',
+      );
+    }
+
     await this.assertTechnicianBelongsToCompany(companyId, assignedToId);
 
     return this.prisma.workOrder.update({

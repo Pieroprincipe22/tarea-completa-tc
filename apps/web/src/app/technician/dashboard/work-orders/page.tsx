@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import {
   errMsg,
@@ -9,6 +10,7 @@ import {
   resolveCorePaths,
   tcGet,
   tcPatch,
+  tcPost,
 } from '@/lib/tc/api';
 import { apiError } from '@/lib/tc/building';
 import {
@@ -229,7 +231,12 @@ function priorityBadgeClass(priority?: WorkOrderPriority | null): string {
   }
 }
 
-// Una ronda no se inicia ni tiene un parte único: va equipo por equipo.
+// La ronda la inician los técnicos; luego se rellena habitación por habitación.
+function canStartRound(order: WorkOrderRow): boolean {
+  return Boolean(order.roundId) && (order.status === 'OPEN' || order.status === 'ASSIGNED');
+}
+
+// Una ronda no tiene un parte único: va equipo por equipo.
 function canStart(order: WorkOrderRow): boolean {
   if (order.roundId) return false;
   return order.status === 'OPEN' || order.status === 'ASSIGNED';
@@ -294,6 +301,7 @@ function displayAsset(entity?: NamedEntity | null): string {
 }
 
 export default function TechnicianWorkOrdersPage() {
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [session, setSession] = useState<TcSession | null>(null);
 
@@ -404,6 +412,24 @@ export default function TechnicianWorkOrdersPage() {
       setRefreshKey((current) => current + 1);
     } catch (error) {
       setActionError(`No se pudo actualizar la orden: ${errMsg(error)}`);
+    } finally {
+      setActionLoadingId(null);
+    }
+  }
+
+  async function startRound(order: WorkOrderRow) {
+    if (!session || !order.roundId) return;
+    try {
+      setActionLoadingId(order.id);
+      setActionError(null);
+      const response = await tcPost(session, `/rounds/${order.roundId}/start`, {});
+      if (response.code < 200 || response.code >= 300) {
+        setActionError(apiError(response.json, 'No se pudo iniciar la ronda.'));
+        return;
+      }
+      router.push(`/rounds/${order.roundId}`);
+    } catch (error) {
+      setActionError(`No se pudo iniciar la ronda: ${errMsg(error)}`);
     } finally {
       setActionLoadingId(null);
     }
@@ -681,7 +707,9 @@ export default function TechnicianWorkOrdersPage() {
 
                             {order.status === 'PENDING' ? (
                               <span className="text-special">
-                                Parte enviado. Esperando revisión del admin.
+                                {order.roundId
+                                  ? 'Ronda enviada. La está revisando el encargado.'
+                                  : 'Parte enviado. Esperando revisión del admin.'}
                               </span>
                             ) : null}
                           </div>
@@ -695,7 +723,18 @@ export default function TechnicianWorkOrdersPage() {
                             Ver detalle
                           </Link>
 
-                          {order.roundId ? (
+                          {canStartRound(order) ? (
+                            <button
+                              type="button"
+                              onClick={() => void startRound(order)}
+                              disabled={actionLoadingId !== null}
+                              className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-accent-hover"
+                            >
+                              {actionLoadingId === order.id
+                                ? 'Iniciando...'
+                                : 'Iniciar la ronda'}
+                            </button>
+                          ) : order.roundId ? (
                             <Link
                               href={`/rounds/${order.roundId}`}
                               className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover"

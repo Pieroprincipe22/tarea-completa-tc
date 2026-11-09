@@ -13,10 +13,12 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { snapshotTemplateItem } from '../maintenance-reports/maintenance-reports.service';
+import { readOptions } from '../maintenance-templates/template-item-types';
 import { NumberingService } from '../numbering/numbering.service';
 import { CreateRoundDto } from './dto/rounds.dto';
 import {
   ROUND_STOPS_MAX,
+  TEAM_MAX,
   compareStops,
   countStops,
   describeFrequency,
@@ -27,6 +29,8 @@ import {
   roundTitle,
   stopLabel,
   stopPlace,
+  sumParts,
+  teamIds,
   type StopCounts,
   type StopPlace,
 } from './round-plan';
@@ -39,7 +43,8 @@ export type NewRound = {
   templateId: string;
   category: string;
   dueAt: Date;
-  technicianId: string | null;
+  // Técnicos que la harán; el primero queda como asignado de la orden.
+  technicianIds: string[];
   planId: string | null;
 };
 
@@ -57,9 +62,16 @@ const HISTORY_MAX = 50;
 
 const ACTIVE_ASSET_STATUSES = ['ACTIVE', 'MAINTENANCE'] as const;
 
-const EMPTY_COUNTS: StopCounts = { total: 0, done: 0, pending: 0, noAccess: 0, issues: 0 };
+const EMPTY_COUNTS: StopCounts = {
+  total: 0,
+  done: 0,
+  pending: 0,
+  noAccess: 0,
+  issues: 0,
+  urgent: 0,
+};
 
-function isAdmin(viewer: Viewer): boolean {
+export function isAdmin(viewer: Viewer): boolean {
   return viewer.role === 'ADMIN' || viewer.role === 'SUPER_ADMIN';
 }
 
@@ -67,6 +79,39 @@ type Person = { id: string; name: string | null } | null;
 
 function person(user: Person) {
   return user ? { id: user.id, name: user.name } : null;
+}
+
+// Lo que hace falta de la orden para saber quién la lleva.
+export const TEAM_SELECT = {
+  assignedTechnicianId: true,
+  assignedToUserId: true,
+  assignedTechnician: { select: { id: true, name: true } },
+  technicians: {
+    orderBy: { createdAt: 'asc' },
+    select: { userId: true, user: { select: { id: true, name: true } } },
+  },
+} satisfies Prisma.WorkOrderSelect;
+
+type TeamRow = Prisma.WorkOrderGetPayload<{ select: typeof TEAM_SELECT }>;
+
+// Los técnicos de la orden, sin repetir: el asignado primero.
+export function teamOf(order: TeamRow): { id: string; name: string }[] {
+  const people = [order.assignedTechnician, ...order.technicians.map((t) => t.user)].filter(
+    (p): p is { id: string; name: string } => p !== null,
+  );
+  const seen = new Set<string>();
+  return people.filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)));
+}
+
+// Filtro de "órdenes de este técnico" (el asignado o del equipo).
+export function teamWhere(userId: string): Prisma.WorkOrderWhereInput {
+  return {
+    OR: [
+      { assignedTechnicianId: userId },
+      { assignedToUserId: userId },
+      { technicians: { some: { userId } } },
+    ],
+  };
 }
 
 const STOP_SELECT = {
@@ -79,8 +124,10 @@ const STOP_SELECT = {
   spaceName: true,
   status: true,
   hasIssue: true,
+  urgent: true,
   noAccessReason: true,
   doneAt: true,
+  savedAt: true,
   updatedAt: true,
   doneBy: { select: { id: true, name: true } },
   report: { select: { id: true } },
@@ -101,8 +148,10 @@ function serializeStop(stop: StopRow) {
     place: stopPlace(stop),
     status: stop.status,
     hasIssue: stop.hasIssue,
+    urgent: stop.urgent,
     noAccessReason: stop.noAccessReason,
     doneAt: stop.doneAt,
+    savedAt: stop.savedAt,
     updatedAt: stop.updatedAt,
     doneBy: person(stop.doneBy),
     reportId: stop.report?.id ?? null,
@@ -200,7 +249,8 @@ export class RoundsService {
         templateId: dto.templateId,
         category: dto.category,
         dueAt,
-        technicianId: dto.assignedTechnicianId ?? null,
+        technicianIds:
+          dto.technicianIds ?? (dto.assignedTechnicianId ? [dto.assignedTechnicianId] : []),
         planId: null,
       },
       createdById,
@@ -222,6 +272,20 @@ export class RoundsService {
         'El técnico elegido no pertenece a tu empresa o está desactivado.',
       );
     }
+  }
+
+  /** Comprueba todos los técnicos de un equipo. Devuelve la lista limpia. */
+  async assertTeam(
+    client: Pick<Prisma.TransactionClient, 'userCompany'>,
+    companyId: string,
+    ids: string[],
+  ): Promise<string[]> {
+    const clean = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+    if (clean.length > TEAM_MAX) {
+      throw new BadRequestException(`Como mucho ${TEAM_MAX} técnicos.`);
+    }
+    for (const id of clean) await this.assertMember(client, companyId, id);
+    return clean;
   }
 
   private async buildRound(
@@ -250,7 +314,8 @@ export class RoundsService {
       throw new BadRequestException(`La plantilla «${templateName}» no tiene puntos que revisar.`);
     }
 
-    if (input.technicianId) await this.assertMember(tx, companyId, input.technicianId);
+    const team = await this.assertTeam(tx, companyId, input.technicianIds);
+    const lead = team[0] ?? null;
 
     const category = input.category.trim();
     const assets = await tx.asset.findMany({
@@ -304,15 +369,21 @@ export class RoundsService {
         code,
         title: roundTitle(category, site.name, input.dueAt),
         description: `Ronda de ${places.length} equipo${places.length === 1 ? '' : 's'} de tipo «${category}» con la hoja «${templateName}».`,
-        status: input.technicianId ? 'ASSIGNED' : 'OPEN',
+        status: lead ? 'ASSIGNED' : 'OPEN',
         scheduledAt: startsAt,
         scheduledFor: startsAt,
-        assignedTechnicianId: input.technicianId,
-        assignedToUserId: input.technicianId,
+        assignedTechnicianId: lead,
+        assignedToUserId: lead,
         createdById,
       },
       select: { id: true, code: true },
     });
+
+    if (team.length > 0) {
+      await tx.workOrderTechnician.createMany({
+        data: team.map((userId) => ({ companyId, workOrderId: workOrder.id, userId })),
+      });
+    }
 
     const round = await tx.maintenanceRound.create({
       data: {
@@ -367,17 +438,16 @@ export class RoundsService {
   // Leer
   // ---------------------------------------------------------------
 
-  private assertCanSee(
-    workOrder: { assignedTechnicianId: string | null; assignedToUserId: string | null },
+  assertCanSee(
+    workOrder: {
+      assignedTechnicianId: string | null;
+      assignedToUserId: string | null;
+      technicians?: { userId: string }[];
+    },
     viewer: Viewer,
   ) {
     if (isAdmin(viewer)) return;
-    if (
-      workOrder.assignedTechnicianId === viewer.userId ||
-      workOrder.assignedToUserId === viewer.userId
-    ) {
-      return;
-    }
+    if (teamIds(workOrder).includes(viewer.userId)) return;
     throw new ForbiddenException('Esta ronda está asignada a otro técnico.');
   }
 
@@ -385,7 +455,7 @@ export class RoundsService {
     const counts = new Map<string, StopCounts>();
     if (roundIds.length === 0) return counts;
 
-    const [byStatus, withIssues] = await Promise.all([
+    const [byStatus, withIssues, urgent] = await Promise.all([
       this.prisma.roundStop.groupBy({
         by: ['roundId', 'status'],
         where: { roundId: { in: roundIds } },
@@ -394,6 +464,11 @@ export class RoundsService {
       this.prisma.roundStop.groupBy({
         by: ['roundId'],
         where: { roundId: { in: roundIds }, hasIssue: true },
+        _count: { _all: true },
+      }),
+      this.prisma.roundStop.groupBy({
+        by: ['roundId'],
+        where: { roundId: { in: roundIds }, urgent: true },
         _count: { _all: true },
       }),
     ]);
@@ -416,6 +491,7 @@ export class RoundsService {
       else current.pending += n;
     }
     for (const row of withIssues) entry(row.roundId).issues = row._count._all;
+    for (const row of urgent) entry(row.roundId).urgent = row._count._all;
 
     return counts;
   }
@@ -423,11 +499,7 @@ export class RoundsService {
   async list(companyId: string, filter: { siteId?: string }, viewer: Viewer) {
     const where: Prisma.MaintenanceRoundWhereInput = { companyId };
     if (filter.siteId) where.siteId = filter.siteId;
-    if (!isAdmin(viewer)) {
-      where.workOrder = {
-        OR: [{ assignedTechnicianId: viewer.userId }, { assignedToUserId: viewer.userId }],
-      };
-    }
+    if (!isAdmin(viewer)) where.workOrder = teamWhere(viewer.userId);
 
     const rounds = await this.prisma.maintenanceRound.findMany({
       where,
@@ -437,13 +509,7 @@ export class RoundsService {
         site: { select: { id: true, name: true } },
         plan: { select: { id: true, name: true } },
         workOrder: {
-          select: {
-            id: true,
-            code: true,
-            title: true,
-            status: true,
-            assignedTechnician: { select: { id: true, name: true } },
-          },
+          select: { id: true, code: true, title: true, status: true, ...TEAM_SELECT },
         },
       },
     });
@@ -466,6 +532,7 @@ export class RoundsService {
           status: round.workOrder.status,
         },
         technician: person(round.workOrder.assignedTechnician),
+        technicians: teamOf(round.workOrder),
         counts: counts.get(round.id) ?? { ...EMPTY_COUNTS },
       })),
     };
@@ -479,16 +546,9 @@ export class RoundsService {
         template: { select: { id: true, name: true, title: true } },
         plan: { select: { id: true, name: true, every: true, unit: true } },
         closedBy: { select: { id: true, name: true } },
+        submittedBy: { select: { id: true, name: true } },
         workOrder: {
-          select: {
-            id: true,
-            code: true,
-            title: true,
-            status: true,
-            assignedTechnicianId: true,
-            assignedToUserId: true,
-            assignedTechnician: { select: { id: true, name: true } },
-          },
+          select: { id: true, code: true, title: true, status: true, ...TEAM_SELECT },
         },
         stops: { orderBy: { sortOrder: 'asc' }, select: STOP_SELECT },
       },
@@ -517,7 +577,10 @@ export class RoundsService {
       floor.stops.push(stop);
     }
 
-    const issueStops = stops.filter((stop) => stop.hasIssue);
+    // Las urgentes primero; luego en el orden de la ronda.
+    const issueStops = stops
+      .filter((stop) => stop.hasIssue)
+      .sort((a, b) => Number(b.urgent) - Number(a.urgent));
     const issueItems = issueStops.length
       ? await this.prisma.maintenanceReportItem.findMany({
           where: { report: { roundStopId: { in: issueStops.map((stop) => stop.id) } } },
@@ -537,6 +600,13 @@ export class RoundsService {
         })
       : [];
 
+    const parts = await this.prisma.roundStopPart.findMany({
+      where: { stop: { roundId: round.id } },
+      orderBy: [{ stop: { sortOrder: 'asc' } }, { sortOrder: 'asc' }],
+      select: { name: true, quantity: true, unit: true, stopId: true },
+    });
+    const placeOf = new Map(stops.map((stop) => [stop.id, stop.label]));
+
     const itemsByStop = new Map<string, ItemRow[]>();
     for (const item of issueItems) {
       const stopId = item.report.roundStopId;
@@ -552,6 +622,10 @@ export class RoundsService {
       category: round.category,
       dueOn: formatDay(round.dueAt),
       startedAt: round.startedAt,
+      submittedAt: round.submittedAt,
+      submittedBy: person(round.submittedBy),
+      returnNote: round.returnNote,
+      returnedAt: round.returnedAt,
       closedAt: round.closedAt,
       closeNote: round.closeNote,
       closedBy: person(round.closedBy),
@@ -562,6 +636,7 @@ export class RoundsService {
         status: round.workOrder.status,
       },
       technician: person(round.workOrder.assignedTechnician),
+      technicians: teamOf(round.workOrder),
       site: {
         id: round.site.id,
         name: round.site.name,
@@ -586,10 +661,20 @@ export class RoundsService {
         stopId: stop.id,
         place: stop.place,
         assetName: stop.assetName,
+        urgent: stop.urgent,
         doneAt: stop.doneAt,
         doneBy: stop.doneBy,
         problems: problemsOf(itemsByStop.get(stop.id) ?? []),
       })),
+      // Recambios que hacen falta, sumados para pedirlos de una vez.
+      parts: sumParts(
+        parts.map((part) => ({
+          name: part.name,
+          quantity: part.quantity,
+          unit: part.unit,
+          place: placeOf.get(part.stopId) ?? '',
+        })),
+      ),
       noAccess: stops
         .filter((stop) => stop.status === RoundStopStatus.NO_ACCESS)
         .map((stop) => ({
@@ -611,8 +696,18 @@ export class RoundsService {
           select: {
             id: true,
             status: true,
-            workOrder: { select: { assignedTechnicianId: true, assignedToUserId: true } },
+            workOrder: {
+              select: {
+                assignedTechnicianId: true,
+                assignedToUserId: true,
+                technicians: { select: { userId: true } },
+              },
+            },
           },
+        },
+        parts: {
+          orderBy: { sortOrder: 'asc' },
+          select: { name: true, quantity: true, unit: true },
         },
         report: {
           select: {
@@ -630,6 +725,7 @@ export class RoundsService {
                 required: true,
                 minValue: true,
                 maxValue: true,
+                options: true,
                 status: true,
                 value: true,
                 valueText: true,
@@ -649,6 +745,7 @@ export class RoundsService {
       ...serializeStop(stop),
       roundId: stop.round.id,
       roundStatus: stop.round.status,
+      parts: stop.parts,
       items: (stop.report?.items ?? []).map((item) => ({
         id: item.id,
         label: itemLabel(item),
@@ -658,6 +755,7 @@ export class RoundsService {
         required: item.required,
         minValue: item.minValue,
         maxValue: item.maxValue,
+        options: readOptions(item.options),
         status: item.status,
         value: itemValue(item),
         notes: item.notes,
@@ -669,14 +767,22 @@ export class RoundsService {
   // Cerrar, reabrir y cancelar
   // ---------------------------------------------------------------
 
-  private async findForChange(companyId: string, roundId: string) {
+  async findForChange(companyId: string, roundId: string) {
     const round = await this.prisma.maintenanceRound.findFirst({
       where: { id: roundId, companyId },
       select: {
         id: true,
         status: true,
+        startedAt: true,
         workOrderId: true,
-        workOrder: { select: { assignedTechnicianId: true, assignedToUserId: true } },
+        workOrder: {
+          select: {
+            status: true,
+            assignedTechnicianId: true,
+            assignedToUserId: true,
+            technicians: { select: { userId: true } },
+          },
+        },
       },
     });
     if (!round) throw new NotFoundException('Ronda no encontrada.');
@@ -695,6 +801,9 @@ export class RoundsService {
       throw new BadRequestException(
         'La ronda está cancelada. Reábrela si hay que seguir con ella.',
       );
+    }
+    if (round.status === RoundStatus.SUBMITTED) {
+      throw new BadRequestException('La ronda está enviada: apruébala o devuélvela.');
     }
 
     const now = new Date();
@@ -726,9 +835,7 @@ export class RoundsService {
     const started = await this.prisma.roundStop.count({
       where: { roundId: round.id, status: { not: RoundStopStatus.PENDING } },
     });
-    const assigned = Boolean(
-      round.workOrder.assignedTechnicianId ?? round.workOrder.assignedToUserId,
-    );
+    const assigned = teamIds(round.workOrder).length > 0;
 
     await this.prisma.$transaction([
       this.prisma.maintenanceRound.update({
@@ -738,6 +845,9 @@ export class RoundsService {
           closedAt: null,
           closedById: null,
           closeNote: null,
+          // Para volver a cerrarla hay que enviarla otra vez.
+          submittedAt: null,
+          submittedById: null,
         },
       }),
       this.prisma.workOrder.update({
@@ -770,6 +880,110 @@ export class RoundsService {
       this.prisma.workOrder.update({
         where: { id: round.workOrderId },
         data: { status: 'CANCELLED' },
+      }),
+    ]);
+
+    return this.get(companyId, roundId, viewer);
+  }
+
+  // ---------------------------------------------------------------
+  // Revisión del encargado
+  // ---------------------------------------------------------------
+
+  /** El encargado da por buena la ronda que le han enviado los técnicos. */
+  async approve(companyId: string, roundId: string, viewer: Viewer, note: string | null) {
+    const round = await this.findForChange(companyId, roundId);
+    if (round.status !== RoundStatus.SUBMITTED) {
+      throw new BadRequestException('Solo se aprueba una ronda que los técnicos han enviado.');
+    }
+
+    const now = new Date();
+    await this.prisma.$transaction([
+      this.prisma.maintenanceRound.update({
+        where: { id: round.id },
+        data: {
+          status: RoundStatus.DONE,
+          closedAt: now,
+          closedById: viewer.userId,
+          closeNote: note,
+        },
+      }),
+      this.prisma.workOrder.update({
+        where: { id: round.workOrderId },
+        data: { status: 'DONE', completedAt: now },
+      }),
+      this.prisma.maintenanceReport.updateMany({
+        where: { companyId, roundStop: { roundId: round.id } },
+        data: {
+          status: MaintenanceReportStatus.APPROVED,
+          state: MaintenanceReportState.FINAL,
+          reviewedAt: now,
+          reviewedById: viewer.userId,
+        },
+      }),
+    ]);
+
+    return this.get(companyId, roundId, viewer);
+  }
+
+  /** El encargado la devuelve a los técnicos diciendo qué hay que repasar. */
+  async returnToTeam(companyId: string, roundId: string, viewer: Viewer, note: string) {
+    const round = await this.findForChange(companyId, roundId);
+    if (round.status !== RoundStatus.SUBMITTED) {
+      throw new BadRequestException('Solo se devuelve una ronda que los técnicos han enviado.');
+    }
+
+    const now = new Date();
+    await this.prisma.$transaction([
+      this.prisma.maintenanceRound.update({
+        where: { id: round.id },
+        data: {
+          status: RoundStatus.IN_PROGRESS,
+          returnNote: note,
+          returnedAt: now,
+          // Cuenta como no enviada hasta que la vuelvan a enviar.
+          submittedAt: null,
+          submittedById: null,
+        },
+      }),
+      this.prisma.workOrder.update({
+        where: { id: round.workOrderId },
+        data: { status: 'IN_PROGRESS', completedAt: null },
+      }),
+    ]);
+
+    return this.get(companyId, roundId, viewer);
+  }
+
+  // ---------------------------------------------------------------
+  // Técnicos de la ronda
+  // ---------------------------------------------------------------
+
+  /** Cambia los técnicos que hacen la ronda. El primero queda como asignado. */
+  async setTechnicians(companyId: string, roundId: string, ids: string[], viewer: Viewer) {
+    const round = await this.findForChange(companyId, roundId);
+    if (round.status === RoundStatus.DONE || round.status === RoundStatus.CANCELLED) {
+      throw new BadRequestException(
+        'La ronda está cerrada o cancelada. Reábrela para cambiar los técnicos.',
+      );
+    }
+
+    const team = await this.assertTeam(this.prisma, companyId, ids);
+    const lead = team[0] ?? null;
+    const waiting = round.workOrder.status === 'OPEN' || round.workOrder.status === 'ASSIGNED';
+
+    await this.prisma.$transaction([
+      this.prisma.workOrderTechnician.deleteMany({ where: { workOrderId: round.workOrderId } }),
+      this.prisma.workOrderTechnician.createMany({
+        data: team.map((userId) => ({ companyId, workOrderId: round.workOrderId, userId })),
+      }),
+      this.prisma.workOrder.update({
+        where: { id: round.workOrderId },
+        data: {
+          assignedTechnicianId: lead,
+          assignedToUserId: lead,
+          ...(waiting ? { status: lead ? 'ASSIGNED' : 'OPEN' } : {}),
+        },
       }),
     ]);
 

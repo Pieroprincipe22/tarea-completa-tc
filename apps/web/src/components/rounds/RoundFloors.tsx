@@ -7,6 +7,7 @@ import { apiError } from '@/lib/tc/building';
 import {
   STOP_TONE_INFO,
   formatMoment,
+  formatQuantity,
   parseStopDetail,
   stopTone,
   type RoundFloor,
@@ -17,11 +18,14 @@ import {
 } from '@/lib/tc/rounds';
 import type { TcSession } from '@/lib/tc/session';
 import { groupBySection } from '@/lib/tc/templates';
+import StopEditor from './StopEditor';
 
-export type StopFilter = 'all' | StopTone;
+export type StopFilter = 'all' | 'urgent' | StopTone;
 
 export function matchesFilter(stop: StopView, filter: StopFilter): boolean {
-  return filter === 'all' || stopTone(stop) === filter;
+  if (filter === 'all') return true;
+  if (filter === 'urgent') return stop.urgent;
+  return stopTone(stop) === filter;
 }
 
 function StopChip({
@@ -38,6 +42,7 @@ function StopChip({
   const title = [
     stop.assetName,
     info.label,
+    stop.urgent ? 'Urgente' : null,
     stop.noAccessReason,
     stop.doneBy ? `por ${stop.doneBy.name}` : null,
   ]
@@ -49,11 +54,19 @@ function StopChip({
       type="button"
       onClick={() => onOpen(stop)}
       title={title}
-      aria-label={`${stop.label}: ${info.label}`}
-      className={`w-full rounded-md border px-2 py-1.5 text-left text-xs transition hover:ring-2 hover:ring-accent/30 ${info.chip} ${
+      aria-label={`${stop.label}: ${info.label}${stop.urgent ? ', urgente' : ''}`}
+      className={`relative w-full rounded-md border px-2 py-1.5 text-left text-xs transition hover:ring-2 hover:ring-accent/30 ${info.chip} ${
         wide ? 'font-medium' : 'text-center font-mono'
-      }`}
+      } ${stop.urgent ? 'ring-2 ring-danger' : ''}`}
     >
+      {stop.urgent ? (
+        <span
+          className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-danger text-[10px] font-bold text-white"
+          aria-hidden
+        >
+          !
+        </span>
+      ) : null}
       <span className="block truncate">
         {wide ? stop.label : (stop.spaceName ?? stop.label)}
       </span>
@@ -146,31 +159,40 @@ function itemValue(item: StopItem): string | null {
 }
 
 /**
- * Panel lateral con la hoja de un equipo de la ronda: cómo quedó cada punto.
+ * Panel lateral con la hoja de un equipo de la ronda: cómo quedó cada punto,
+ * y para rellenarla si se puede.
  */
 export function StopDrawer({
   session,
   roundId,
-  stop,
+  stop: initialStop,
+  canFill,
+  onSaved,
   onClose,
 }: {
   session: TcSession;
   roundId: string;
   stop: StopView;
+  canFill: boolean;
+  onSaved: (saved: StopDetail) => void;
   onClose: () => void;
 }) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const [detail, setDetail] = useState<StopDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  // Lo guardado manda sobre lo que se pintó al abrir.
+  const stop: StopView = detail ?? initialStop;
 
   useEffect(() => {
     closeRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && !editing) onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, editing]);
 
   useEffect(() => {
     let cancelled = false;
@@ -178,7 +200,7 @@ export function StopDrawer({
       try {
         const res = await tcGet<unknown>(
           session,
-          `/rounds/${roundId}/stops/${stop.id}`,
+          `/rounds/${roundId}/stops/${initialStop.id}`,
         );
         if (cancelled) return;
         const parsed =
@@ -195,7 +217,7 @@ export function StopDrawer({
     return () => {
       cancelled = true;
     };
-  }, [session, roundId, stop.id]);
+  }, [session, roundId, initialStop.id]);
 
   const tone = stopTone(stop);
   const info = STOP_TONE_INFO[tone];
@@ -207,7 +229,7 @@ export function StopDrawer({
         type="button"
         aria-label="Cerrar"
         className="absolute inset-0 bg-ink/30"
-        onClick={onClose}
+        onClick={editing ? undefined : onClose}
         tabIndex={-1}
       />
       <aside
@@ -244,97 +266,169 @@ export function StopDrawer({
         </header>
 
         <div className="flex-1 space-y-4 px-5 py-5">
-          {stop.status === 'NO_ACCESS' ? (
-            <p className="rounded-lg border border-warning/30 bg-warning-soft px-3 py-2 text-sm text-warning">
-              No se pudo entrar
-              {stop.noAccessReason ? `: ${stop.noAccessReason}` : ''}. Queda
-              pendiente para otro día.
-            </p>
-          ) : null}
-          {stop.doneAt ? (
-            <p className="text-sm text-muted">
-              Revisado el {formatMoment(stop.doneAt)}
-              {stop.doneBy ? ` por ${stop.doneBy.name}` : ''}.
-            </p>
-          ) : stop.status === 'PENDING' ? (
-            <p className="text-sm text-muted">
-              Todavía no se ha revisado este equipo.
-            </p>
-          ) : null}
-
-          {error ? (
-            <div
-              role="alert"
-              className="rounded-lg border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger"
+          {notice ? (
+            <p
+              role="status"
+              className="rounded-lg border border-success/30 bg-success-soft px-3 py-2 text-sm text-success"
             >
-              {error}
-            </div>
+              {notice}
+            </p>
           ) : null}
+          {editing && detail ? (
+            <StopEditor
+              session={session}
+              roundId={roundId}
+              detail={detail}
+              onCancel={() => setEditing(false)}
+              onSaved={(saved) => {
+                setDetail(saved);
+                setEditing(false);
+                setNotice(
+                  saved.stale
+                    ? 'Otro técnico guardó esta habitación después que tú: se queda lo suyo.'
+                    : 'Guardado.',
+                );
+                onSaved(saved);
+              }}
+            />
+          ) : (
+            <>
+              {stop.urgent ? (
+                <p className="rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm font-semibold text-danger">
+                  Urgente: hay que actuar ya.
+                </p>
+              ) : null}
+              {stop.status === 'NO_ACCESS' ? (
+                <p className="rounded-lg border border-warning/30 bg-warning-soft px-3 py-2 text-sm text-warning">
+                  No se pudo entrar
+                  {stop.noAccessReason ? `: ${stop.noAccessReason}` : ''}. Queda
+                  pendiente para otro día.
+                </p>
+              ) : null}
+              {stop.doneAt ? (
+                <p className="text-sm text-muted">
+                  Revisado el {formatMoment(stop.doneAt)}
+                  {stop.doneBy ? ` por ${stop.doneBy.name}` : ''}.
+                </p>
+              ) : stop.status === 'PENDING' ? (
+                <p className="text-sm text-muted">
+                  Todavía no se ha revisado este equipo.
+                </p>
+              ) : null}
 
-          {stop.assetId ? (
-            <Link
-              href={`/assets/${stop.assetId}`}
-              className="tc-button w-full justify-center"
-            >
-              Ver el equipo y su historial
-            </Link>
-          ) : null}
+              {error ? (
+                <div
+                  role="alert"
+                  className="rounded-lg border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger"
+                >
+                  {error}
+                </div>
+              ) : null}
 
-          {!detail && !error ? (
-            <p className="text-sm text-muted">Cargando la hoja…</p>
-          ) : null}
+              {canFill && detail ? (
+                <button
+                  type="button"
+                  className="tc-button-primary w-full justify-center"
+                  onClick={() => {
+                    setNotice(null);
+                    setEditing(true);
+                  }}
+                >
+                  {stop.status === 'PENDING'
+                    ? 'Rellenar la hoja'
+                    : 'Cambiar la hoja'}
+                </button>
+              ) : null}
 
-          {detail ? (
-            <section>
-              <h3 className="text-sm font-semibold text-ink">
-                Hoja de revisión
-                <span className="ml-2 font-normal text-muted">
-                  {filled} de {detail.items.length} puntos
-                </span>
-              </h3>
-              <div className="mt-2 space-y-3">
-                {groupBySection(detail.items).map((group, index) => (
-                  <div key={`${group.name}-${index}`}>
-                    {group.name ? (
-                      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-subtle">
-                        {group.name}
-                      </p>
-                    ) : null}
-                    <ul className="divide-y divide-line rounded-lg border border-line">
-                      {group.items.map((item) => {
-                        const status = itemStatusLabel(item);
-                        const value = itemValue(item);
-                        return (
-                          <li key={item.id} className="px-3 py-2">
-                            <div className="flex items-start justify-between gap-3">
-                              <p className="text-sm text-ink">{item.label}</p>
-                              <p
-                                className={`shrink-0 text-xs font-medium ${status.className}`}
-                              >
-                                {value ?? status.text}
-                              </p>
-                            </div>
-                            {value &&
-                            item.status !== 'PENDING' &&
-                            value !== status.text ? (
-                              <p className={`text-xs ${status.className}`}>
-                                {status.text}
-                              </p>
-                            ) : null}
-                            {item.notes ? (
-                              <p className="mt-1 text-xs text-muted">
-                                {item.notes}
-                              </p>
-                            ) : null}
-                          </li>
-                        );
-                      })}
-                    </ul>
+              {stop.assetId ? (
+                <Link
+                  href={`/assets/${stop.assetId}`}
+                  className="tc-button w-full justify-center"
+                >
+                  Ver el equipo y su historial
+                </Link>
+              ) : null}
+
+              {detail && detail.parts.length > 0 ? (
+                <section>
+                  <h3 className="text-sm font-semibold text-ink">
+                    Recambios que hacen falta
+                  </h3>
+                  <ul className="mt-2 divide-y divide-line rounded-lg border border-line">
+                    {detail.parts.map((part, index) => (
+                      <li
+                        key={`${part.name}-${index}`}
+                        className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
+                      >
+                        <span className="text-ink">{part.name}</span>
+                        <span className="shrink-0 font-medium text-ink-2">
+                          {formatQuantity(part.quantity, part.unit)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+
+              {!detail && !error ? (
+                <p className="text-sm text-muted">Cargando la hoja…</p>
+              ) : null}
+
+              {detail ? (
+                <section>
+                  <h3 className="text-sm font-semibold text-ink">
+                    Hoja de revisión
+                    <span className="ml-2 font-normal text-muted">
+                      {filled} de {detail.items.length} puntos
+                    </span>
+                  </h3>
+                  <div className="mt-2 space-y-3">
+                    {groupBySection(detail.items).map((group, index) => (
+                      <div key={`${group.name}-${index}`}>
+                        {group.name ? (
+                          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-subtle">
+                            {group.name}
+                          </p>
+                        ) : null}
+                        <ul className="divide-y divide-line rounded-lg border border-line">
+                          {group.items.map((item) => {
+                            const status = itemStatusLabel(item);
+                            const value = itemValue(item);
+                            return (
+                              <li key={item.id} className="px-3 py-2">
+                                <div className="flex items-start justify-between gap-3">
+                                  <p className="text-sm text-ink">
+                                    {item.label}
+                                  </p>
+                                  <p
+                                    className={`shrink-0 text-xs font-medium ${status.className}`}
+                                  >
+                                    {value ?? status.text}
+                                  </p>
+                                </div>
+                                {value &&
+                                item.status !== 'PENDING' &&
+                                value !== status.text ? (
+                                  <p className={`text-xs ${status.className}`}>
+                                    {status.text}
+                                  </p>
+                                ) : null}
+                                {item.notes ? (
+                                  <p className="mt-1 text-xs text-muted">
+                                    {item.notes}
+                                  </p>
+                                ) : null}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </section>
-          ) : null}
+                </section>
+              ) : null}
+            </>
+          )}
         </div>
       </aside>
     </div>

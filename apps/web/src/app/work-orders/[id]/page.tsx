@@ -621,8 +621,8 @@ export default function WorkOrderDetailPage() {
           <section className="rounded-xl border border-accent/25 bg-accent-soft p-6">
             <h3 className="text-xl font-semibold">Ronda de mantenimiento</h3>
             <p className="mt-1 text-sm text-ink-2">
-              Esta orden recorre muchos equipos, uno detrás de otro. Se sigue,
-              se cierra y se reabre desde la ronda.
+              Esta orden recorre muchos equipos, uno detrás de otro. Los
+              técnicos, la revisión y el cierre se llevan desde la ronda.
             </p>
             <Link
               href={`/rounds/${state.data.roundId}`}
@@ -662,7 +662,7 @@ export default function WorkOrderDetailPage() {
           </section>
         )}
 
-        {canAssignTechnician ? (
+        {canAssignTechnician && !(state.status === 'ok' && state.data.roundId) ? (
           <section className="rounded-xl border border-line bg-surface p-6">
             <h3 className="text-xl font-semibold">Asignar técnico</h3>
             <p className="mt-1 text-sm text-muted">

@@ -1,22 +1,33 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsBoolean,
   IsIn,
   IsInt,
+  IsISO8601,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   Matches,
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import { NAME_MAX } from '../../building/building-plan';
 import {
   CLOSE_NOTE_MAX,
+  ITEM_VALUE_MAX,
   LEAD_DAYS_MAX,
+  NO_ACCESS_REASON_MAX,
+  PARTS_MAX,
+  PART_NAME_MAX,
   PLAN_NAME_MAX,
   PLAN_UNITS,
+  RETURN_NOTE_MAX,
+  TEAM_MAX,
   type PlanUnit,
 } from '../round-plan';
 
@@ -31,6 +42,13 @@ const trimOrNull = ({ value }: TransformArg) => {
 };
 
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const TEAM_MESSAGE = `Como mucho ${TEAM_MAX} técnicos.`;
+
+// Lista de técnicos: quita huecos y repetidos.
+const cleanIds = ({ value }: TransformArg) =>
+  Array.isArray(value)
+    ? [...new Set(value.map((v) => (typeof v === 'string' ? v.trim() : v)).filter((v) => v !== ''))]
+    : value;
 const EVERY_MESSAGE = 'Pon cada cuántas semanas o meses se repite (un número entero).';
 const LEAD_MESSAGE = `La antelación tiene que ser de 0 a ${LEAD_DAYS_MAX} días.`;
 
@@ -79,6 +97,14 @@ export class CreatePlanDto {
   @Transform(trimOrNull)
   @IsString()
   assignedTechnicianId?: string | null;
+
+  // Los técnicos que harán las rondas (si se pone, manda sobre assignedTechnicianId).
+  @IsOptional()
+  @Transform(cleanIds)
+  @IsArray({ message: 'Elige los técnicos.' })
+  @ArrayMaxSize(TEAM_MAX, { message: TEAM_MESSAGE })
+  @IsString({ each: true })
+  technicianIds?: string[];
 }
 
 export class UpdatePlanDto {
@@ -125,6 +151,13 @@ export class UpdatePlanDto {
   @IsString()
   assignedTechnicianId?: string | null;
 
+  @IsOptional()
+  @Transform(cleanIds)
+  @IsArray({ message: 'Elige los técnicos.' })
+  @ArrayMaxSize(TEAM_MAX, { message: TEAM_MESSAGE })
+  @IsString({ each: true })
+  technicianIds?: string[];
+
   // Pausar o reanudar el plan.
   @IsOptional()
   @IsBoolean({ message: 'Indica si el plan está activo.' })
@@ -160,6 +193,13 @@ export class CreateRoundDto {
   @Transform(trimOrNull)
   @IsString()
   assignedTechnicianId?: string | null;
+
+  @IsOptional()
+  @Transform(cleanIds)
+  @IsArray({ message: 'Elige los técnicos.' })
+  @ArrayMaxSize(TEAM_MAX, { message: TEAM_MESSAGE })
+  @IsString({ each: true })
+  technicianIds?: string[];
 }
 
 export class CloseRoundDto {
@@ -168,4 +208,111 @@ export class CloseRoundDto {
   @IsString()
   @MaxLength(CLOSE_NOTE_MAX, { message: `La nota no puede superar ${CLOSE_NOTE_MAX} caracteres.` })
   note?: string | null;
+}
+
+// Los técnicos que van a la ronda (2 o 3 si quieren ir más rápido).
+export class SetTechniciansDto {
+  @Transform(cleanIds)
+  @IsArray({ message: 'Elige los técnicos.' })
+  @ArrayMaxSize(TEAM_MAX, { message: TEAM_MESSAGE })
+  @IsString({ each: true })
+  technicianIds!: string[];
+}
+
+// El encargado devuelve la ronda a los técnicos: tiene que decir por qué.
+export class ReturnRoundDto {
+  @Transform(trim)
+  @IsString({ message: 'Escribe qué hay que repasar.' })
+  @IsNotEmpty({ message: 'Escribe qué hay que repasar.' })
+  @MaxLength(RETURN_NOTE_MAX, {
+    message: `La nota no puede superar ${RETURN_NOTE_MAX} caracteres.`,
+  })
+  note!: string;
+}
+
+// ---------------------------------------------------------------
+// Rellenar una habitación desde el móvil
+// ---------------------------------------------------------------
+
+export const STOP_STATUSES = ['PENDING', 'DONE', 'NO_ACCESS'] as const;
+export const ITEM_STATUSES = ['PENDING', 'OK', 'FAIL', 'NA'] as const;
+
+export class StopItemInput {
+  @IsString()
+  @IsNotEmpty()
+  id!: string;
+
+  @IsIn(ITEM_STATUSES, { message: 'Estado de un punto no válido.' })
+  status!: (typeof ITEM_STATUSES)[number];
+
+  // Lo que se anotó: la opción elegida, la temperatura, el texto…
+  @IsOptional()
+  @Transform(trimOrNull)
+  @IsString()
+  @MaxLength(ITEM_VALUE_MAX, { message: `Un punto no puede superar ${ITEM_VALUE_MAX} caracteres.` })
+  value?: string | null;
+
+  @IsOptional()
+  @Transform(trimOrNull)
+  @IsString()
+  @MaxLength(ITEM_VALUE_MAX, { message: `Una nota no puede superar ${ITEM_VALUE_MAX} caracteres.` })
+  notes?: string | null;
+}
+
+export class StopPartInput {
+  @Transform(trim)
+  @IsString({ message: 'Pon el nombre del recambio.' })
+  @IsNotEmpty({ message: 'Pon el nombre del recambio.' })
+  @MaxLength(PART_NAME_MAX, {
+    message: `El recambio no puede superar ${PART_NAME_MAX} caracteres.`,
+  })
+  name!: string;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'La cantidad tiene que ser un número.' })
+  @Min(0.01, { message: 'La cantidad tiene que ser mayor que 0.' })
+  @Max(10000, { message: 'La cantidad es demasiado grande.' })
+  quantity?: number;
+
+  @IsOptional()
+  @Transform(trimOrNull)
+  @IsString()
+  @MaxLength(20)
+  unit?: string | null;
+}
+
+export class SaveStopDto {
+  @IsIn(STOP_STATUSES, { message: 'Elige si está hecha, sin acceso o pendiente.' })
+  status!: (typeof STOP_STATUSES)[number];
+
+  @IsOptional()
+  @Transform(trimOrNull)
+  @IsString()
+  @MaxLength(NO_ACCESS_REASON_MAX, {
+    message: `El motivo no puede superar ${NO_ACCESS_REASON_MAX} caracteres.`,
+  })
+  noAccessReason?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  urgent?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => StopItemInput)
+  items?: StopItemInput[];
+
+  // Si viene, sustituye a los recambios que hubiera.
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(PARTS_MAX, { message: `Como mucho ${PARTS_MAX} recambios por equipo.` })
+  @ValidateNested({ each: true })
+  @Type(() => StopPartInput)
+  parts?: StopPartInput[];
+
+  // Hora del móvil al guardar. Si llega tarde un cambio más viejo, no pisa al nuevo.
+  @IsISO8601({}, { message: 'Falta la hora a la que se guardó.' })
+  savedAt!: string;
 }
