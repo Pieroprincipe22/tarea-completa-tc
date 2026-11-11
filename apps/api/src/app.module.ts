@@ -17,6 +17,7 @@ import { CustomersModule } from './customers/customers.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthController } from './health/health.controller';
 import { MaintenanceReportsModule } from './maintenance-reports/maintenance-reports.module';
+import { MaintenanceSetupModule } from './maintenance-setup/maintenance-setup.module';
 import { MaintenanceTemplatesModule } from './maintenance-templates/maintenance-templates.module';
 import { SitesModule } from './sites/sites.module';
 import { TechniciansModule } from './technicians/technicians.module';
@@ -52,6 +53,7 @@ import { CompanySettingsModule } from './company-settings/company-settings.modul
     TechniciansModule,
     CompanyUsersModule,
     MaintenanceTemplatesModule,
+    MaintenanceSetupModule,
     MaintenanceReportsModule,
     WorkOrdersModule,
     AttachmentsModule,

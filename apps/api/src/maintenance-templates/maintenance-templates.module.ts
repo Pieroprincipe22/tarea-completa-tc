@@ -5,5 +5,6 @@ import { MaintenanceTemplatesService } from './maintenance-templates.service';
 @Module({
   controllers: [MaintenanceTemplatesController],
   providers: [MaintenanceTemplatesService],
+  exports: [MaintenanceTemplatesService],
 })
 export class MaintenanceTemplatesModule {}

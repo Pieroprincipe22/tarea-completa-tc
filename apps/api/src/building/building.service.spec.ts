@@ -53,6 +53,7 @@ describe('Numeración de habitaciones', () => {
     expect(assetLocation('Planta baja', 'COMMON', 'Cuarto de rack')).toBe(
       'Planta baja · Cuarto de rack',
     );
+    expect(assetLocation('Cubierta', 'COMMON', 'cubierta')).toBe('cubierta');
   });
 
   it('ordena los números como números', () => {

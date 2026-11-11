@@ -108,6 +108,27 @@ const ADMIN_SECTIONS: TcNavSection[] = [
     ],
   },
   {
+    key: 'mantenimientos',
+    title: 'Mantenimientos',
+    sectionPath: '/maintenance',
+    groups: [
+      {
+        key: 'mantenimientos-main',
+        title: 'Mantenimientos',
+        shortTitle: 'Mantenimientos',
+        items: [
+          leaf('maintenance', 'Mantenimientos', '/maintenance', {
+            description: 'Los hoteles con preventivo y cómo van sus rondas.',
+          }),
+          leaf('maintenance-new', 'Nuevo mantenimiento', '/maintenance/new', {
+            description:
+              'Habitaciones, máquinas, qué se revisa y cada cuánto, paso a paso.',
+          }),
+        ],
+      },
+    ],
+  },
+  {
     key: 'partes',
     title: 'Partes técnicos',
     sectionPath: '/maintenance-reports',
@@ -165,6 +186,9 @@ const ADMIN_SECTIONS: TcNavSection[] = [
         items: [
           leaf('customers', 'Clientes', '/customers', {
             description: 'Empresas cliente y datos principales.',
+          }),
+          leaf('customers-new', 'Alta de cliente y hotel', '/customers/new', {
+            description: 'El cliente y su hotel o edificio en un solo paso.',
           }),
           leaf('sites', 'Sites / ubicaciones', '/sites', {
             description: 'Hoteles, edificios, plantas, zonas y ubicaciones.',

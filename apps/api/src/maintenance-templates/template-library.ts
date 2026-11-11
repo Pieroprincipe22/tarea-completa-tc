@@ -234,6 +234,32 @@ export const TEMPLATE_LIBRARY: LibraryTemplate[] = [
     ],
   },
   {
+    key: 'vrf-interior',
+    name: 'Mantenimiento de unidad interior VRF',
+    category: 'Unidad interior VRF',
+    description:
+      'Unidad interior de un sistema VRF/VRV (cassette, conductos, mural): limpieza, ventilación, temperaturas y control.',
+    items: [
+      task('Limpieza', 'Limpieza de filtros', { required: true }),
+      task('Limpieza', 'Limpieza de batería'),
+      task('Limpieza', 'Bandeja de condensados'),
+      state('Limpieza', 'Desagüe y bomba de condensados', DRAIN_OPTIONS),
+      state('Ventilación', 'Turbina / ventilador'),
+      state('Ventilación', 'Motor: ruidos y vibraciones'),
+      measure('Mediciones', 'Temperatura de impulsión', '°C', { required: true }),
+      measure('Mediciones', 'Temperatura de retorno', '°C', { required: true }),
+      state('Control', 'Mando / termostato'),
+      state('Control', 'Comunicación con la unidad exterior', COMMUNICATION_OPTIONS),
+      {
+        section: 'Control',
+        label: 'Códigos de error',
+        type: 'TEXT',
+        helpText: 'Déjalo vacío si la unidad no muestra ningún código.',
+      },
+      ...closing('Foto de la unidad'),
+    ],
+  },
+  {
     key: 'enfriadora',
     name: 'Mantenimiento de enfriadora',
     category: 'Enfriadora',

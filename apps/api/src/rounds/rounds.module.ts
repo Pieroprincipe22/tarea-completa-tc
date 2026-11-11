@@ -11,5 +11,6 @@ import { RoundsService } from './rounds.service';
   imports: [NumberingModule],
   providers: [RoundsService, RoundWorkService, MaintenancePlansService, PlanSchedulerService],
   controllers: [MaintenancePlansController, RoundsController],
+  exports: [MaintenancePlansService, RoundsService],
 })
 export class RoundsModule {}

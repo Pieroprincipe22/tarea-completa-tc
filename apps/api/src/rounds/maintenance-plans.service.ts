@@ -47,6 +47,12 @@ const PLAN_INCLUDE = {
 
 type PlanRow = Prisma.MaintenancePlanGetPayload<{ include: typeof PLAN_INCLUDE }>;
 
+// La conexión normal o la de una transacción en curso.
+export type PlansClient = Pick<
+  Prisma.TransactionClient,
+  'maintenancePlan' | 'maintenancePlanTechnician' | 'userCompany'
+>;
+
 function isUniqueViolation(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 }
@@ -254,14 +260,34 @@ export class MaintenancePlansService {
   async create(companyId: string, siteId: string, dto: CreatePlanDto, now: Date = new Date()) {
     await this.findSite(companyId, siteId);
     await this.assertTemplate(companyId, dto.templateId);
+    const planId = await this.insertPlan(this.prisma, companyId, siteId, dto, now);
+
+    // Si la primera ronda ya toca, se crea ahora mismo.
+    await this.materializePlan(planId, now);
+    return this.reload(companyId, siteId, planId);
+  }
+
+  /**
+   * Guarda un plan nuevo con sus técnicos y devuelve su id. No crea
+   * rondas: quien lo llama usa materializePlan cuando ya está guardado
+   * (el asistente de mantenimiento lo llama dentro de su transacción).
+   * El sitio y la plantilla ya tienen que estar comprobados.
+   */
+  async insertPlan(
+    client: PlansClient,
+    companyId: string,
+    siteId: string,
+    dto: CreatePlanDto,
+    now: Date = new Date(),
+  ): Promise<string> {
     this.assertEvery(dto.every, dto.unit);
-    const team = await this.rounds.assertTeam(this.prisma, companyId, requestedTeam(dto) ?? []);
+    const team = await this.rounds.assertTeam(client, companyId, requestedTeam(dto) ?? []);
 
     const startsOn = this.parseStart(dto.startsOn);
     const timing: PlanTiming = { startsOn, unit: dto.unit, every: dto.every };
     const category = dto.category.trim();
 
-    const plan = await this.prisma.maintenancePlan.create({
+    const plan = await client.maintenancePlan.create({
       data: {
         companyId,
         siteId,
@@ -279,14 +305,11 @@ export class MaintenancePlansService {
       select: { id: true },
     });
     if (team.length > 0) {
-      await this.prisma.maintenancePlanTechnician.createMany({
+      await client.maintenancePlanTechnician.createMany({
         data: team.map((userId) => ({ companyId, planId: plan.id, userId })),
       });
     }
-
-    // Si la primera ronda ya toca, se crea ahora mismo.
-    await this.materializePlan(plan.id, now);
-    return this.reload(companyId, siteId, plan.id);
+    return plan.id;
   }
 
   async update(

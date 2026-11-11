@@ -108,8 +108,11 @@ export function spaceLabel(kind: SpaceKindValue, name: string): string {
 }
 
 // Lo que se guarda en la ubicación del equipo: "Planta 2 · Hab. 204".
+// Si la zona se llama como su planta ("Cubierta"), no se repite.
 export function assetLocation(floorName: string, kind: SpaceKindValue, spaceName: string): string {
-  return `${floorName} · ${spaceLabel(kind, spaceName)}`;
+  const label = spaceLabel(kind, spaceName);
+  const same = floorName.trim().toLocaleLowerCase('es') === label.trim().toLocaleLowerCase('es');
+  return same ? label : `${floorName} · ${label}`;
 }
 
 // Nombre de un equipo creado por el generador: "Fancoil · Hab. 204".

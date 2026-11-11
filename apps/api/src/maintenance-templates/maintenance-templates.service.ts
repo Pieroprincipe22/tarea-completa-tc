@@ -37,6 +37,9 @@ function comparable(text: string): string {
     .trim();
 }
 
+// La conexión normal o la de una transacción en curso.
+export type TemplatesClient = Pick<Prisma.TransactionClient, 'maintenanceTemplate'>;
+
 // Una columna JSON opcional no acepta null directamente al crear.
 function jsonOrNull(value: Prisma.JsonValue | TemplateItemOption[] | null) {
   return value === null ? Prisma.DbNull : (value as Prisma.InputJsonValue);
@@ -70,10 +73,18 @@ export class MaintenanceTemplatesService {
     return found;
   }
 
-  async create(companyId: string, dto: CreateMaintenanceTemplateDto) {
+  /**
+   * Crea una plantilla. Con "client" se crea dentro de una transacción ya
+   * abierta (el asistente de mantenimiento la crea junto con el plan).
+   */
+  async create(
+    companyId: string,
+    dto: CreateMaintenanceTemplateDto,
+    client: TemplatesClient = this.prisma,
+  ) {
     const items = this.toItemRows(dto.items);
 
-    return this.prisma.maintenanceTemplate.create({
+    return client.maintenanceTemplate.create({
       data: {
         companyId,
         // "title" se mantiene igual que "name" para las pantallas antiguas.
@@ -219,9 +230,21 @@ export class MaintenanceTemplatesService {
     });
   }
 
+  /**
+   * Comprueba los puntos de una plantilla sin guardar nada: lanza el mismo
+   * error que daría al crearla.
+   */
+  checkItems(items: TemplateItemDto[]): void {
+    this.toItemRows(items);
+  }
+
   // "Mantenimiento de fancoil" → si ya existe, "Mantenimiento de fancoil (2)"…
-  private async freeName(companyId: string, base: string): Promise<string> {
-    const existing = await this.prisma.maintenanceTemplate.findMany({
+  async freeName(
+    companyId: string,
+    base: string,
+    client: TemplatesClient = this.prisma,
+  ): Promise<string> {
+    const existing = await client.maintenanceTemplate.findMany({
       where: { companyId, name: { startsWith: base } },
       select: { name: true },
     });

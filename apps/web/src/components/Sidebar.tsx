@@ -70,6 +70,19 @@ function WorkOrderIcon(props: IconProps) {
   );
 }
 
+function WrenchIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
+      <path
+        d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76Z"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function ReportIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24"fill="none"stroke="currentColor" {...props}>
@@ -271,6 +284,7 @@ function ChevronRightIcon(props: IconProps) {
 function SectionIcon({ sectionKey, className }: { sectionKey: string; className?: string }) {
   if (sectionKey === 'panel') return <HomeIcon className={className} />;
   if (sectionKey === 'ordenes') return <WorkOrderIcon className={className} />;
+  if (sectionKey === 'mantenimientos') return <WrenchIcon className={className} />;
   if (sectionKey === 'partes') return <ReportIcon className={className} />;
   if (sectionKey === 'calendario') return <CalendarIcon className={className} />;
   if (sectionKey === 'clientes') return <UsersIcon className={className} />;
@@ -353,11 +367,21 @@ function StatusDot() {
 function SidebarSubItem({
   item,
   pathname,
+  siblings,
 }: {
   item: TcNavLeaf;
   pathname: string;
+  siblings: TcNavLeaf[];
 }) {
-  const active = isPathActive(pathname, item.path);
+  // En "/maintenance/new" se marca solo "Nuevo mantenimiento", no
+  // también "Mantenimientos": gana la entrada más concreta.
+  const active =
+    isPathActive(pathname, item.path) &&
+    !siblings.some(
+      (other) =>
+        other.path.length > item.path.length &&
+        isPathActive(pathname, other.path),
+    );
 
   const content = (
     <span
@@ -442,7 +466,12 @@ function SidebarSectionItem({
       {showSubmenu ? (
         <div className="ml-5 mt-2 space-y-1 border-l border-line pl-2">
           {subItems.map((item) => (
-            <SidebarSubItem key={item.key} item={item} pathname={pathname} />
+            <SidebarSubItem
+              key={item.key}
+              item={item}
+              pathname={pathname}
+              siblings={subItems}
+            />
           ))}
         </div>
       ) : null}
