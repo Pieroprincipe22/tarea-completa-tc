@@ -78,11 +78,6 @@ export class WorkOrdersController {
     return this.workOrders.markDone(t.companyId, id);
   }
 
-  @Patch(':id/mark-done')
-  markDoneAlias(@Tenant() t: TenantContext, @Param('id') id: string) {
-    return this.workOrders.markDone(t.companyId, id);
-  }
-
   @Patch(':id/reopen')
   reopen(@Tenant() t: TenantContext, @Param('id') id: string) {
     return this.workOrders.reopen(t.companyId, id);

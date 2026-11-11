@@ -1,1 +1,0 @@
-export { PrismaModule } from '../database/prisma.module';
